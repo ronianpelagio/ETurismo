@@ -119,7 +119,7 @@ async function generateAudioViaAPI(
   speakingRate?: number,
 ): Promise<{ success: boolean; audioUrl: string }> {
   const res = await fetch(
-    "https://eturismoadmin.up.railway.app/generate-audio",
+    "https://eturismoadminn.up.railway.app/generate-audio",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -222,7 +222,7 @@ export default function ArtifactsPage() {
   }, [page]);
 
   useEffect(() => {
-    fetch(`https://eturismoadmin.up.railway.app/available-voices/${activeLang}`)
+    fetch(`https://eturismoadminn.up.railway.app/available-voices/${activeLang}`)
       .then((r) => r.json())
       .then((d) => {
         setAvailableVoices(d.voices || []);

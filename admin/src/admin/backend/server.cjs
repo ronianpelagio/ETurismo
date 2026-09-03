@@ -508,7 +508,7 @@ app.post("/generate-audio", async (req, res) => {
       const { data: bucketUrl } = supabase.storage
         .from("artifacts-audio")
         .getPublicUrl(audioFile.name);
-
+     
       // Try to save to database again with bucket URL
       let fallbackError;
       if (existingTx) {
