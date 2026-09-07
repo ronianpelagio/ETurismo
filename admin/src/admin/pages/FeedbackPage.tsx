@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { CardSkeleton, Skeleton } from "../components/LoadingSkeleton";
-import { supabase } from "../services/supabase";
+import { supabaseAdmin } from "../services/supabase";
 import { TourFeedbackRow } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ export default function FeedbackPage() {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from("tour_feedback")
         .select(
           "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",

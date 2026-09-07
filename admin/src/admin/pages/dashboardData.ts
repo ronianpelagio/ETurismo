@@ -1,4 +1,4 @@
-import { supabase } from "../services/supabase";
+import { supabase, supabaseAdmin } from "../services/supabase";
 import {
   DashboardDemographics,
   DashboardStats,
@@ -211,8 +211,9 @@ const defaultTourFeedbackStats: TourFeedbackStats = {
 
 export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
   // Fetch all rows directly from the tour_feedback table — no views needed.
+  // Use supabaseAdmin (service role) to bypass RLS so the admin can see all rows.
   const allRowsResponse = await querySafe(async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("tour_feedback")
       .select(
         "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",

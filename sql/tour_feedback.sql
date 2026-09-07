@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS public.tour_feedback (
   suggestions      text,
   would_recommend  boolean       NOT NULL,
   total_artifacts  integer       NOT NULL DEFAULT 0,
-  submitted_at     timestamptz   NOT NULL DEFAULT now()
+  submitted_at     timestamptz   NOT NULL DEFAULT now(),
+
+  -- One feedback per user (NULL user_id = anonymous, allowed multiple)
+  CONSTRAINT uq_tour_feedback_user UNIQUE (user_id)
 );
 
 -- 2. Indexes for common admin queries
@@ -34,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_tour_feedback_visit_type
 -- 3. Row-Level Security (RLS)
 ALTER TABLE public.tour_feedback ENABLE ROW LEVEL SECURITY;
 
--- Authenticated users can insert their own feedback
+-- Authenticated users can insert their own feedback (enforced by unique constraint)
 CREATE POLICY "Users can insert own feedback"
   ON public.tour_feedback
   FOR INSERT
@@ -48,8 +51,19 @@ CREATE POLICY "Users can read own feedback"
   TO authenticated
   USING (user_id = auth.uid());
 
--- Service role (admin backend) has full access — covers the admin panel
--- No policy needed for service_role; it bypasses RLS by default.
+-- Admins can read ALL feedback (role check against public.users)
+CREATE POLICY "Admins can read all feedback"
+  ON public.tour_feedback
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Service role (admin backend) has full access — bypasses RLS by default.
 
 -- Anon users can insert (for guests who submit without an account)
 CREATE POLICY "Anon can insert feedback"

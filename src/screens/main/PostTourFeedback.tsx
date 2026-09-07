@@ -262,24 +262,40 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const feedback: TourFeedback = {
-      id:              uuidv4(),
-      userId:          userId,
-      overallRating:   rating,
-      visitType:       visitType!,
-      heardFrom,
-      highlights:      highlights.trim(),
-      suggestions:     suggestions.trim(),
-      wouldRecommend:  wouldRecommend!,
-      submittedAt:     Date.now(),
-    };
-
     try {
+      // ── Check if this user already submitted feedback ──────────────────────
+      if (userId) {
+        const { data: existing } = await supabase
+          .from('tour_feedback')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (existing) {
+          setError('You have already submitted feedback. Thank you!');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const feedback: TourFeedback = {
+        id:              uuidv4(),
+        userId:          userId,
+        overallRating:   rating,
+        visitType:       visitType!,
+        heardFrom,
+        highlights:      highlights.trim(),
+        suggestions:     suggestions.trim(),
+        wouldRecommend:  wouldRecommend!,
+        submittedAt:     Date.now(),
+      };
+
       // 1. Persist locally first (always succeeds even offline)
       await saveTourFeedback(feedback);
 
-      // 2. Send to Supabase (best-effort — don't block on failure)
-      await supabase.from('tour_feedback').insert({
+      // 2. Send to Supabase
+      const { error: insertError } = await supabase.from('tour_feedback').insert({
         id:               feedback.id,
         user_id:          feedback.userId ?? null,
         overall_rating:   feedback.overallRating,
@@ -291,8 +307,20 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
         total_artifacts:  totalArtifacts,
         submitted_at:     new Date(feedback.submittedAt).toISOString(),
       });
+
+      if (insertError) {
+        // Unique constraint violation — already submitted
+        if (insertError.code === '23505') {
+          setError('You have already submitted feedback. Thank you!');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setSubmitting(false);
+          return;
+        }
+        // Other errors — local save already succeeded, still show success
+        console.warn('Supabase insert error:', insertError.message);
+      }
     } catch (_) {
-      // Ignore Supabase errors — local save already succeeded
+      // Local save may have succeeded; proceed to success
     } finally {
       setSubmitting(false);
     }
