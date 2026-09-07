@@ -21,10 +21,6 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
 
 import { supabase } from '../../services/supabase';
-import {
-  createOTP,
-  sendOTPEmail,
-} from '../../services/emailService';
 
 import { Ionicons as Icon } from '@expo/vector-icons';
 
@@ -679,6 +675,11 @@ export default function SignUp({
       }
     }
 
+    if (!address.trim()) {
+      newErrors.address =
+        'Address is required';
+    }
+
     setErrors(newErrors);
 
     return (
@@ -923,8 +924,7 @@ export default function SignUp({
                 ),
 
               Address:
-                address.trim() ||
-                null,
+                address.trim(),
 
               profile_picture:
                 profilePictureUrl,
@@ -936,27 +936,7 @@ export default function SignUp({
         throw error;
       }
 
-      /* ----------------------------------------------------------------------
-         CREATE + SEND OTP
-      ---------------------------------------------------------------------- */
-
-      const code =
-        createOTP(
-          normalizedEmail
-        );
-
-      await sendOTPEmail(
-        normalizedEmail,
-        code
-      );
-
-      navigation.navigate(
-        'VerifyOTP',
-        {
-          email:
-            normalizedEmail,
-        }
-      );
+      navigation.navigate('VerifyOTP', { email: normalizedEmail });
 
     } catch (error: any) {
       Alert.alert(
@@ -1246,14 +1226,15 @@ export default function SignUp({
                   </View>
                 </View>
 
-                {/* ADDRESS — optional, short placeholder */}
+                {/* ADDRESS — required */}
 
                 <Field
-                  label="Address (optional)"
+                  label="Address"
                   value={address}
-                  onChangeText={setAddress}
+                  onChangeText={text => { setAddress(text); clearError('address'); }}
                   placeholder="City, Province"
                   autoCapitalize="words"
+                  error={errors.address}
                 />
 
                 {/* CONTINUE */}

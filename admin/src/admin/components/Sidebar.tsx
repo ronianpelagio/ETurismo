@@ -6,6 +6,7 @@ import {
   Users,
   Megaphone,
   Calendar,
+  MessageSquare,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -42,6 +43,7 @@ const NAV: Array<{
   { key: "users", label: "Users", icon: Users },
   { key: "announcements", label: "Announcements", icon: Megaphone },
   { key: "events", label: "Events", icon: Calendar },
+  { key: "feedback", label: "Feedback", icon: MessageSquare },
   { key: "recent-logs", label: "Recent Logs", icon: ClipboardList },
   { key: "settings", label: "Settings", icon: Settings },
 ];

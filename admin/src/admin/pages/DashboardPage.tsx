@@ -10,10 +10,12 @@ import {
   Megaphone,
   Calendar,
   ArrowUpRight,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  TrendingUp,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -32,8 +34,13 @@ import {
   AdminUser,
   DashboardDemographics as DashboardDemographicsType,
   DashboardStats,
+  TourFeedbackStats,
 } from "../types";
-import { fetchDashboardStats, fetchUserDemographics } from "./dashboardData";
+import {
+  fetchDashboardStats,
+  fetchTourFeedbackStats,
+  fetchUserDemographics,
+} from "./dashboardData";
 import { useTheme } from "@/utils/theme";
 
 const defaultStats: DashboardStats = {
@@ -65,12 +72,30 @@ const defaultDemographics: DashboardDemographicsType = {
   locations: {},
 };
 
+const defaultFeedbackStats: TourFeedbackStats = {
+  totalSubmissions: 0,
+  submissionsLast7d: 0,
+  submissionsLast30d: 0,
+  avgRating: 0,
+  ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  recommendPct: 0,
+  recommendYes: 0,
+  recommendNo: 0,
+  visitTypes: { solo: 0, couple: 0, family: 0, group: 0, school: 0 },
+  heardFrom: {},
+  avgArtifactsExplored: 0,
+  dailyTrend: [],
+  recentFeedback: [],
+};
+
 type DashboardPageProps = { profile: AdminUser };
 
 export default function DashboardPage({ profile }: DashboardPageProps) {
   const [stats, setStats] = useState(defaultStats);
   const [demographics, setDemographics] =
     useState<DashboardDemographicsType>(defaultDemographics);
+  const [feedbackStats, setFeedbackStats] =
+    useState<TourFeedbackStats>(defaultFeedbackStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,13 +105,15 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
       setLoading(true);
       setError(null);
       try {
-        const [s, d] = await Promise.all([
+        const [s, d, f] = await Promise.all([
           fetchDashboardStats(),
           fetchUserDemographics(),
+          fetchTourFeedbackStats(),
         ]);
         if (!mounted) return;
         setStats(s);
         setDemographics(d);
+        setFeedbackStats(f);
       } catch (err: any) {
         if (mounted) setError(err?.message || "Unable to load dashboard.");
       } finally {
@@ -177,6 +204,13 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
           loading={loading}
         />
         <StatCard
+          label="Active Users"
+          value={stats.activeUsers.toLocaleString()}
+          delta={`${stats.blockedUsers} inactive`}
+          icon={<Activity className="h-4 w-4" />}
+          loading={loading}
+        />
+        <StatCard
           label="Artifacts"
           value={stats.artifacts.toLocaleString()}
           delta={`${stats.scannedArtifacts} with QR`}
@@ -190,10 +224,14 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
           icon={<Headphones className="h-4 w-4" />}
           loading={loading}
         />
+      </div>
+
+      {/* Stat cards row 2 */}
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Avg. Rating"
           value={stats.averageRating ? stats.averageRating.toFixed(1) : "—"}
-          delta={`${stats.reviews} reviews`}
+          delta={`${stats.reviews} artifact reviews`}
           icon={<Star className="h-4 w-4" />}
           loading={loading}
         />
@@ -402,6 +440,323 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* ── Tour Feedback Section ─────────────────────────────────────────── */}
+      <div className="mt-6">
+        <div className="mb-3 flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">
+            Tour Feedback
+          </h2>
+          <Badge
+            variant="outline"
+            className="rounded-full border-border text-[10px] text-muted-foreground"
+          >
+            {feedbackStats.totalSubmissions} total
+          </Badge>
+        </div>
+
+        {/* Feedback stat cards */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total Feedback"
+            value={feedbackStats.totalSubmissions.toLocaleString()}
+            delta={`+${feedbackStats.submissionsLast7d} this week`}
+            icon={<MessageSquare className="h-4 w-4" />}
+            loading={loading}
+          />
+          <StatCard
+            label="Avg. Tour Rating"
+            value={
+              feedbackStats.avgRating
+                ? feedbackStats.avgRating.toFixed(1)
+                : "—"
+            }
+            delta="Out of 5.0"
+            icon={<Star className="h-4 w-4" />}
+            loading={loading}
+          />
+          <StatCard
+            label="Would Recommend"
+            value={
+              feedbackStats.recommendPct
+                ? `${feedbackStats.recommendPct}%`
+                : "—"
+            }
+            delta={`${feedbackStats.recommendYes} yes · ${feedbackStats.recommendNo} no`}
+            icon={<ThumbsUp className="h-4 w-4" />}
+            loading={loading}
+          />
+          <StatCard
+            label="Avg. Artifacts Explored"
+            value={
+              feedbackStats.avgArtifactsExplored
+                ? feedbackStats.avgArtifactsExplored.toFixed(1)
+                : "—"
+            }
+            delta="Per visit"
+            icon={<TrendingUp className="h-4 w-4" />}
+            loading={loading}
+          />
+        </div>
+
+        {/* Feedback charts row */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {/* 30-day submission trend */}
+          <Card className="lg:col-span-2 rounded-2xl border-border bg-card">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Last 30 days
+                </div>
+                <CardTitle className="mt-0.5 text-base font-semibold">
+                  Feedback trend
+                </CardTitle>
+              </div>
+              <Badge
+                variant="outline"
+                className="rounded-full border-border text-[10px] text-muted-foreground"
+              >
+                {feedbackStats.submissionsLast30d} this month
+              </Badge>
+            </CardHeader>
+            <CardContent className="h-[200px] px-2 pb-2">
+              {loading ? (
+                <Skeleton className="h-full w-full rounded-xl" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={feedbackStats.dailyTrend.map((d) => ({
+                      date: d.day.slice(5),
+                      submissions: d.submissions,
+                      rating: d.avg_rating,
+                    }))}
+                    margin={{ top: 10, right: 16, left: -8, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="fbGrad"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={chartColors.stroke}
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={chartColors.stroke}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      stroke={chartColors.grid}
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fill: chartColors.text, fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={4}
+                    />
+                    <YAxis
+                      tick={{ fill: chartColors.text, fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: chartColors.tooltipBg,
+                        border: `1px solid ${chartColors.tooltipBorder}`,
+                        borderRadius: 10,
+                        color: chartColors.text,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="submissions"
+                      stroke={chartColors.stroke}
+                      strokeWidth={2}
+                      fill="url(#fbGrad)"
+                      name="Submissions"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Rating distribution */}
+          <Card className="rounded-2xl border-border bg-card">
+            <CardHeader className="pb-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Breakdown
+              </div>
+              <CardTitle className="mt-0.5 text-base font-semibold">
+                Rating distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-40 w-full rounded-xl" />
+              ) : (
+                <div className="space-y-2">
+                  {([5, 4, 3, 2, 1] as const).map((star) => {
+                    const count = feedbackStats.ratingDistribution[star];
+                    const pct = feedbackStats.totalSubmissions
+                      ? Math.round(
+                          (count / feedbackStats.totalSubmissions) * 100,
+                        )
+                      : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2">
+                        <span className="w-5 text-right text-[11px] font-medium text-muted-foreground">
+                          {star}★
+                        </span>
+                        <div className="flex-1 h-2 overflow-hidden rounded-full bg-muted">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                            className="h-full rounded-full bg-foreground"
+                          />
+                        </div>
+                        <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {pct}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Visit type + Heard from + Recent feedback row */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {/* Visit type */}
+          <Card className="rounded-2xl border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                Visit type
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-32 w-full rounded-xl" />
+              ) : (
+                <DistributionBars
+                  rows={Object.entries(feedbackStats.visitTypes).map(
+                    ([label, value]) => ({
+                      label:
+                        label.charAt(0).toUpperCase() + label.slice(1),
+                      value,
+                      total: feedbackStats.totalSubmissions,
+                    }),
+                  )}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Heard from */}
+          <Card className="rounded-2xl border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                How they heard about us
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-32 w-full rounded-xl" />
+              ) : Object.keys(feedbackStats.heardFrom).length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">
+                  No data yet
+                </p>
+              ) : (
+                <DistributionBars
+                  rows={Object.entries(feedbackStats.heardFrom)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([label, value]) => ({
+                      label: label
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase()),
+                      value,
+                      total: Object.values(feedbackStats.heardFrom).reduce(
+                        (s, n) => s + n,
+                        0,
+                      ),
+                    }))}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent feedback */}
+          <Card className="rounded-2xl border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                Recent feedback
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-40 w-full rounded-xl" />
+              ) : feedbackStats.recentFeedback.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">
+                  No feedback yet
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {feedbackStats.recentFeedback.map((fb) => (
+                    <div
+                      key={fb.id}
+                      className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/30 p-2.5"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-[11px] font-semibold text-foreground">
+                        {fb.overall_rating}★
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[11px] font-medium capitalize text-foreground">
+                            {fb.visit_type}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            ·
+                          </span>
+                          {fb.would_recommend ? (
+                            <ThumbsUp className="h-3 w-3 text-foreground" />
+                          ) : (
+                            <ThumbsDown className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        {fb.highlights ? (
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {fb.highlights}
+                          </p>
+                        ) : null}
+                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                          {new Date(fb.submitted_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

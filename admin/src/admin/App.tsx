@@ -10,6 +10,7 @@ import UsersPage from "./pages/UsersPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import EventsPage from "./pages/EventsPage";
 import SettingsPage from "./pages/SettingsPage";
+import FeedbackPage from "./pages/FeedbackPage";
 import RecentLogsPage from "./pages/RecentLogsPage";
 import SearchBar from "./components/SearchBar";
 import NotificationDropdown from "./components/NotificationDropdown";
@@ -180,6 +181,8 @@ export default function App() {
         return <AnnouncementsPage />;
       case "events":
         return <EventsPage />;
+      case "feedback":
+        return <FeedbackPage />;
       case "recent-logs":
         return <RecentLogsPage />;
       case "settings":

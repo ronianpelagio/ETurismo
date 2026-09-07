@@ -33,11 +33,17 @@ export default function AuthNavigator() {
     let isMounted = true;
 
     supabase.auth.getSession().then(({ data }) => {
-      if (isMounted) setSession(data.session);
+      // Only treat as logged in if the email has been confirmed
+      const s = data.session;
+      if (isMounted) setSession(s?.user?.email_confirmed_at ? s : null);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_, newSession) => {
-      if (isMounted) setSession(newSession);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!isMounted) return;
+      // Ignore the transient unconfirmed session created right after signUp()
+      // Only accept the session once the user has verified their email
+      if (event === 'SIGNED_IN' && !newSession?.user?.email_confirmed_at) return;
+      setSession(newSession);
     });
 
     return () => {

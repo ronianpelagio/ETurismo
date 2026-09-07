@@ -97,6 +97,58 @@ export type DashboardStats = {
   visitorsTrend: DashboardVisitorTrend[];
 };
 
+// ─── Tour Feedback ────────────────────────────────────────────────────────────
+
+export type TourFeedbackRow = {
+  id: string;
+  user_id: string | null;
+  overall_rating: number;
+  visit_type: "solo" | "couple" | "family" | "group" | "school";
+  heard_from: string[];
+  highlights: string | null;
+  suggestions: string | null;
+  would_recommend: boolean;
+  total_artifacts: number;
+  submitted_at: string;
+};
+
+export type TourFeedbackDailyTrend = {
+  day: string;       // ISO date string "YYYY-MM-DD"
+  submissions: number;
+  avg_rating: number;
+};
+
+export type TourFeedbackStats = {
+  // Volume
+  totalSubmissions: number;
+  submissionsLast7d: number;
+  submissionsLast30d: number;
+
+  // Ratings
+  avgRating: number;
+  ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number>;
+
+  // Recommendation
+  recommendPct: number;
+  recommendYes: number;
+  recommendNo: number;
+
+  // Visit-type breakdown
+  visitTypes: Record<"solo" | "couple" | "family" | "group" | "school", number>;
+
+  // Heard-from breakdown  { social_media: 12, friend: 8, … }
+  heardFrom: Record<string, number>;
+
+  // Avg artifacts explored per visit
+  avgArtifactsExplored: number;
+
+  // 30-day daily trend
+  dailyTrend: TourFeedbackDailyTrend[];
+
+  // Recent 5 submissions for the "latest feedback" list
+  recentFeedback: TourFeedbackRow[];
+};
+
 export type DashboardDemographics = {
   gender: {
     male: number;

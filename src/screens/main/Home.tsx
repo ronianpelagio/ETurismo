@@ -5,7 +5,7 @@ import {
   ActivityIndicator, StyleSheet, Platform, TextInput,
   ImageBackground, Easing, Share, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +26,30 @@ import * as Sharing from 'expo-sharing';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - CARD_GAP) / 2;
+
+const PLACEHOLDER = require('../../assets/1.jpeg');
+
+// ─── SmartImage — shows a placeholder when uri is missing or fails to load ───
+function SmartImage({
+  uri,
+  style,
+  resizeMode = 'cover',
+}: {
+  uri?: string | null;
+  style?: any;
+  resizeMode?: 'cover' | 'contain' | 'stretch' | 'center';
+}) {
+  const [errored, setErrored] = React.useState(false);
+  const valid = !errored && uri && uri.startsWith('http');
+  return (
+    <Image
+      source={valid ? { uri } : PLACEHOLDER}
+      style={style}
+      resizeMode={resizeMode}
+      onError={() => setErrored(true)}
+    />
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────────
 type ArtifactTranslation = {
@@ -198,7 +222,7 @@ function getStyles(C: ReturnType<typeof buildC>) {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingTop: 0,
     },
     heroLogoGroup: {},
     heroLogo: {
@@ -925,7 +949,7 @@ function ArtifactCard({ item, width, onPress, isSaved, index }: {
         onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 12 }).start()}
       >
         <View style={styles.cardImageWrap}>
-          <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
+          <SmartImage uri={item.image_url} style={styles.cardImage} resizeMode="cover" />
           <View style={styles.cardScrim} />
           <View style={styles.cardCatPill}>
             <Text style={styles.cardCatText}>{item.category.split(' ')[0].toUpperCase()}</Text>
@@ -999,7 +1023,7 @@ function FeedCard({ item, type, isInterested, onToggleInterested }: {
   const badgeBg = isEvent ? 'rgba(8,80,65,0.1)' : 'rgba(133,79,11,0.1)';
   return (
     <View style={styles.feedCard}>
-      {item.image_url ? <Image source={{ uri: item.image_url }} style={styles.feedCardImage} resizeMode="cover" /> : null}
+      {item.image_url ? <SmartImage uri={item.image_url} style={styles.feedCardImage} resizeMode="cover" /> : null}
       <View style={styles.feedCardBody}>
         <View style={styles.feedTopRow}>
           <View style={[styles.feedBadge, { backgroundColor: badgeBg, borderColor: `${badgeColor}40` }]}>
@@ -1191,8 +1215,8 @@ function UpdatesWidget({
                     style={[widgetS.annoCard, { width: SCREEN_WIDTH - 72 }]}
                   >
                     {item.image_url ? (
-                      <Image
-                        source={{ uri: item.image_url }}
+                      <SmartImage
+                        uri={item.image_url}
                         style={widgetS.annoImage}
                         resizeMode="cover"
                       />
@@ -1466,6 +1490,7 @@ const widgetS = StyleSheet.create({
 export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (visible: boolean) => void }) {
   const { theme } = useAppTheme();
   C = buildC(theme);
+  const insets = useSafeAreaInsets();
   const styles = getStyles(C);
   const { fontScale } = useAppContext();
   const { language: appLanguage } = useLanguage();
@@ -2097,7 +2122,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
   // ─── Main render ─────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {showToast && (
@@ -2135,13 +2160,13 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
         ══════════════════════════════════════════════════════ */}
         <ImageBackground
           source={require('../../assets/Signin.jpg')}
-          style={styles.hero}
+          style={[styles.hero, { height: 260 + insets.top }]}
           imageStyle={styles.heroBgImage}
         >
           <View style={styles.heroOverlay} />
 
-          {/* Top bar */}
-          <View style={styles.heroTopBar}>
+          {/* Top bar — padded by real status bar height so clock/battery stay visible */}
+          <View style={[styles.heroTopBar, { paddingTop: insets.top + 14 }]}>
             <View style={styles.heroLogoGroup}>
               <Text style={styles.heroLogo}>ETURISMO</Text>
               <Text style={styles.heroLogoSub}>CULTURE · HISTORY · HERITAGE</Text>
@@ -2181,7 +2206,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
               <Animated.View style={{ opacity: spotlightFade }}>
                 <TouchableOpacity style={styles.featuredCard} onPress={() => setSelectedArtifact(featured)} activeOpacity={0.9}>
-                  <Image source={{ uri: featured.image_url }} style={styles.featuredImage} resizeMode="cover" />
+                  <SmartImage uri={featured.image_url} style={styles.featuredImage} resizeMode="cover" />
                   <View style={styles.featuredOverlay} />
                   <View style={styles.featuredContent}>
                     <View style={styles.featuredBadge}>
@@ -2653,7 +2678,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
               {selectedArtifact.image_url && (
                 <View style={styles.modalHero}>
-                  <Image source={{ uri: selectedArtifact.image_url }} style={styles.modalHeroImg} resizeMode="cover" />
+                  <SmartImage uri={selectedArtifact.image_url} style={styles.modalHeroImg} resizeMode="cover" />
                   <View style={styles.modalHeroScrim} />
                   <View style={styles.modalHeroCatPill}>
                     <Text style={styles.modalHeroCatText}>{selectedArtifact.category.toUpperCase()}</Text>

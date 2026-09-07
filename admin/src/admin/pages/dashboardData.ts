@@ -1,5 +1,11 @@
 import { supabase } from "../services/supabase";
-import { DashboardDemographics, DashboardStats } from "../types";
+import {
+  DashboardDemographics,
+  DashboardStats,
+  TourFeedbackDailyTrend,
+  TourFeedbackRow,
+  TourFeedbackStats,
+} from "../types";
 
 const queryCount = async (table: string, filter?: Record<string, unknown>) => {
   let query = supabase.from(table).select("id", { head: true, count: "exact" });
@@ -125,8 +131,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   const rowsResponse = await querySafe(async () => {
-    // users table now stores `age` (integer) and no longer provides birthdate/location columns
-    const { data, error } = await supabase.from("users").select("gender, age");
+    // users table stores `age` (integer) and `Address` (text) for location breakdown
+    const { data, error } = await supabase.from("users").select("gender, age, Address");
     if (error) throw error;
     return data as Array<Record<string, any>>;
   });
@@ -169,8 +175,145 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
       result.ageGroups.unknown += 1;
     }
 
-    // locations were removed from the schema; leave locations empty so UI shows "No location data yet"
+    // Bucket address into top locations (normalise to title-case, trim whitespace)
+    const rawAddress = String(row.Address ?? "").trim();
+    if (rawAddress) {
+      // Normalise: "city, province" → "City, Province"
+      const normAddress = rawAddress
+        .split(",")
+        .map((part) => part.trim().replace(/\b\w/g, (c) => c.toUpperCase()))
+        .join(", ");
+      result.locations[normAddress] = (result.locations[normAddress] ?? 0) + 1;
+    }
   });
 
   return result;
+}
+
+
+// ─── Tour Feedback Stats ──────────────────────────────────────────────────────
+
+const defaultTourFeedbackStats: TourFeedbackStats = {
+  totalSubmissions: 0,
+  submissionsLast7d: 0,
+  submissionsLast30d: 0,
+  avgRating: 0,
+  ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  recommendPct: 0,
+  recommendYes: 0,
+  recommendNo: 0,
+  visitTypes: { solo: 0, couple: 0, family: 0, group: 0, school: 0 },
+  heardFrom: {},
+  avgArtifactsExplored: 0,
+  dailyTrend: [],
+  recentFeedback: [],
+};
+
+export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
+  const thirtyDaysAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [aggRow, trendRows, recentRows] = await Promise.all([
+    // 1. Aggregated stats view
+    querySafe(async () => {
+      const { data, error } = await supabase
+        .from("tour_feedback_stats")
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      return data as Record<string, any> | null;
+    }),
+
+    // 2. 30-day daily trend view
+    querySafe(async () => {
+      const { data, error } = await supabase
+        .from("tour_feedback_daily_trend")
+        .select("day, submissions, avg_rating")
+        .gte("day", thirtyDaysAgo)
+        .order("day", { ascending: true });
+      if (error) throw error;
+      return data as Array<{ day: string; submissions: number; avg_rating: number }>;
+    }),
+
+    // 3. Recent 5 feedback rows (with user join for display)
+    querySafe(async () => {
+      const { data, error } = await supabase
+        .from("tour_feedback")
+        .select(
+          "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",
+        )
+        .order("submitted_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data as TourFeedbackRow[];
+    }),
+  ]);
+
+  if (!aggRow) return defaultTourFeedbackStats;
+
+  // Heard-from breakdown: query the view directly
+  const heardFromMap: Record<string, number> = {};
+  const heardFromRows = await querySafe(async () => {
+    const { data, error } = await supabase
+      .from("tour_feedback_heard_from")
+      .select("source, count");
+    if (error) throw error;
+    return data as Array<{ source: string; count: number }>;
+  });
+  if (Array.isArray(heardFromRows)) {
+    heardFromRows.forEach((r) => {
+      heardFromMap[r.source] = Number(r.count ?? 0);
+    });
+  }
+
+  // Build full 30-day trend (fill missing days with 0)
+  const trendMap = new Map<string, { submissions: number; avg_rating: number }>();
+  if (Array.isArray(trendRows)) {
+    trendRows.forEach((r) => trendMap.set(r.day, r));
+  }
+  const dailyTrend: TourFeedbackDailyTrend[] = Array.from({ length: 30 }).map(
+    (_, i) => {
+      const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      const found = trendMap.get(key);
+      return {
+        day: key,
+        submissions: found?.submissions ?? 0,
+        avg_rating: found ? Number(found.avg_rating ?? 0) : 0,
+      };
+    },
+  );
+
+  return {
+    totalSubmissions: Number(aggRow.total_submissions ?? 0),
+    submissionsLast7d: Number(aggRow.submissions_last_7d ?? 0),
+    submissionsLast30d: Number(aggRow.submissions_last_30d ?? 0),
+
+    avgRating: Number(aggRow.avg_rating ?? 0),
+    ratingDistribution: {
+      1: Number(aggRow.rating_1 ?? 0),
+      2: Number(aggRow.rating_2 ?? 0),
+      3: Number(aggRow.rating_3 ?? 0),
+      4: Number(aggRow.rating_4 ?? 0),
+      5: Number(aggRow.rating_5 ?? 0),
+    },
+
+    recommendPct: Number(aggRow.recommend_pct ?? 0),
+    recommendYes: Number(aggRow.recommend_yes ?? 0),
+    recommendNo: Number(aggRow.recommend_no ?? 0),
+
+    visitTypes: {
+      solo: Number(aggRow.vt_solo ?? 0),
+      couple: Number(aggRow.vt_couple ?? 0),
+      family: Number(aggRow.vt_family ?? 0),
+      group: Number(aggRow.vt_group ?? 0),
+      school: Number(aggRow.vt_school ?? 0),
+    },
+
+    heardFrom: heardFromMap,
+    avgArtifactsExplored: Number(aggRow.avg_artifacts_explored ?? 0),
+    dailyTrend,
+    recentFeedback: Array.isArray(recentRows) ? recentRows : [],
+  };
 }

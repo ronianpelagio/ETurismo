@@ -7,10 +7,9 @@ import {
   Image,
   Dimensions,
   TouchableOpacity,
-  Platform,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -36,13 +35,15 @@ const PAGES = [
     sub: 'Discover churches, artifacts, and heritage sites from anywhere in the world.',
     image: require('../../assets/1.jpeg'),
     icon: 'compass',
+    accent: '#C9A84C',
   },
   {
-    eyebrow: 'Always Available',
-    title: 'Works Offline\n& Online',
-    sub: 'Access the full collection even without an internet connection.',
+    eyebrow: 'Living History',
+    title: 'Journey\nThrough Time',
+    sub: 'Walk through centuries of culture, tradition, and spirituality preserved for you.',
     image: require('../../assets/1.jpeg'),
-    icon: 'cloud',
+    icon: 'clock',
+    accent: '#A07840',
   },
   {
     eyebrow: 'Digital Artifacts',
@@ -50,83 +51,155 @@ const PAGES = [
     sub: 'View artifacts up close with detailed descriptions and immersive audio guides.',
     image: require('../../assets/1.jpeg'),
     icon: 'cpu',
+    accent: '#C9A84C',
   },
 ];
+
+// ─── Per-page content animation refs (staggered entrance) ───────────────────
+type AnimRefs = {
+  eyebrowY: Animated.Value;
+  eyebrowOp: Animated.Value;
+  titleY: Animated.Value;
+  titleOp: Animated.Value;
+  lineW: Animated.Value;
+  subY: Animated.Value;
+  subOp: Animated.Value;
+};
+
+function makePageAnimRefs(): AnimRefs {
+  return {
+    eyebrowY: new Animated.Value(20),
+    eyebrowOp: new Animated.Value(0),
+    titleY: new Animated.Value(28),
+    titleOp: new Animated.Value(0),
+    lineW: new Animated.Value(0),
+    subY: new Animated.Value(20),
+    subOp: new Animated.Value(0),
+  };
+}
+
+function runPageEntrance(refs: AnimRefs) {
+  Animated.sequence([
+    Animated.parallel([
+      Animated.timing(refs.eyebrowOp, { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(refs.eyebrowY, { toValue: 0, duration: 280, useNativeDriver: true }),
+    ]),
+    Animated.parallel([
+      Animated.timing(refs.titleOp, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(refs.titleY, { toValue: 0, tension: 90, friction: 14, useNativeDriver: true }),
+    ]),
+    Animated.parallel([
+      Animated.timing(refs.lineW, { toValue: 1, duration: 320, useNativeDriver: true }),
+    ]),
+    Animated.parallel([
+      Animated.timing(refs.subOp, { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(refs.subY, { toValue: 0, duration: 280, useNativeDriver: true }),
+    ]),
+  ]).start();
+}
+
+function resetPageAnimRefs(refs: AnimRefs) {
+  refs.eyebrowY.setValue(20);
+  refs.eyebrowOp.setValue(0);
+  refs.titleY.setValue(28);
+  refs.titleOp.setValue(0);
+  refs.lineW.setValue(0);
+  refs.subY.setValue(20);
+  refs.subOp.setValue(0);
+}
 
 export default function GetStarted({ navigation, onOnboardingComplete }: any) {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  
+
+  const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
-  const scrollViewHorizontalRef = useRef<ScrollView>(null);
-  
-  // Content fade animations
-  const contentOpacity = useRef(new Animated.Value(1)).current;
-  const imageScale = useRef(new Animated.Value(1)).current;
-  
-  // Dot animations — PAGES has exactly 3 items; declare refs statically to obey Rules of Hooks
+
+  // Badge bounce animation
+  const badgeBounce = useRef(new Animated.Value(0)).current;
+
+  // Dot animations — exactly 3, declared statically (Rules of Hooks)
   const dotScales = [
     useRef(new Animated.Value(1)).current,
     useRef(new Animated.Value(1)).current,
     useRef(new Animated.Value(1)).current,
   ];
-  const dotOpacities = [
-    useRef(new Animated.Value(1)).current,
-    useRef(new Animated.Value(0.4)).current,
-    useRef(new Animated.Value(0.4)).current,
+  const dotWidths = [
+    useRef(new Animated.Value(24)).current,
+    useRef(new Animated.Value(6)).current,
+    useRef(new Animated.Value(6)).current,
   ];
-  
-  // Entrance animation
-  const entranceY = useRef(new Animated.Value(30)).current;
-  const entranceOp = useRef(new Animated.Value(0)).current;
-  const buttonScale = useRef(new Animated.Value(0.95)).current;
+
+  // Per-page staggered text animations
+  const pageAnims = useRef<AnimRefs[]>(PAGES.map(() => makePageAnimRefs())).current;
+
+  // Global entrance (screen mount)
+  const screenOp = useRef(new Animated.Value(0)).current;
+  const screenY = useRef(new Animated.Value(40)).current;
+  const buttonScale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
+    // Screen entrance
     Animated.parallel([
-      Animated.timing(entranceY, { toValue: 0, duration: 600, useNativeDriver: true }),
-      Animated.timing(entranceOp, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(screenOp, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(screenY, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true }),
       Animated.spring(buttonScale, { toValue: 1, tension: 50, friction: 8, useNativeDriver: true }),
     ]).start();
+
+    // Start badge bounce loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(badgeBounce, { toValue: -6, duration: 700, useNativeDriver: true }),
+        Animated.timing(badgeBounce, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+
+    // First page text entrance
+    runPageEntrance(pageAnims[0]);
   }, []);
 
-  const goToPage = (index: number) => {
-    if (isAnimating || index === page) return;
-    setIsAnimating(true);
-    
-    // Scroll to the page
-    scrollViewHorizontalRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
-    
-    // Animate content fade out/in
-    Animated.parallel([
-      Animated.timing(contentOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
-      Animated.timing(imageScale, { toValue: 0.95, duration: 150, useNativeDriver: true }),
-    ]).start(() => {
-      setPage(index);
-      
-      Animated.parallel([
-        Animated.timing(contentOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.spring(imageScale, { toValue: 1, tension: 80, friction: 12, useNativeDriver: true }),
-      ]).start();
-    });
-    
-    // Animate dots
+  const animateDots = (index: number) => {
     PAGES.forEach((_, i) => {
       Animated.spring(dotScales[i], {
-        toValue: i === index ? 1.2 : 1,
+        toValue: i === index ? 1.1 : 1,
         useNativeDriver: true,
         tension: 200,
         friction: 12,
       }).start();
-      
-      Animated.timing(dotOpacities[i], {
-        toValue: i === index ? 1 : 0.4,
-        duration: 200,
-        useNativeDriver: true,
+      Animated.timing(dotWidths[i], {
+        toValue: i === index ? 24 : 6,
+        duration: 250,
+        useNativeDriver: false,
       }).start();
     });
-    
-    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  const goToPage = (index: number) => {
+    if (isAnimating || index === page) return;
+    setIsAnimating(true);
+
+    scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+
+    resetPageAnimRefs(pageAnims[index]);
+    animateDots(index);
+    setPage(index);
+
+    setTimeout(() => {
+      runPageEntrance(pageAnims[index]);
+      setIsAnimating(false);
+    }, 180);
+  };
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const newPage = Math.round(offsetX / SCREEN_WIDTH);
+    if (newPage !== page && !isAnimating && newPage >= 0 && newPage < PAGES.length) {
+      resetPageAnimRefs(pageAnims[newPage]);
+      animateDots(newPage);
+      setPage(newPage);
+      setTimeout(() => runPageEntrance(pageAnims[newPage]), 60);
+    }
   };
 
   const handleNext = () => {
@@ -134,34 +207,10 @@ export default function GetStarted({ navigation, onOnboardingComplete }: any) {
       goToPage(page + 1);
     } else {
       Animated.parallel([
-        Animated.timing(entranceOp, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(buttonScale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
+        Animated.timing(screenOp, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(buttonScale, { toValue: 0.9, duration: 200, useNativeDriver: true }),
       ]).start(() => {
         onOnboardingComplete && onOnboardingComplete();
-      });
-    }
-  };
-
-  const handleScroll = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const newPage = Math.round(offsetX / SCREEN_WIDTH);
-    if (newPage !== page && !isAnimating) {
-      setPage(newPage);
-      
-      // Update dots
-      PAGES.forEach((_, i) => {
-        Animated.spring(dotScales[i], {
-          toValue: i === newPage ? 1.2 : 1,
-          useNativeDriver: true,
-          tension: 200,
-          friction: 12,
-        }).start();
-        
-        Animated.timing(dotOpacities[i], {
-          toValue: i === newPage ? 1 : 0.4,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
       });
     }
   };
@@ -172,7 +221,7 @@ export default function GetStarted({ navigation, onOnboardingComplete }: any) {
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
-      {/* Background Gradient */}
+      {/* Background */}
       <LinearGradient
         colors={[C.bg, C.surface]}
         start={{ x: 0, y: 0 }}
@@ -180,153 +229,230 @@ export default function GetStarted({ navigation, onOnboardingComplete }: any) {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Decorative Elements */}
+      {/* Decorative circles */}
       <View style={styles.decorativeTop} />
       <View style={styles.decorativeBottom} />
 
-      {/* Skip Button */}
+      {/* Skip */}
       {!isLast && (
-        <TouchableOpacity
-          style={[styles.skip, { top: insets.top + 16 }]}
-          onPress={() => {
-            Animated.parallel([
-              Animated.timing(entranceOp, { toValue: 0, duration: 300, useNativeDriver: true }),
-              Animated.timing(buttonScale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
-            ]).start(() => onOnboardingComplete && onOnboardingComplete());
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-          <Feather name="chevron-right" size={12} color={C.inkMid} />
-        </TouchableOpacity>
+        <Animated.View style={[styles.skipWrap, { top: insets.top + 16, opacity: screenOp }]}>
+          <TouchableOpacity
+            style={styles.skip}
+            onPress={() => {
+              Animated.timing(screenOp, { toValue: 0, duration: 250, useNativeDriver: true }).start(
+                () => onOnboardingComplete && onOnboardingComplete()
+              );
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.skipText}>Skip</Text>
+            <Feather name="chevron-right" size={12} color={C.inkMid} />
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
-      {/* Image Slider */}
-      <ScrollView
-        ref={scrollViewHorizontalRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        decelerationRate="fast"
-        style={styles.slider}
-        contentContainerStyle={styles.sliderContent}
-      >
-        {PAGES.map((p, i) => (
-          <View key={i} style={[styles.slide, { width: SCREEN_WIDTH }]}>
-            <View style={styles.imageWrapper}>
-              <Animated.View
-                style={[
-                  styles.imageCard,
-                  { transform: [{ scale: i === page ? imageScale : 1 }] },
-                ]}
-              >
-                <Image source={p.image} style={styles.image} resizeMode="cover" />
-                <View style={styles.imageOverlayContainer}>
+      {/* ── Image Slider ─────────────────────────────────────────────────── */}
+      <View style={[styles.sliderWrapper, { paddingTop: insets.top + 56 }]}>
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          decelerationRate="fast"
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: false, listener: handleScroll }
+          )}
+          style={styles.slider}
+          contentContainerStyle={styles.sliderContent}
+        >
+          {PAGES.map((p, i) => {
+            // Parallax: image shifts slightly as the slide scrolls in/out
+            const inputRange = [
+              (i - 1) * SCREEN_WIDTH,
+              i * SCREEN_WIDTH,
+              (i + 1) * SCREEN_WIDTH,
+            ];
+            const translateX = scrollX.interpolate({
+              inputRange,
+              outputRange: [-30, 0, 30],
+              extrapolate: 'clamp',
+            });
+            const scale = scrollX.interpolate({
+              inputRange,
+              outputRange: [0.9, 1, 0.9],
+              extrapolate: 'clamp',
+            });
+            const cardOp = scrollX.interpolate({
+              inputRange,
+              outputRange: [0.6, 1, 0.6],
+              extrapolate: 'clamp',
+            });
+
+            return (
+              <View key={i} style={[styles.slide, { width: SCREEN_WIDTH }]}>
+                <Animated.View style={[styles.imageCard, { opacity: cardOp, transform: [{ scale }] }]}>
+                  <Animated.Image
+                    source={p.image}
+                    style={[styles.image, { transform: [{ translateX }] }]}
+                    resizeMode="cover"
+                  />
                   <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.3)', C.gold]}
+                    colors={['transparent', 'rgba(0,0,0,0.25)', p.accent + 'CC']}
                     style={styles.imageOverlay}
-                    start={{ x: 0, y: 0.5 }}
+                    start={{ x: 0, y: 0.4 }}
                     end={{ x: 1, y: 1 }}
                   />
-                </View>
-                <View style={styles.imageFrame} />
-              </Animated.View>
+                  <View style={styles.imageFrame} />
+                </Animated.View>
 
-              {/* Page Badge */}
-              <View style={styles.pageBadge}>
-                <Feather name={p.icon as any} size={18} color={C.surface} />
+                {/* Badge — bounces on the active page */}
+                <Animated.View
+                  style={[
+                    styles.pageBadge,
+                    { backgroundColor: p.accent },
+                    i === page
+                      ? { transform: [{ translateY: badgeBounce }] }
+                      : undefined,
+                  ]}
+                >
+                  <Feather name={p.icon as any} size={18} color={C.surface} />
+                </Animated.View>
               </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Text Content */}
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: Animated.multiply(entranceOp, contentOpacity),
-            transform: [{ translateY: entranceY }],
-          },
-        ]}
-      >
-        <View style={styles.eyebrowContainer}>
-          <View style={styles.eyebrowDot} />
-          <Text style={styles.eyebrow}>{PAGES[page].eyebrow}</Text>
-        </View>
-
-        <Text style={styles.title}>{PAGES[page].title}</Text>
-
-        <View style={styles.goldLineContainer}>
-          <View style={styles.goldLine} />
-          <View style={styles.goldLineShort} />
-        </View>
-
-        <Text style={styles.sub}>{PAGES[page].sub}</Text>
-      </Animated.View>
-
-      {/* Dots */}
-      <View style={styles.dotsContainer}>
-        <View style={styles.dots}>
-          {PAGES.map((_, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => goToPage(i)}
-              activeOpacity={0.7}
-              disabled={isAnimating}
-            >
-              <Animated.View
-                style={[
-                  styles.dot,
-                  {
-                    transform: [{ scale: dotScales[i] }],
-                    opacity: dotOpacities[i],
-                  },
-                ]}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* Bottom Actions */}
+      {/* ── Bottom Panel ─────────────────────────────────────────────────── */}
       <Animated.View
         style={[
-          styles.bottom,
-          {
-            paddingBottom: insets.bottom + 24,
-            transform: [{ scale: buttonScale }],
-            opacity: entranceOp,
-          },
+          styles.bottomPanel,
+          { paddingBottom: insets.bottom + 20, opacity: screenOp, transform: [{ translateY: screenY }] },
         ]}
       >
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleNext}
-          activeOpacity={0.85}
-          disabled={isAnimating}
-        >
-          <View style={styles.buttonGradientWrapper}>
-            <LinearGradient
-              colors={[C.ink, '#2D2D2D']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
+        {/* Text block — staggered per page */}
+        <View style={styles.content}>
+          <Animated.View
+            style={{
+              opacity: pageAnims[page].eyebrowOp,
+              transform: [{ translateY: pageAnims[page].eyebrowY }],
+            }}
+          >
+            <View style={styles.eyebrowContainer}>
+              <View style={[styles.eyebrowDot, { backgroundColor: PAGES[page].accent }]} />
+              <Text style={[styles.eyebrow, { color: PAGES[page].accent }]}>
+                {PAGES[page].eyebrow}
+              </Text>
+            </View>
+          </Animated.View>
+
+          <Animated.Text
+            style={[
+              styles.title,
+              {
+                opacity: pageAnims[page].titleOp,
+                transform: [{ translateY: pageAnims[page].titleY }],
+              },
+            ]}
+          >
+            {PAGES[page].title}
+          </Animated.Text>
+
+          <View style={styles.goldLineContainer}>
+            <Animated.View
+              style={[
+                styles.goldLine,
+                {
+                  backgroundColor: PAGES[page].accent,
+                  transform: [
+                    {
+                      scaleX: pageAnims[page].lineW,
+                    },
+                  ],
+                  transformOrigin: 'left',
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.goldLineShort,
+                {
+                  backgroundColor: PAGES[page].accent,
+                  opacity: pageAnims[page].lineW,
+                },
+              ]}
             />
           </View>
-          <Text style={styles.buttonText}>{isLast ? 'Begin Journey' : 'Next'}</Text>
-        </TouchableOpacity>
 
-        {!isLast && (
+          <Animated.Text
+            style={[
+              styles.sub,
+              {
+                opacity: pageAnims[page].subOp,
+                transform: [{ translateY: pageAnims[page].subY }],
+              },
+            ]}
+          >
+            {PAGES[page].sub}
+          </Animated.Text>
+        </View>
+
+        {/* Dots — pill shape for active */}
+        <View style={styles.dotsContainer}>
+          <View style={styles.dots}>
+            {PAGES.map((p, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => goToPage(i)}
+                activeOpacity={0.7}
+                disabled={isAnimating}
+              >
+                <Animated.View
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: i === page ? p.accent : C.border,
+                      width: dotWidths[i],
+                      transform: [{ scale: dotScales[i] }],
+                    },
+                  ]}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Button */}
+        <Animated.View style={[styles.buttonWrap, { transform: [{ scale: buttonScale }] }]}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleNext}
+            activeOpacity={0.85}
+            disabled={isAnimating}
+          >
+            <LinearGradient
+              colors={isLast ? [C.gold, C.goldDark] : [C.ink, '#2D2D2D']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={[styles.buttonText, isLast && { color: C.ink }]}>
+              {isLast ? 'Begin Journey' : 'Next'}
+            </Text>
+            <View style={[styles.buttonIcon, { backgroundColor: isLast ? C.ink : C.gold }]}>
+              <Feather name={isLast ? 'arrow-right' : 'chevron-right'} size={14} color={C.surface} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Step progress */}
           <View style={styles.stepRow}>
-            <View style={styles.stepProgress}>
-              <View
+            <View style={styles.stepTrack}>
+              <Animated.View
                 style={[
-                  styles.stepProgressFill,
-                  { width: `${((page + 1) / PAGES.length) * 100}%` },
+                  styles.stepFill,
+                  { width: `${((page + 1) / PAGES.length) * 100}%`, backgroundColor: PAGES[page].accent },
                 ]}
               />
             </View>
@@ -334,7 +460,7 @@ export default function GetStarted({ navigation, onOnboardingComplete }: any) {
               {page + 1} / {PAGES.length}
             </Text>
           </View>
-        )}
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -346,14 +472,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg,
   },
 
-  // Decorative elements
   decorativeTop: {
     position: 'absolute',
     top: -100,
     right: -100,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: C.goldSoft,
     opacity: 0.5,
   },
@@ -361,18 +486,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -100,
     left: -100,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     backgroundColor: C.goldSoft,
     opacity: 0.3,
   },
 
-  // Skip button
-  skip: {
+  // Skip
+  skipWrap: {
     position: 'absolute',
     right: 20,
     zIndex: 20,
+  },
+  skip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: C.surface,
@@ -381,12 +511,9 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   skipText: {
     fontSize: 13,
@@ -396,49 +523,41 @@ const styles = StyleSheet.create({
   },
 
   // Slider
+  sliderWrapper: {
+    flex: 1,
+  },
   slider: {
-    flexGrow: 0,
-    marginTop: Platform.OS === 'ios' ? 20 : 40,
+    flex: 1,
   },
   sliderContent: {
     alignItems: 'center',
   },
   slide: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  imageWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
   },
   imageCard: {
     width: SCREEN_WIDTH - 48,
-    height: SCREEN_HEIGHT * 0.38,
+    height: SCREEN_HEIGHT * 0.37,
     borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
     shadowColor: C.ink,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.13,
+    shadowRadius: 28,
+    elevation: 12,
   },
   image: {
-    width: '100%',
+    width: '110%',         // slightly wider to allow parallax travel
     height: '100%',
-  },
-  imageOverlayContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
+    marginLeft: '-5%',
   },
   imageOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   imageFrame: {
     position: 'absolute',
@@ -452,86 +571,90 @@ const styles = StyleSheet.create({
   },
   pageBadge: {
     position: 'absolute',
-    bottom: -12,
-    right: 32,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.gold,
+    bottom: -14,
+    right: 36,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: C.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: C.surface,
+  },
+
+  // Bottom panel
+  bottomPanel: {
+    paddingHorizontal: 0,
   },
 
   // Content
   content: {
     paddingHorizontal: 28,
-    marginTop: 24,
+    marginTop: 30,
+    marginBottom: 4,
   },
   eyebrowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   eyebrowDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: C.gold,
   },
   eyebrow: {
     fontSize: 11,
     letterSpacing: 2.5,
-    color: C.gold,
-    fontWeight: '600',
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   title: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
     color: C.ink,
-    lineHeight: 42,
-    letterSpacing: -1,
+    lineHeight: 40,
+    letterSpacing: -0.8,
   },
   goldLineContainer: {
-    marginTop: 16,
-    marginBottom: 14,
+    marginTop: 14,
+    marginBottom: 12,
+    gap: 6,
   },
   goldLine: {
     width: 48,
     height: 3,
-    backgroundColor: C.gold,
     borderRadius: 2,
-    marginBottom: 6,
   },
   goldLineShort: {
     width: 24,
     height: 3,
-    backgroundColor: C.gold,
     borderRadius: 2,
-    opacity: 0.4,
+    opacity: 0.45,
   },
   sub: {
-    fontSize: 15,
+    fontSize: 14,
     color: C.inkMid,
     lineHeight: 22,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
 
   // Dots
   dotsContainer: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 20,
+    marginBottom: 2,
   },
   dots: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: C.surface,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -540,77 +663,60 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   dot: {
-    width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: C.gold,
   },
 
-  // Bottom
-  bottom: {
+  // Button
+  buttonWrap: {
     paddingHorizontal: 28,
-    marginTop: 20,
+    marginTop: 14,
   },
   button: {
-    backgroundColor: C.ink,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 16,
-    gap: 12,
+    gap: 10,
+    overflow: 'hidden',
     shadowColor: C.ink,
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 16,
     elevation: 6,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  buttonGradientWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  buttonGradient: {
-    flex: 1,
   },
   buttonText: {
-    color: '#FFF',
+    color: C.surface,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
-    zIndex: 1,
   },
   buttonIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.gold,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
   },
+
+  // Step progress
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 12,
-    marginTop: 16,
+    marginTop: 14,
+    paddingHorizontal: 4,
   },
-  stepProgress: {
+  stepTrack: {
     flex: 1,
     height: 3,
     backgroundColor: C.border,
     borderRadius: 2,
     overflow: 'hidden',
-    maxWidth: 100,
   },
-  stepProgressFill: {
+  stepFill: {
     height: '100%',
-    backgroundColor: C.gold,
     borderRadius: 2,
   },
   stepText: {
@@ -618,5 +724,7 @@ const styles = StyleSheet.create({
     color: C.inkLight,
     letterSpacing: 0.5,
     fontWeight: '500',
+    minWidth: 32,
+    textAlign: 'right',
   },
 });

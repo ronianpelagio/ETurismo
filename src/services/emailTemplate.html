@@ -1,67 +1,232 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verify Your Etorismo Account</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!--[if mso]>
+  <noscript>
+    <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+  </noscript>
+  <![endif]-->
+  <title>Your ETurismo Verification Code</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #F5F0EB;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img   { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+    a     { color: #C9A84C; text-decoration: none; }
+
+    @media only screen and (max-width: 560px) {
+      .wrapper    { width: 100% !important; padding: 16px !important; }
+      .card       { border-radius: 12px !important; }
+      .header-pad { padding: 32px 24px 24px !important; }
+      .body-pad   { padding: 32px 24px 24px !important; }
+      .foot-pad   { padding: 20px 24px 32px !important; }
+      .logo-text  { font-size: 22px !important; }
+      .otp-table  { padding: 20px 8px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F5F0EB;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F0EB;padding:40px 0;">
+
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background-color:#F5F0EB; padding: 48px 16px;">
     <tr>
       <td align="center">
-        <table width="520" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
-          <!-- Header -->
+        <!-- Card -->
+        <table class="card" width="560" cellpadding="0" cellspacing="0" role="presentation"
+               style="max-width:560px; width:100%; background:#FFFFFF; border-radius:20px;
+                      overflow:hidden; box-shadow:0 8px 40px rgba(26,22,18,0.10);">
+
+          <!-- ══ HEADER ══ -->
           <tr>
-            <td style="background:linear-gradient(135deg,#1A1612 0%,#2E2520 100%);padding:40px 48px 32px;text-align:center;">
-              <h1 style="margin:0;color:#C9A84C;font-size:28px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">ETORISMO</h1>
-              <p style="margin:8px 0 0;color:#A89F96;font-size:13px;letter-spacing:1px;">Your Journey Starts Here</p>
-            </td>
-          </tr>
+            <td class="header-pad"
+                style="background: linear-gradient(145deg, #1A1612 0%, #2C2218 60%, #3A2E20 100%);
+                       padding: 44px 48px 36px; text-align: center;">
 
-          <!-- Body -->
-          <tr>
-            <td style="padding:48px 48px 32px;">
-              <h2 style="margin:0 0 12px;color:#1A1612;font-size:22px;font-weight:700;">Verify Your Account</h2>
-              <p style="margin:0 0 32px;color:#6B6459;font-size:15px;line-height:1.6;">
-                Welcome! Use the one-time code below to verify your Etorismo account.
-                This code expires in <strong>5 minutes</strong>.
-              </p>
-
-              <!-- OTP Box -->
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <!-- Decorative top line -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
-                  <td align="center" style="padding:28px 0;background-color:#FAF7F3;border-radius:12px;border:2px dashed #C9A84C;">
-                    <p style="margin:0 0 4px;color:#A89F96;font-size:12px;letter-spacing:2px;text-transform:uppercase;">Verification Code</p>
-                    <p style="margin:0;color:#C9A84C;font-size:44px;font-weight:800;letter-spacing:14px;">{{otp_code}}</p>
+                  <td align="center" style="padding-bottom: 20px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="width:40px; height:2px; background:#C9A84C; border-radius:2px;"></td>
+                        <td style="width:8px;"></td>
+                        <td style="width:8px; height:8px; background:#C9A84C; border-radius:50%;"></td>
+                        <td style="width:8px;"></td>
+                        <td style="width:40px; height:2px; background:#C9A84C; border-radius:2px;"></td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:32px 0 0;color:#6B6459;font-size:14px;line-height:1.6;">
-                If you didn't request this, you can safely ignore this email. Your account will not be created.
+              <!-- Logo -->
+              <h1 class="logo-text"
+                  style="margin:0; color:#C9A84C; font-size:26px; font-weight:800;
+                         letter-spacing:5px; text-transform:uppercase; font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                ETURISMO
+              </h1>
+              <p style="margin:8px 0 0; color:#A89F96; font-size:11px; letter-spacing:2.5px;
+                        text-transform:uppercase; font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                Sacred Heritage Experience
               </p>
+
+              <!-- Bottom ornament -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td align="center" style="padding-top: 20px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="width:24px; height:1px; background:rgba(201,168,76,0.4); border-radius:2px;"></td>
+                        <td style="width:6px;"></td>
+                        <td style="width:4px; height:4px; background:rgba(201,168,76,0.5); border-radius:50%;"></td>
+                        <td style="width:6px;"></td>
+                        <td style="width:24px; height:1px; background:rgba(201,168,76,0.4); border-radius:2px;"></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
             </td>
           </tr>
 
-          <!-- Divider -->
+          <!-- ══ BODY ══ -->
           <tr>
-            <td style="padding:0 48px;">
-              <hr style="border:none;border-top:1px solid #EDE8E3;margin:0;" />
+            <td class="body-pad" style="padding: 44px 48px 32px;">
+
+              <h2 style="margin:0 0 10px; color:#1A1612; font-size:22px; font-weight:800;
+                          letter-spacing:-0.3px; font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                Verify your account
+              </h2>
+              <p style="margin:0 0 32px; color:#6B6459; font-size:15px; line-height:1.7;
+                         font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                Hello! Enter the verification code below to confirm your email address
+                and complete your registration. This code is valid for
+                <strong style="color:#1A1612;">5 minutes</strong>.
+              </p>
+
+              <!-- ── OTP Block ── -->
+              <table class="otp-table" width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="background: linear-gradient(135deg, #FAF7F3 0%, #FDF9F5 100%);
+                            border-radius: 16px; border: 1.5px solid #E8DFD0; padding: 32px 24px;">
+                <tr>
+                  <td align="center">
+
+                    <p style="margin:0 0 16px; color:#A89F96; font-size:10px; font-weight:700;
+                               letter-spacing:3px; text-transform:uppercase;
+                               font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                      ✦ &nbsp; Verification Code &nbsp; ✦
+                    </p>
+
+                    <!-- OTP code — Supabase injects {{ .Token }} here -->
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
+                      <tr>
+                        <td>
+                          <div style="display:inline-block; background:#FFFFFF; border:2px solid #C9A84C;
+                                      border-radius:12px; padding: 14px 32px; margin: 0 auto;">
+                            <span style="font-size:42px; font-weight:800; color:#C9A84C;
+                                         letter-spacing:14px; font-family:'Inter','Segoe UI',Arial,sans-serif;
+                                         display:block; line-height:1;">
+                              {{ .Token }}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:16px 0 0; color:#A89F96; font-size:12px;
+                               font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                      Expires in &nbsp;<strong style="color:#C9A84C;">5 minutes</strong>
+                    </p>
+
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security note -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin-top: 28px; background:#FFF8F0; border-radius:10px;
+                            border-left: 3px solid #C9A84C; padding: 0;">
+                <tr>
+                  <td style="padding: 14px 18px;">
+                    <p style="margin:0; color:#6B6459; font-size:13px; line-height:1.6;
+                               font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                      🔒 &nbsp;<strong style="color:#1A1612;">Didn't request this?</strong>
+                      Safely ignore this email — your account will not be created and no action is needed.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 28px 0 0; color:#6B6459; font-size:14px; line-height:1.7;
+                         font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                Thank you for joining ETurismo. We're excited to have you explore our sacred
+                heritage collection.
+              </p>
+
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- ══ DIVIDER ══ -->
           <tr>
-            <td style="padding:24px 48px 40px;text-align:center;">
-              <p style="margin:0;color:#A89F96;font-size:12px;line-height:1.6;">
-                &copy; 2026 Etorismo. All rights reserved.<br />
-                This is an automated message — please do not reply.
+            <td style="padding: 0 48px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="height:1px; background: linear-gradient(to right, transparent, #E8DFD0, transparent);"></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ══ FOOTER ══ -->
+          <tr>
+            <td class="foot-pad" style="padding: 24px 48px 40px; text-align: center;">
+
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td align="center" style="padding-bottom: 16px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="width:20px; height:1px; background:#E8DFD0;"></td>
+                        <td style="padding: 0 10px;">
+                          <span style="color:#C9A84C; font-size:11px; letter-spacing:1px;">✦</span>
+                        </td>
+                        <td style="width:20px; height:1px; background:#E8DFD0;"></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 6px; color:#A89F96; font-size:12px; line-height:1.7;
+                         font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                &copy; 2026 &nbsp;<strong style="color:#6B6459;">ETurismo</strong>. All rights reserved.
+              </p>
+              <p style="margin:0; color:#BDB5AD; font-size:11px; line-height:1.6;
+                         font-family:'Inter','Segoe UI',Arial,sans-serif;">
+                This is an automated security email — please do not reply.<br />
+                Sacred Heritage Experience &nbsp;·&nbsp; Preserving Culture for the Future
               </p>
             </td>
           </tr>
 
         </table>
+
       </td>
     </tr>
   </table>
