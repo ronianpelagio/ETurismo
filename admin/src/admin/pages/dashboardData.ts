@@ -210,110 +210,102 @@ const defaultTourFeedbackStats: TourFeedbackStats = {
 };
 
 export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
-  const thirtyDaysAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-
-  const [aggRow, trendRows, recentRows] = await Promise.all([
-    // 1. Aggregated stats view
-    querySafe(async () => {
-      const { data, error } = await supabase
-        .from("tour_feedback_stats")
-        .select("*")
-        .maybeSingle();
-      if (error) throw error;
-      return data as Record<string, any> | null;
-    }),
-
-    // 2. 30-day daily trend view
-    querySafe(async () => {
-      const { data, error } = await supabase
-        .from("tour_feedback_daily_trend")
-        .select("day, submissions, avg_rating")
-        .gte("day", thirtyDaysAgo)
-        .order("day", { ascending: true });
-      if (error) throw error;
-      return data as Array<{ day: string; submissions: number; avg_rating: number }>;
-    }),
-
-    // 3. Recent 5 feedback rows (with user join for display)
-    querySafe(async () => {
-      const { data, error } = await supabase
-        .from("tour_feedback")
-        .select(
-          "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",
-        )
-        .order("submitted_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data as TourFeedbackRow[];
-    }),
-  ]);
-
-  if (!aggRow) return defaultTourFeedbackStats;
-
-  // Heard-from breakdown: query the view directly
-  const heardFromMap: Record<string, number> = {};
-  const heardFromRows = await querySafe(async () => {
+  // Fetch all rows directly from the tour_feedback table — no views needed.
+  const allRowsResponse = await querySafe(async () => {
     const { data, error } = await supabase
-      .from("tour_feedback_heard_from")
-      .select("source, count");
+      .from("tour_feedback")
+      .select(
+        "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",
+      )
+      .order("submitted_at", { ascending: false });
     if (error) throw error;
-    return data as Array<{ source: string; count: number }>;
+    return data as TourFeedbackRow[];
   });
-  if (Array.isArray(heardFromRows)) {
-    heardFromRows.forEach((r) => {
-      heardFromMap[r.source] = Number(r.count ?? 0);
-    });
-  }
 
-  // Build full 30-day trend (fill missing days with 0)
-  const trendMap = new Map<string, { submissions: number; avg_rating: number }>();
-  if (Array.isArray(trendRows)) {
-    trendRows.forEach((r) => trendMap.set(r.day, r));
-  }
-  const dailyTrend: TourFeedbackDailyTrend[] = Array.from({ length: 30 }).map(
-    (_, i) => {
-      const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
-      const key = d.toISOString().slice(0, 10);
-      const found = trendMap.get(key);
-      return {
-        day: key,
-        submissions: found?.submissions ?? 0,
-        avg_rating: found ? Number(found.avg_rating ?? 0) : 0,
-      };
-    },
-  );
+  const all: TourFeedbackRow[] = Array.isArray(allRowsResponse) ? allRowsResponse : [];
+
+  if (all.length === 0) return defaultTourFeedbackStats;
+
+  const now = Date.now();
+  const sevenDaysAgo  = new Date(now - 7  * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now - 29 * 24 * 60 * 60 * 1000);
+
+  // ── Volume ──────────────────────────────────────────────────────────────────
+  const totalSubmissions   = all.length;
+  const submissionsLast7d  = all.filter((r) => new Date(r.submitted_at) >= sevenDaysAgo).length;
+  const submissionsLast30d = all.filter((r) => new Date(r.submitted_at) >= thirtyDaysAgo).length;
+
+  // ── Ratings ─────────────────────────────────────────────────────────────────
+  const avgRating =
+    all.reduce((s, r) => s + r.overall_rating, 0) / totalSubmissions;
+
+  const ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  all.forEach((r) => {
+    const star = r.overall_rating as 1 | 2 | 3 | 4 | 5;
+    if (star >= 1 && star <= 5) ratingDistribution[star] += 1;
+  });
+
+  // ── Recommendation ──────────────────────────────────────────────────────────
+  const recommendYes = all.filter((r) => r.would_recommend).length;
+  const recommendNo  = all.filter((r) => !r.would_recommend).length;
+  const recommendPct = Math.round((recommendYes / totalSubmissions) * 100);
+
+  // ── Visit types ─────────────────────────────────────────────────────────────
+  const visitTypes = { solo: 0, couple: 0, family: 0, group: 0, school: 0 };
+  all.forEach((r) => {
+    if (r.visit_type in visitTypes)
+      (visitTypes as any)[r.visit_type] += 1;
+  });
+
+  // ── Heard from (unnest the array column) ────────────────────────────────────
+  const heardFrom: Record<string, number> = {};
+  all.forEach((r) => {
+    (r.heard_from ?? []).forEach((source) => {
+      heardFrom[source] = (heardFrom[source] ?? 0) + 1;
+    });
+  });
+
+  // ── Avg artifacts explored ───────────────────────────────────────────────────
+  const avgArtifactsExplored =
+    all.reduce((s, r) => s + (r.total_artifacts ?? 0), 0) / totalSubmissions;
+
+  // ── 30-day daily trend ───────────────────────────────────────────────────────
+  const trendMap = new Map<string, { submissions: number; ratingSum: number }>();
+  all.forEach((r) => {
+    const day = new Date(r.submitted_at).toISOString().slice(0, 10);
+    if (!trendMap.has(day)) trendMap.set(day, { submissions: 0, ratingSum: 0 });
+    const entry = trendMap.get(day)!;
+    entry.submissions += 1;
+    entry.ratingSum += r.overall_rating;
+  });
+
+  const dailyTrend: TourFeedbackDailyTrend[] = Array.from({ length: 30 }).map((_, i) => {
+    const d = new Date(now - (29 - i) * 24 * 60 * 60 * 1000);
+    const key = d.toISOString().slice(0, 10);
+    const found = trendMap.get(key);
+    return {
+      day: key,
+      submissions: found?.submissions ?? 0,
+      avg_rating: found ? Number((found.ratingSum / found.submissions).toFixed(2)) : 0,
+    };
+  });
+
+  // ── Recent 5 submissions ─────────────────────────────────────────────────────
+  const recentFeedback = all.slice(0, 5);
 
   return {
-    totalSubmissions: Number(aggRow.total_submissions ?? 0),
-    submissionsLast7d: Number(aggRow.submissions_last_7d ?? 0),
-    submissionsLast30d: Number(aggRow.submissions_last_30d ?? 0),
-
-    avgRating: Number(aggRow.avg_rating ?? 0),
-    ratingDistribution: {
-      1: Number(aggRow.rating_1 ?? 0),
-      2: Number(aggRow.rating_2 ?? 0),
-      3: Number(aggRow.rating_3 ?? 0),
-      4: Number(aggRow.rating_4 ?? 0),
-      5: Number(aggRow.rating_5 ?? 0),
-    },
-
-    recommendPct: Number(aggRow.recommend_pct ?? 0),
-    recommendYes: Number(aggRow.recommend_yes ?? 0),
-    recommendNo: Number(aggRow.recommend_no ?? 0),
-
-    visitTypes: {
-      solo: Number(aggRow.vt_solo ?? 0),
-      couple: Number(aggRow.vt_couple ?? 0),
-      family: Number(aggRow.vt_family ?? 0),
-      group: Number(aggRow.vt_group ?? 0),
-      school: Number(aggRow.vt_school ?? 0),
-    },
-
-    heardFrom: heardFromMap,
-    avgArtifactsExplored: Number(aggRow.avg_artifacts_explored ?? 0),
+    totalSubmissions,
+    submissionsLast7d,
+    submissionsLast30d,
+    avgRating: Number(avgRating.toFixed(2)),
+    ratingDistribution,
+    recommendPct,
+    recommendYes,
+    recommendNo,
+    visitTypes,
+    heardFrom,
+    avgArtifactsExplored: Number(avgArtifactsExplored.toFixed(1)),
     dailyTrend,
-    recentFeedback: Array.isArray(recentRows) ? recentRows : [],
+    recentFeedback,
   };
 }
