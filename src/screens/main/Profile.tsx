@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../../services/supabase';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -156,29 +157,35 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       const { data: { user: auth } } = await supabase.auth.getUser();
       if (!auth) throw new Error('Not authenticated');
 
-      const fileName = `avatar_${auth.id}_${Date.now()}.jpg`;
+      const resized = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 400, height: 400 } }],
+        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      const fileName = `${auth.id}/avatar.jpg`;
 
-      // Fetch the local URI as a blob — avoids atob/FormData which don't
-      // work correctly with local file URIs on React Native.
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // React Native uploads local files reliably as an ArrayBuffer.
+      const response = await fetch(resized.uri);
+      const imageData = await response.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
-        .from('media-Profile')
-        .upload(fileName, blob, { upsert: true, contentType: 'image/jpeg' });
+        .from('profile-pictures')
+        .upload(fileName, imageData, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from('media-Profile').getPublicUrl(fileName);
-      const publicUrl = urlData.publicUrl;
+      const { data: urlData } = supabase.storage.from('profile-pictures').getPublicUrl(fileName);
+      const publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
 
-      await supabase.from('users').update({ profile_picture: publicUrl }).eq('id', auth.id);
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_picture: publicUrl })
+        .eq('id', auth.id);
+      if (updateError) throw updateError;
       setAvatarUri(publicUrl);
       setUser(prev => prev ? { ...prev, profile_picture: publicUrl } : prev);
-    } catch {
-      // If storage upload fails, show local URI as preview only
-      setAvatarUri(uri);
-      Alert.alert('Upload Failed', 'Could not upload photo. Your changes were saved locally.');
+    } catch (error: any) {
+      Alert.alert('Upload Failed', error?.message || 'Could not save your profile photo. Please try again.');
     } finally {
       setUploadingAvatar(false);
     }

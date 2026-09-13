@@ -73,6 +73,8 @@ interface InputFieldProps {
 
   keyboardType?: any;
   autoCapitalize?: any;
+  autoComplete?: ComponentProps<typeof TextInput>['autoComplete'];
+  textContentType?: ComponentProps<typeof TextInput>['textContentType'];
   error?: string;
 }
 
@@ -87,6 +89,8 @@ function InputField({
   onTogglePassword,
   keyboardType = 'default',
   autoCapitalize = 'none',
+  autoComplete,
+  textContentType,
   error,
 }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
@@ -126,6 +130,8 @@ function InputField({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
           selectionColor={COLORS.gold}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -136,6 +142,8 @@ function InputField({
             onPress={onTogglePassword}
             style={styles.eyeButton}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
           >
             <Icon
               name={
@@ -616,11 +624,11 @@ export default function SignIn({
               />
 
               <Text style={styles.welcome}>
-                WELCOME TO ETURISMO APP
+                SECURE MEMBER ACCESS
               </Text>
 
               <Text style={styles.title}>
-                Sign In
+                Welcome back
               </Text>
 
               <Text
@@ -629,6 +637,12 @@ export default function SignIn({
                 Continue exploring destinations,
                 culture, and heritage.
               </Text>
+
+              <View style={styles.benefitRow}>
+                <View style={styles.benefit}><Icon name="bookmark-outline" size={14} color={COLORS.gold} /><Text style={styles.benefitText}>Saved places</Text></View>
+                <View style={styles.benefitDivider} />
+                <View style={styles.benefit}><Icon name="shield-checkmark-outline" size={14} color={COLORS.gold} /><Text style={styles.benefitText}>Secure profile</Text></View>
+              </View>
 
               {/* ==========================================================
                   EMAIL
@@ -642,6 +656,8 @@ export default function SignIn({
                 onChangeText={changeEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
                 error={errors.email}
               />
 
@@ -662,6 +678,8 @@ export default function SignIn({
                     value => !value
                   )
                 }
+                autoComplete="current-password"
+                textContentType="password"
                 error={errors.password}
               />
 
@@ -758,6 +776,8 @@ export default function SignIn({
                 onPress={handleLogin}
                 disabled={loading}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ busy: loading, disabled: loading }}
               >
                 {loading ? (
                   <ActivityIndicator
@@ -1074,6 +1094,15 @@ const styles = StyleSheet.create({
 
     textAlign: 'center',
   },
+
+  benefitRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, paddingHorizontal: 12, marginBottom: 20,
+    borderRadius: 10, backgroundColor: '#F5ECD9',
+  },
+  benefit: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  benefitText: { color: COLORS.dark, fontSize: 10.5, fontWeight: '700' },
+  benefitDivider: { width: 1, height: 16, backgroundColor: '#DDCBA6', marginHorizontal: 12 },
 
   /* ==========================================================================
      INPUTS

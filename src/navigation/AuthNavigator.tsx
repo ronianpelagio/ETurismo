@@ -12,6 +12,7 @@ import TabNavigator from './TabNavigator';
 
 import { supabase }       from '../services/supabase';
 import { touchLastSeen }  from '../services/authService';
+import { finalizePendingProfile } from '../features/auth/services/pendingProfile';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 // Stored per-install (AsyncStorage is wiped on uninstall).
@@ -60,6 +61,15 @@ export default function AuthNavigator() {
       if (event === 'SIGNED_IN' && !session?.user?.email_confirmed_at) return;
 
       if (session?.user) {
+        // Finish the verified user's profile (including the authenticated avatar
+        // upload) before leaving the auth flow.
+        try {
+          await finalizePendingProfile(session.user.email ?? '', session.user.id);
+        } catch (error) {
+          console.warn('Profile setup could not be completed:', error);
+          return;
+        }
+
         // Stamp last_seen
         touchLastSeen(session.user.id).catch(() => {});
 
