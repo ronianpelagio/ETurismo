@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
@@ -25,7 +25,7 @@ import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Design tokens ──────────────────────────────────────────────────────────────
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return {
     bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal,
   };

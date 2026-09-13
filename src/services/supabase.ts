@@ -11,13 +11,15 @@ import { createClient } from '@supabase/supabase-js';
 
 // Keys are read from .env (EXPO_PUBLIC_ prefix makes them available at runtime).
 // Never hardcode secrets in source — keep them in .env and out of version control.
-const supabaseUrl     = process.env.EXPO_PUBLIC_SUPABASE_URL     as string;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey =
+  (process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     'Missing Supabase environment variables.\n' +
-    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.'
+    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to your .env file.'
   );
 }
 

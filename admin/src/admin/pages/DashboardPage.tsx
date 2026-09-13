@@ -92,11 +92,23 @@ const defaultFeedbackStats: TourFeedbackStats = {
 // ─── Date range presets ───────────────────────────────────────────────────────
 type RangePreset = "7d" | "30d" | "90d" | "all";
 
-function getFromDate(preset: RangePreset, customFrom?: string): string | undefined {
+function getFromDate(
+  preset: RangePreset,
+  customFrom?: string,
+): string | undefined {
   if (preset === "all") return undefined;
-  if (preset === "7d")  return new Date(Date.now() - 6  * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  if (preset === "30d") return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  if (preset === "90d") return new Date(Date.now() - 89 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (preset === "7d")
+    return new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+  if (preset === "30d")
+    return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+  if (preset === "90d")
+    return new Date(Date.now() - 89 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
   return customFrom;
 }
 
@@ -113,15 +125,16 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
 
   // ── Date range state ────────────────────────────────────────────────────────
   const [rangePreset, setRangePreset] = useState<RangePreset>("7d");
-  const [customFrom, setCustomFrom]   = useState("");
-  const [customTo, setCustomTo]       = useState("");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const fromDate = rangePreset === "all"
-    ? undefined
-    : customFrom && rangePreset === "7d" // custom overrides only when explicitly set
-      ? customFrom
-      : getFromDate(rangePreset);
+  const fromDate =
+    rangePreset === "all"
+      ? undefined
+      : customFrom && rangePreset === "7d" // custom overrides only when explicitly set
+        ? customFrom
+        : getFromDate(rangePreset);
 
   const load = useCallback(async (from?: string) => {
     setLoading(true);
@@ -143,8 +156,8 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
   }, []);
 
   useEffect(() => {
-    load(fromDate);
-  }, [rangePreset]);
+    void load(fromDate);
+  }, [fromDate, load]);
 
   // ── Realtime: refresh active-user count whenever any user row changes ───────
   useEffect(() => {
@@ -179,10 +192,10 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
   }));
 
   const rangeLabelMap: Record<RangePreset, string> = {
-    "7d":  "Last 7 days",
+    "7d": "Last 7 days",
     "30d": "Last 30 days",
     "90d": "Last 90 days",
-    "all": "All time",
+    all: "All time",
   };
 
   const { theme } = useTheme();
@@ -300,7 +313,11 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
               {(["7d", "30d", "90d", "all"] as RangePreset[]).map((p) => (
                 <button
                   key={p}
-                  onClick={() => { setRangePreset(p); setCustomFrom(""); setCustomTo(""); }}
+                  onClick={() => {
+                    setRangePreset(p);
+                    setCustomFrom("");
+                    setCustomTo("");
+                  }}
                   className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
                     rangePreset === p
                       ? "border-foreground bg-foreground text-background"
@@ -372,7 +389,11 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 Apply
               </Button>
               <button
-                onClick={() => { setCustomFrom(""); setCustomTo(""); setShowAdvanced(false); }}
+                onClick={() => {
+                  setCustomFrom("");
+                  setCustomTo("");
+                  setShowAdvanced(false);
+                }}
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
               >
                 <X className="h-3 w-3" /> Clear
@@ -401,17 +422,35 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 >
                   <defs>
                     <linearGradient id="visGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={chartColors.stroke} stopOpacity={0.35} />
-                      <stop offset="100%" stopColor={chartColors.stroke} stopOpacity={0} />
+                      <stop
+                        offset="0%"
+                        stopColor={chartColors.stroke}
+                        stopOpacity={0.35}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={chartColors.stroke}
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke={chartColors.grid} strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid
+                    stroke={chartColors.grid}
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="date"
                     tick={{ fill: chartColors.text, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
-                    interval={chartData.length > 30 ? Math.floor(chartData.length / 15) : chartData.length > 14 ? 3 : 0}
+                    interval={
+                      chartData.length > 30
+                        ? Math.floor(chartData.length / 15)
+                        : chartData.length > 14
+                          ? 3
+                          : 0
+                    }
                   />
                   <YAxis
                     tick={{ fill: chartColors.text, fontSize: 11 }}
@@ -420,7 +459,10 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                     allowDecimals={false}
                   />
                   <Tooltip
-                    cursor={{ stroke: chartColors.cursor, strokeDasharray: "3 3" }}
+                    cursor={{
+                      stroke: chartColors.cursor,
+                      strokeDasharray: "3 3",
+                    }}
                     contentStyle={{
                       background: chartColors.tooltipBg,
                       border: `1px solid ${chartColors.tooltipBorder}`,
@@ -555,9 +597,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
           <StatCard
             label="Avg. Tour Rating"
             value={
-              feedbackStats.avgRating
-                ? feedbackStats.avgRating.toFixed(1)
-                : "—"
+              feedbackStats.avgRating ? feedbackStats.avgRating.toFixed(1) : "—"
             }
             delta="Out of 5.0"
             icon={<Star className="h-4 w-4" />}
@@ -621,13 +661,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                     margin={{ top: 10, right: 16, left: -8, bottom: 0 }}
                   >
                     <defs>
-                      <linearGradient
-                        id="fbGrad"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
+                      <linearGradient id="fbGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="0%"
                           stopColor={chartColors.stroke}
@@ -744,8 +778,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 <DistributionBars
                   rows={Object.entries(feedbackStats.visitTypes).map(
                     ([label, value]) => ({
-                      label:
-                        label.charAt(0).toUpperCase() + label.slice(1),
+                      label: label.charAt(0).toUpperCase() + label.slice(1),
                       value,
                       total: feedbackStats.totalSubmissions,
                     }),

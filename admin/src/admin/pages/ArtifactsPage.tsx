@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Boxes,
@@ -42,36 +48,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { translateAllLanguages } from "../utils/ArtifactUtil";
+import {
+  ARTIFACT_CATEGORIES as CATEGORIES,
+  ARTIFACT_LANGUAGES as LANGUAGES,
+  type ArtifactLanguageCode as LangCode,
+} from "../features/artifacts/config";
+import {
+  dataUrlToBlob,
+  generateArtifactAudio as generateAudioViaAPI,
+  uploadArtifactImage as uploadImage,
+  upsertArtifactTranslation as upsertTranslation,
+} from "../services/artifactService";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CATEGORIES = [
-  "Sacred Vessels",
-  "Liturgical Books",
-  "Vestments",
-  "Altar Furnishings",
-  "Devotional Objects",
-  "Sacramentals",
-  "Musical Instruments",
-  "Architectural and Decorative Elements",
-];
-
-const LANGUAGES = [
-  { code: "en", label: "English", flag: "🇺🇸", mmLang: "en-US" },
-  { code: "fil", label: "Filipino", flag: "🇵🇭", mmLang: "tl-PH" },
-  { code: "ja", label: "Japanese", flag: "🇯🇵", mmLang: "ja-JP" },
-  { code: "es", label: "Spanish", flag: "🇪🇸", mmLang: "es-ES" },
-  { code: "ko", label: "Korean", flag: "🇰🇷", mmLang: "ko-KR" },
-] as const;
-
-type LangCode = "en" | "fil" | "ja" | "es" | "ko";
 const PAGE_SIZE = 8;
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
 const emptyForm = {
   name: "",
-  category: CATEGORIES[0],
+  category: CATEGORIES[0] as string,
   image_url: "",
   image_file: null as File | null,
   created_at: "",
@@ -93,78 +89,6 @@ type AForm = typeof emptyForm;
 
 // keyed by lang code: audio_url from artifact_translations
 type AudioMap = Partial<Record<LangCode, string>>;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, base64] = dataUrl.split(",");
-  const mime = header.match(/:(.*?);/)?.[1] ?? "image/png";
-  const bytes = atob(base64);
-  const arr = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
-
-async function uploadImage(artifactId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `artifacts/${artifactId}.${ext}`;
-  const { error } = await supabase.storage
-    .from("artifact-images")
-    .upload(path, file, { contentType: file.type, upsert: true });
-  if (error) throw new Error(`Image upload failed: ${error.message}`);
-  return supabase.storage.from("artifact-images").getPublicUrl(path).data
-    .publicUrl;
-}
-
-async function generateAudioViaAPI(
-  artifactId: string,
-  text: string,
-  lang: LangCode,
-  voiceName?: string,
-  speakingRate?: number,
-): Promise<{ success: boolean; audioUrl: string; error?: string }> {
-  const res = await fetch(
-    "https://eturismoadminn.up.railway.app/generate-audio",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        artifactId,
-        text,
-        lang,
-        voiceName,
-        speakingRate: speakingRate || 1.0,
-      }),
-    },
-  );
-  if (!res.ok) {
-    const e = await res.json();
-    throw new Error(e.error || "Failed to generate audio");
-  }
-  return res.json();
-}
-
-/** Upsert a single translation row */
-async function upsertTranslation(
-  artifactId: string,
-  lang: LangCode,
-  name: string,
-  description: string,
-  existingId?: string,
-) {
-  if (existingId) {
-    return supabase
-      .from("artifact_translations")
-      .update({ name, description })
-      .eq("id", existingId);
-  }
-  return supabase.from("artifact_translations").insert({
-    artifact_id: artifactId,
-    language_code: lang,
-    name,
-    description,
-  });
-}
 
 function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -311,9 +235,10 @@ function AudioControlPanel({
                 key={r}
                 onClick={() => onRateChange(r)}
                 className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition
-                  ${playbackRate === r
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ${
+                    playbackRate === r
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
               >
                 {r === 1 ? "1×" : `${r}×`}
@@ -396,7 +321,9 @@ export default function ArtifactsPage() {
   }, [page]);
 
   useEffect(() => {
-    fetch(`https://eturismoadminn.up.railway.app/available-voices/${activeLang}`)
+    fetch(
+      `https://eturismoadminn.up.railway.app/available-voices/${activeLang}`,
+    )
       .then((r) => r.json())
       .then((d) => {
         setAvailableVoices(d.voices || []);
@@ -955,7 +882,10 @@ export default function ArtifactsPage() {
       }
     };
     // small delay so the click that opens the panel doesn't immediately close it
-    const id = setTimeout(() => document.addEventListener("mousedown", handler), 200);
+    const id = setTimeout(
+      () => document.addEventListener("mousedown", handler),
+      200,
+    );
     return () => {
       clearTimeout(id);
       document.removeEventListener("mousedown", handler);
@@ -963,7 +893,12 @@ export default function ArtifactsPage() {
   }, [playingKey, stopAudio]);
 
   // Cleanup on unmount
-  useEffect(() => () => { stopAudio(); }, [stopAudio]);
+  useEffect(
+    () => () => {
+      stopAudio();
+    },
+    [stopAudio],
+  );
 
   const handlePlayerPlayPause = useCallback(() => {
     const el = audioRef.current;
@@ -1163,9 +1098,10 @@ export default function ArtifactsPage() {
                               onClick={() => playAudio(a.id, l)}
                               title={`${l.label}${langsWithAudio.find((x) => x.code === l.code) ? " — audio available" : ""}`}
                               className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] transition
-                                ${isActive
-                                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                  : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                                ${
+                                  isActive
+                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                    : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                                 }`}
                             >
                               {isActive ? (
@@ -1176,9 +1112,10 @@ export default function ArtifactsPage() {
                                 )
                               ) : null}
                               {l.flag} {l.code.toUpperCase()}
-                              {langsWithAudio.find((x) => x.code === l.code) && !isActive && (
-                                <Volume2 className="h-2.5 w-2.5 text-emerald-500" />
-                              )}
+                              {langsWithAudio.find((x) => x.code === l.code) &&
+                                !isActive && (
+                                  <Volume2 className="h-2.5 w-2.5 text-emerald-500" />
+                                )}
                             </button>
                           );
                         })}

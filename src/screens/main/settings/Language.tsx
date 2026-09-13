@@ -14,7 +14,7 @@ import { useAppTheme } from '../../../context/ThemeContext';
 import { THEMES } from '../../../constants/themes';
 import { useLanguage, AppLanguage, LANGUAGE_META } from '../../../context/LanguageContext';
 
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return {
     bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid,
     inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft,

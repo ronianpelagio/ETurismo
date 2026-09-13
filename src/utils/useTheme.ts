@@ -1,12 +1,12 @@
 // utils/useTheme.ts
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { THEMES , ThemeName  } from '../constants/themes';
+import { THEMES, type AppTheme, type ThemeName } from '../constants/themes';
 
 
 export function useTheme() {
   const [themeId, setThemeId] = useState<ThemeName>('light');
-  const [theme, setTheme] = useState(THEMES.light);
+  const [theme, setTheme] = useState<AppTheme>(THEMES.light);
 
   useEffect(() => {
     loadTheme();

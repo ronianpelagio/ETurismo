@@ -115,7 +115,7 @@ export type TourFeedbackRow = {
 };
 
 export type TourFeedbackDailyTrend = {
-  day: string;       // ISO date string "YYYY-MM-DD"
+  day: string; // ISO date string "YYYY-MM-DD"
   submissions: number;
   avg_rating: number;
 };

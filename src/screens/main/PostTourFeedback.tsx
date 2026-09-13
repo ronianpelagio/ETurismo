@@ -27,7 +27,7 @@ import { supabase } from '../../services/supabase';
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return {
     bg: t.bg,
     surface: t.surface,
