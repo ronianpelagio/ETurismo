@@ -5,12 +5,12 @@ const STORAGE_KEY = 'appLanguage';
 
 export type AppLanguage = 'en' | 'fil' | 'ja' | 'es' | 'ko';
 
-export const LANGUAGE_META: Record<AppLanguage, { name: string; nativeName: string; flag: string }> = {
-  en:  { name: 'English',  nativeName: 'English',  flag: '🇺🇸' },
-  fil: { name: 'Filipino', nativeName: 'Filipino', flag: '🇵🇭' },
-  ja:  { name: 'Japanese', nativeName: '日本語',   flag: '🇯🇵' },
-  es:  { name: 'Spanish',  nativeName: 'Español',  flag: '🇪🇸' },
-  ko:  { name: 'Korean',   nativeName: '한국어',   flag: '🇰🇷' },
+export const LANGUAGE_META: Record<AppLanguage, { name: string; nativeName: string; icon: string }> = {
+  en:  { name: 'English',  nativeName: 'English',  icon: 'language-outline' },
+  fil: { name: 'Filipino', nativeName: 'Filipino', icon: 'language-outline' },
+  ja:  { name: 'Japanese', nativeName: '日本語',   icon: 'language-outline' },
+  es:  { name: 'Spanish',  nativeName: 'Español',  icon: 'language-outline' },
+  ko:  { name: 'Korean',   nativeName: '한국어',   icon: 'language-outline' },
 };
 
 type LanguageContextType = {

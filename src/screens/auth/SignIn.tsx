@@ -18,8 +18,13 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
 import { supabase } from '../../services/supabase';
+
+// Required for expo-auth-session to complete the auth flow on Android
+WebBrowser.maybeCompleteAuthSession();
 
 /* ============================================================================
    ETURISMO COLORS
@@ -262,8 +267,9 @@ export default function SignIn({
   const [googleLoading, setGoogleLoading] =
     useState(false);
 
-  const [facebookLoading, setFacebookLoading] =
+  const [forgotLoading, setForgotLoading] =
     useState(false);
+
 
   const [errors, setErrors] = useState<{
     email?: string;
@@ -383,6 +389,44 @@ export default function SignIn({
   };
 
   /* ==========================================================================
+     FORGOT PASSWORD
+  ========================================================================== */
+
+  const handleForgotPassword = async () => {
+    // Prompt for email
+    Alert.prompt(
+      'Reset Password',
+      'Enter your email address and we\'ll send you a reset link.',
+      async (inputEmail) => {
+        const cleanEmail = (inputEmail || '').trim().toLowerCase();
+        if (!cleanEmail) return;
+        if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
+          Alert.alert('Invalid Email', 'Please enter a valid email address.');
+          return;
+        }
+        setForgotLoading(true);
+        try {
+          const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+            redirectTo: 'com.ronian.eturismo://reset-password',
+          });
+          if (error) throw error;
+          Alert.alert(
+            'Email Sent',
+            `A password reset link has been sent to ${cleanEmail}. Check your inbox.`
+          );
+        } catch (err: any) {
+          Alert.alert('Error', err.message || 'Failed to send reset email. Please try again.');
+        } finally {
+          setForgotLoading(false);
+        }
+      },
+      'plain-text',
+      email.trim(),
+      'email-address'
+    );
+  };
+
+  /* ==========================================================================
      GOOGLE
   ========================================================================== */
 
@@ -391,22 +435,55 @@ export default function SignIn({
     setAuthError('');
 
     try {
-      const { error } =
-        await supabase.auth.signInWithOAuth({
-          provider: 'google',
-        });
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'com.ronian.eturismo',
+        path: 'auth/callback',
+      });
 
-      if (error) {
-        Alert.alert(
-          'Google Sign In',
-          error.message
-        );
-      }
-    } catch {
-      Alert.alert(
-        'Google Sign In',
-        'Google sign in failed.'
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No OAuth URL returned');
+
+      // Open Google login in in-app browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectUri,
+        { showInRecents: false, createTask: false }
       );
+
+      if (result.type === 'success' && result.url) {
+        await WebBrowser.dismissBrowser();
+
+        const url = new URL(result.url);
+        const params = new URLSearchParams(url.hash.replace('#', ''));
+        const accessToken  = url.searchParams.get('access_token')  ?? params.get('access_token');
+        const refreshToken = url.searchParams.get('refresh_token') ?? params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+        } else {
+          // Supabase may have set the session via the URL fragment automatically
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session) {
+            throw new Error('Sign in completed but session not found. Please try again.');
+          }
+        }
+      } else if (result.type === 'cancel') {
+        // User closed the browser — silent, no error
+      }
+    } catch (err: any) {
+      Alert.alert('Google Sign In', err?.message || 'Google sign in failed.');
     } finally {
       setGoogleLoading(false);
     }
@@ -416,30 +493,8 @@ export default function SignIn({
      FACEBOOK
   ========================================================================== */
 
-  const handleFacebook = async () => {
-    setFacebookLoading(true);
-    setAuthError('');
-
-    try {
-      const { error } =
-        await supabase.auth.signInWithOAuth({
-          provider: 'facebook',
-        });
-
-      if (error) {
-        Alert.alert(
-          'Facebook Sign In',
-          error.message
-        );
-      }
-    } catch {
-      Alert.alert(
-        'Facebook Sign In',
-        'Facebook sign in failed.'
-      );
-    } finally {
-      setFacebookLoading(false);
-    }
+  const handleFacebook = () => {
+    Alert.alert('Coming Soon', 'Facebook sign in will be available soon.');
   };
 
   /* ==========================================================================
@@ -495,11 +550,7 @@ export default function SignIn({
 
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={
-            Platform.OS === 'ios'
-              ? 'padding'
-              : undefined
-          }
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <ScrollView
             contentContainerStyle={[
@@ -654,19 +705,19 @@ export default function SignIn({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() =>
-                    Alert.alert(
-                      'Forgot Password',
-                      'Password recovery will be available here.'
-                    )
-                  }
+                  onPress={handleForgotPassword}
                   activeOpacity={0.7}
+                  disabled={forgotLoading}
                 >
-                  <Text
-                    style={styles.forgotText}
-                  >
-                    Forgot password?
-                  </Text>
+                  {forgotLoading ? (
+                    <ActivityIndicator size="small" color={COLORS.gold} />
+                  ) : (
+                    <Text
+                      style={styles.forgotText}
+                    >
+                      Forgot password?
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -772,9 +823,7 @@ export default function SignIn({
                   type="facebook"
                   label="Facebook"
                   onPress={handleFacebook}
-                  loading={
-                    facebookLoading
-                  }
+                  loading={false}
                 />
               </View>
 

@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.Etorismo'
+    namespace 'com.ronian.eturismo'
     defaultConfig {
-        applicationId 'com.anonymous.Etorismo'
+        applicationId 'com.ronian.eturismo'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

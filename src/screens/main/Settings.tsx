@@ -93,13 +93,11 @@ function SectionCard({ title, icon, children, C }: { title: string; icon: string
 export default function Settings({ navigation }: any) {
   const { theme, themeId } = useAppTheme();
   const C = buildC(theme);
-  const { fontSizeLevel } = useAppContext();
   const rootNavigation = useNavigation();
 
   const nav = (screen: string) => navigation?.navigate(screen);
 
   const THEME_LABELS: Record<string, string> = { light: 'Light', warm: 'Warm', sage: 'Sage', sepia: 'Sepia' };
-  const FONT_LABELS: Record<string, string> = { small: 'Small', medium: 'Medium', large: 'Large' };
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -165,7 +163,7 @@ export default function Settings({ navigation }: any) {
             <Text style={s.heroTitle}>Your{'\n'}Settings</Text>
             <View style={s.heroRule}>
               <View style={s.heroRuleLine} />
-              <Text style={s.heroRuleDot}>◆</Text>
+              <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: C.gold }} />
               <View style={s.heroRuleLine} />
             </View>
           </View>
@@ -180,13 +178,11 @@ export default function Settings({ navigation }: any) {
 
         {/* ── APPEARANCE ── */}
         <SectionCard title="APPEARANCE" icon="color-palette-outline" C={C}>
-          <Row C={C} icon="color-palette-outline" label="Theme" sublabel="App colour scheme" value={THEME_LABELS[themeId] ?? 'Light'} onPress={() => nav('Theme')} />
-          <Row C={C} icon="text-outline" label="Text Size" sublabel="Adjust font size" value={FONT_LABELS[fontSizeLevel] ?? 'Medium'} onPress={() => nav('FontSize')} isLast />
+          <Row C={C} icon="color-palette-outline" label="Theme" sublabel="App colour scheme" value={THEME_LABELS[themeId] ?? 'Light'} onPress={() => nav('Theme')} isLast />
         </SectionCard>
 
         {/* ── PREFERENCES ── */}
         <SectionCard title="PREFERENCES" icon="options-outline" C={C}>
-          <Row C={C} icon="language-outline" label="Language" value="English" onPress={() => nav('Language')} />
           <Row C={C} icon="notifications-outline" label="Push Notifications" value="On" onPress={() => nav('Notifications')} isLast />
         </SectionCard>
 

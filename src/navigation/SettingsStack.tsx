@@ -15,6 +15,7 @@ import Terms from '../screens/main/settings/Terms';
 import Privacy from '../screens/main/settings/Privacy';
 import VisitInfo from '../screens/main/settings/VisitInfo';
 import SavedArtifacts from '../screens/main/SavedArtifacts';
+import FavoriteArtifacts from '../screens/main/FavoriteArtifacts';
 import CollectionPage from '../screens/main/CollectionPage';
 import VisitHistory from '../screens/main/VisitHistory';
 
@@ -56,6 +57,16 @@ export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?:
         name="SavedArtifacts"
         children={(props) => (
           <SavedArtifacts
+            {...props}
+            onBack={() => props.navigation.goBack()}
+          />
+        )}
+      />
+
+      <Stack.Screen
+        name="FavoriteArtifacts"
+        children={(props) => (
+          <FavoriteArtifacts
             {...props}
             onBack={() => props.navigation.goBack()}
           />

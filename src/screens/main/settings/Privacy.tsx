@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../../../context/ThemeContext';
 import { THEMES } from '../../../constants/themes';
@@ -89,7 +90,7 @@ export default function Privacy({ navigation }: any) {
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backTxt}>‹</Text>
+          <Ionicons name="arrow-back" size={20} color={C.ink} />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>Privacy Policy</Text>
         <View style={{ width: 40 }} />

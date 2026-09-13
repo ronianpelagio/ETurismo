@@ -9,14 +9,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { setRating } from '../../utils/storage';
 
 interface RatingsModalProps {
   visible: boolean;
   artifactId: string | null;
   artifactName?: string;
-  onClose: () => void;
+  onClose: (savedRating?: number) => void;
 }
 
 const C = {
@@ -33,10 +35,30 @@ const C = {
 
 export default function RatingsModal({
   visible,
+  artifactId,
   artifactName = 'Artifact',
   onClose,
 }: RatingsModalProps) {
-  const [rating, setRating] = React.useState(0);
+  const [rating, setRatingState] = React.useState(0);
+  const [saving, setSaving] = React.useState(false);
+
+  // Reset when modal opens for a new artifact
+  React.useEffect(() => {
+    if (visible) setRatingState(0);
+  }, [visible, artifactId]);
+
+  async function handleSubmit() {
+    if (!artifactId || rating === 0) return;
+    setSaving(true);
+    try {
+      await setRating(artifactId, rating);
+      onClose(rating);
+    } catch {
+      onClose(rating);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Modal
@@ -76,7 +98,7 @@ export default function RatingsModal({
               {[1, 2, 3, 4, 5].map(star => (
                 <TouchableOpacity
                   key={star}
-                  onPress={() => setRating(star)}
+                  onPress={() => setRatingState(star)}
                   activeOpacity={0.7}
                   style={styles.starBtn}
                 >
@@ -104,12 +126,15 @@ export default function RatingsModal({
 
             {/* Submit */}
             <TouchableOpacity
-              style={[styles.submitBtn, rating === 0 && styles.submitBtnDisabled]}
-              onPress={rating > 0 ? onClose : undefined}
-              disabled={rating === 0}
+              style={[styles.submitBtn, (rating === 0 || saving) && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={rating === 0 || saving}
               activeOpacity={0.85}
             >
-              <Text style={styles.submitBtnTxt}>Submit Rating</Text>
+              {saving
+                ? <ActivityIndicator size="small" color="#FFF" />
+                : <Text style={styles.submitBtnTxt}>Submit Rating</Text>
+              }
             </TouchableOpacity>
           </ScrollView>
         </View>

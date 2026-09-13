@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Boxes,
@@ -15,6 +15,11 @@ import {
   Check,
   X,
   Calendar,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Gauge,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../services/supabase";
@@ -117,7 +122,7 @@ async function generateAudioViaAPI(
   lang: LangCode,
   voiceName?: string,
   speakingRate?: number,
-): Promise<{ success: boolean; audioUrl: string }> {
+): Promise<{ success: boolean; audioUrl: string; error?: string }> {
   const res = await fetch(
     "https://eturismoadminn.up.railway.app/generate-audio",
     {
@@ -169,6 +174,158 @@ function Spinner({ className = "" }: { className?: string }) {
   );
 }
 
+// ─── Audio Control Panel ──────────────────────────────────────────────────────
+
+interface AudioControlPanelProps {
+  artifactName: string;
+  langLabel: string;
+  langFlag: string;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  playbackRate: number;
+  onPlayPause: () => void;
+  onSkipBack: () => void;
+  onSkipForward: () => void;
+  onSeek: (t: number) => void;
+  onRateChange: (r: number) => void;
+  onClose: () => void;
+  panelRef: React.RefObject<HTMLDivElement>;
+}
+
+function formatTime(s: number) {
+  if (!isFinite(s) || isNaN(s)) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+const RATE_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
+
+function AudioControlPanel({
+  artifactName,
+  langLabel,
+  langFlag,
+  isPlaying,
+  currentTime,
+  duration,
+  playbackRate,
+  onPlayPause,
+  onSkipBack,
+  onSkipForward,
+  onSeek,
+  onRateChange,
+  onClose,
+  panelRef,
+}: AudioControlPanelProps) {
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <motion.div
+      ref={panelRef}
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 16, scale: 0.97 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      className="fixed bottom-6 left-1/2 z-50 w-[360px] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-border bg-card shadow-2xl"
+      style={{ backdropFilter: "blur(12px)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <Volume2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <span className="truncate text-xs font-semibold text-foreground">
+            {artifactName}
+          </span>
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+            {langFlag} {langLabel}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="ml-2 shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Close & stop"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-4 pt-3">
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.5}
+          value={currentTime}
+          onChange={(e) => onSeek(parseFloat(e.target.value))}
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-emerald-500"
+        />
+        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-between px-4 pb-3 pt-1">
+        {/* Skip back 15s */}
+        <button
+          onClick={onSkipBack}
+          className="flex flex-col items-center gap-0.5 rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Back 15s"
+        >
+          <SkipBack className="h-4 w-4" />
+          <span className="text-[9px]">15s</span>
+        </button>
+
+        {/* Play / Pause */}
+        <button
+          onClick={onPlayPause}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background shadow-md transition hover:scale-105 active:scale-95"
+          title={isPlaying ? "Pause" : "Play"}
+        >
+          {isPlaying ? (
+            <Pause className="h-5 w-5" />
+          ) : (
+            <Play className="ml-0.5 h-5 w-5" />
+          )}
+        </button>
+
+        {/* Skip forward 15s */}
+        <button
+          onClick={onSkipForward}
+          className="flex flex-col items-center gap-0.5 rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Forward 15s"
+        >
+          <SkipForward className="h-4 w-4" />
+          <span className="text-[9px]">15s</span>
+        </button>
+
+        {/* Playback rate */}
+        <div className="flex items-center gap-1">
+          <Gauge className="h-3 w-3 text-muted-foreground" />
+          <div className="flex gap-0.5">
+            {RATE_OPTIONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => onRateChange(r)}
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium transition
+                  ${playbackRate === r
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+              >
+                {r === 1 ? "1×" : `${r}×`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ArtifactsPage() {
@@ -214,6 +371,23 @@ export default function ArtifactsPage() {
   const [selectedVoice, setSelectedVoice] = useState("");
   const [speakingRate, setSpeakingRate] = useState(1.0);
   const [showVoiceControls, setShowVoiceControls] = useState(false);
+
+  // ── Admin audio player state ───────────────────────────────────────────────
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRafRef = useRef<number>(0);
+  const panelRef = useRef<HTMLDivElement>(null!);
+
+  // key = `${artifactId}:${langCode}` of the currently playing audio
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const [playingMeta, setPlayingMeta] = useState<{
+    artifactName: string;
+    langLabel: string;
+    langFlag: string;
+  } | null>(null);
+  const [audioIsPlaying, setAudioIsPlaying] = useState(false);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDurationState, setAudioDurationState] = useState(0);
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -665,20 +839,169 @@ export default function ArtifactsPage() {
 
   // ── Audio playback ─────────────────────────────────────────────────────────
 
-  const playAudio = (artifactId: string, lang: (typeof LANGUAGES)[number]) => {
-    const audioUrl = txMap[artifactId]?.[lang.code]?.audio_url;
-    if (audioUrl) {
-      new Audio(audioUrl).play().catch(() => {});
-      return;
+  /** Stop whatever is currently playing and clean up. */
+  const stopAudio = useCallback(() => {
+    cancelAnimationFrame(audioRafRef.current);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
     }
-    const desc = txMap[artifactId]?.[lang.code]?.description;
-    if (desc && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(desc);
-      u.lang = lang.mmLang;
-      window.speechSynthesis.speak(u);
+    setPlayingKey(null);
+    setPlayingMeta(null);
+    setAudioIsPlaying(false);
+    setAudioCurrentTime(0);
+    setAudioDurationState(0);
+    setAudioPlaybackRate(1);
+  }, []);
+
+  /** Tick the progress bar via rAF while playing. */
+  const startProgressTick = useCallback((el: HTMLAudioElement) => {
+    cancelAnimationFrame(audioRafRef.current);
+    const tick = () => {
+      if (!el.paused) {
+        setAudioCurrentTime(el.currentTime);
+        audioRafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    audioRafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const playAudio = useCallback(
+    (artifactId: string, lang: (typeof LANGUAGES)[number]) => {
+      const key = `${artifactId}:${lang.code}`;
+
+      // Clicking the same language chip again → toggle pause/resume
+      if (playingKey === key && audioRef.current) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(() => {});
+          setAudioIsPlaying(true);
+          startProgressTick(audioRef.current);
+        } else {
+          audioRef.current.pause();
+          setAudioIsPlaying(false);
+          cancelAnimationFrame(audioRafRef.current);
+        }
+        return;
+      }
+
+      // Stop any existing audio first
+      stopAudio();
+
+      const audioUrl = txMap[artifactId]?.[lang.code]?.audio_url;
+      const artifactName =
+        txMap[artifactId]?.en?.name ||
+        items.find((i) => i.id === artifactId)?.name ||
+        "Artifact";
+
+      if (audioUrl) {
+        const el = new Audio(audioUrl);
+        audioRef.current = el;
+        el.playbackRate = 1;
+
+        el.addEventListener("loadedmetadata", () => {
+          setAudioDurationState(el.duration);
+        });
+
+        el.addEventListener("play", () => {
+          setAudioIsPlaying(true);
+          startProgressTick(el);
+        });
+
+        el.addEventListener("pause", () => {
+          setAudioIsPlaying(false);
+          cancelAnimationFrame(audioRafRef.current);
+          setAudioCurrentTime(el.currentTime);
+        });
+
+        el.addEventListener("ended", () => {
+          stopAudio();
+        });
+
+        el.addEventListener("timeupdate", () => {
+          setAudioCurrentTime(el.currentTime);
+        });
+
+        el.play().catch(() => {});
+
+        setPlayingKey(key);
+        setPlayingMeta({
+          artifactName,
+          langLabel: lang.label,
+          langFlag: lang.flag,
+        });
+        setAudioPlaybackRate(1);
+        return;
+      }
+
+      // Fallback: speech synthesis (no control panel for this)
+      const desc = txMap[artifactId]?.[lang.code]?.description;
+      if (desc && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(desc);
+        u.lang = lang.mmLang;
+        window.speechSynthesis.speak(u);
+      }
+    },
+    [playingKey, txMap, items, stopAudio, startProgressTick],
+  );
+
+  // Click-outside → stop audio
+  useEffect(() => {
+    if (!playingKey) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        stopAudio();
+      }
+    };
+    // small delay so the click that opens the panel doesn't immediately close it
+    const id = setTimeout(() => document.addEventListener("mousedown", handler), 200);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [playingKey, stopAudio]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { stopAudio(); }, [stopAudio]);
+
+  const handlePlayerPlayPause = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      el.play().catch(() => {});
+    } else {
+      el.pause();
     }
-  };
+  }, []);
+
+  const handlePlayerSkipBack = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, el.currentTime - 15);
+    setAudioCurrentTime(el.currentTime);
+  }, []);
+
+  const handlePlayerSkipForward = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Math.min(el.duration || 0, el.currentTime + 15);
+    setAudioCurrentTime(el.currentTime);
+  }, []);
+
+  const handlePlayerSeek = useCallback((t: number) => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = t;
+    setAudioCurrentTime(t);
+  }, []);
+
+  const handlePlayerRateChange = useCallback((r: number) => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.playbackRate = r;
+    setAudioPlaybackRate(r);
+  }, []);
 
   const audioStatusIcon = (lang: string) => {
     const s = audioStatus[lang];
@@ -831,19 +1154,34 @@ export default function ArtifactsPage() {
                     )}
                     {langsWithDesc.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
-                        {langsWithDesc.map((l) => (
-                          <button
-                            key={l.code}
-                            onClick={() => playAudio(a.id, l)}
-                            title={`${l.label}${langsWithAudio.find((x) => x.code === l.code) ? " — audio available" : ""}`}
-                            className="inline-flex items-center gap-0.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-                          >
-                            {l.flag} {l.code.toUpperCase()}
-                            {langsWithAudio.find((x) => x.code === l.code) && (
-                              <Volume2 className="h-2.5 w-2.5 text-emerald-500" />
-                            )}
-                          </button>
-                        ))}
+                        {langsWithDesc.map((l) => {
+                          const key = `${a.id}:${l.code}`;
+                          const isActive = playingKey === key;
+                          return (
+                            <button
+                              key={l.code}
+                              onClick={() => playAudio(a.id, l)}
+                              title={`${l.label}${langsWithAudio.find((x) => x.code === l.code) ? " — audio available" : ""}`}
+                              className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] transition
+                                ${isActive
+                                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                                }`}
+                            >
+                              {isActive ? (
+                                audioIsPlaying ? (
+                                  <Pause className="h-2.5 w-2.5" />
+                                ) : (
+                                  <Play className="h-2.5 w-2.5" />
+                                )
+                              ) : null}
+                              {l.flag} {l.code.toUpperCase()}
+                              {langsWithAudio.find((x) => x.code === l.code) && !isActive && (
+                                <Volume2 className="h-2.5 w-2.5 text-emerald-500" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1328,6 +1666,28 @@ export default function ArtifactsPage() {
         loading={deleting}
         onConfirm={handleDelete}
       />
+
+      {/* ── Floating Audio Control Panel ─────────────────────────────────── */}
+      <AnimatePresence>
+        {playingKey && playingMeta && (
+          <AudioControlPanel
+            artifactName={playingMeta.artifactName}
+            langLabel={playingMeta.langLabel}
+            langFlag={playingMeta.langFlag}
+            isPlaying={audioIsPlaying}
+            currentTime={audioCurrentTime}
+            duration={audioDurationState}
+            playbackRate={audioPlaybackRate}
+            onPlayPause={handlePlayerPlayPause}
+            onSkipBack={handlePlayerSkipBack}
+            onSkipForward={handlePlayerSkipForward}
+            onSeek={handlePlayerSeek}
+            onRateChange={handlePlayerRateChange}
+            onClose={stopAudio}
+            panelRef={panelRef}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

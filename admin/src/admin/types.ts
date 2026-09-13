@@ -10,6 +10,8 @@ export interface AdminUser {
   profile_picture: string | null;
   Address: string | null;
   created_at: string;
+  /** ISO timestamp written by the mobile app each time the user opens the app */
+  last_seen: string | null;
 }
 // Update your Artifact type in your types file
 export type Artifact = {

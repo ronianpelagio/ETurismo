@@ -411,7 +411,8 @@ function ArtifactDetailModal({
                       onPress={() => { setSelectedLanguage('en'); playAudio('en'); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.languageText, selectedLanguage === 'en' && styles.languageTextActive]}>🇺🇸 English</Text>
+                      <Ionicons name="language-outline" size={13} color={selectedLanguage === 'en' ? C.gold : C.inkMid} />
+                      <Text style={[styles.languageText, selectedLanguage === 'en' && styles.languageTextActive]}>English</Text>
                     </TouchableOpacity>
                   )}
                   {artifact.audio_fil && (
@@ -420,7 +421,8 @@ function ArtifactDetailModal({
                       onPress={() => { setSelectedLanguage('fil'); playAudio('fil'); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.languageText, selectedLanguage === 'fil' && styles.languageTextActive]}>🇵🇭 Filipino</Text>
+                      <Ionicons name="language-outline" size={13} color={selectedLanguage === 'fil' ? C.gold : C.inkMid} />
+                      <Text style={[styles.languageText, selectedLanguage === 'fil' && styles.languageTextActive]}>Filipino</Text>
                     </TouchableOpacity>
                   )}
                   {artifact.audio_ja && (
@@ -429,7 +431,8 @@ function ArtifactDetailModal({
                       onPress={() => { setSelectedLanguage('ja'); playAudio('ja'); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.languageText, selectedLanguage === 'ja' && styles.languageTextActive]}>🇯🇵 日本語</Text>
+                      <Ionicons name="language-outline" size={13} color={selectedLanguage === 'ja' ? C.gold : C.inkMid} />
+                      <Text style={[styles.languageText, selectedLanguage === 'ja' && styles.languageTextActive]}>日本語</Text>
                     </TouchableOpacity>
                   )}
                   {artifact.audio_es && (
@@ -438,7 +441,8 @@ function ArtifactDetailModal({
                       onPress={() => { setSelectedLanguage('es'); playAudio('es'); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.languageText, selectedLanguage === 'es' && styles.languageTextActive]}>🇪🇸 Español</Text>
+                      <Ionicons name="language-outline" size={13} color={selectedLanguage === 'es' ? C.gold : C.inkMid} />
+                      <Text style={[styles.languageText, selectedLanguage === 'es' && styles.languageTextActive]}>Español</Text>
                     </TouchableOpacity>
                   )}
                   {artifact.audio_ko && (
@@ -447,7 +451,8 @@ function ArtifactDetailModal({
                       onPress={() => { setSelectedLanguage('ko'); playAudio('ko'); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.languageText, selectedLanguage === 'ko' && styles.languageTextActive]}>🇰🇷 한국어</Text>
+                      <Ionicons name="language-outline" size={13} color={selectedLanguage === 'ko' ? C.gold : C.inkMid} />
+                      <Text style={[styles.languageText, selectedLanguage === 'ko' && styles.languageTextActive]}>한국어</Text>
                     </TouchableOpacity>
                   )}
                 </View>

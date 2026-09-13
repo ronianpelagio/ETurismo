@@ -7,18 +7,20 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { supabase } from '../../services/supabase';
-import { STORAGE_KEYS, toggleInStringArray, getStringArray, logVisit, getRatings, setRating, getComments, setComment, RatingsMap, CommentsMap } from '../../utils/storage';
+import { STORAGE_KEYS, toggleInStringArray, getStringArray, logVisit, getRatings, setRating, RatingsMap } from '../../utils/storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useAppContext } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { THEMES, ThemeName } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
 import HighlightedText from '../../components/HighlightedText';
+import ArtifactComments from './ArtifactComments';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -694,22 +696,20 @@ function getStyles(C: ReturnType<typeof buildC>) {
       backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
     },
     audioLangChipActive: { borderColor: C.borderGold, backgroundColor: C.goldSoft },
-    audioLangFlag: { fontSize: 13 },
-    audioLangLabel: { fontSize: 11, fontWeight: '700', color: C.inkDim },
+    audioLangLabel: { fontSize: 11, fontWeight: '700' as const, color: C.inkDim },
     audioLangLabelActive: { color: C.gold },
     audioPlayer: {
-      flexDirection: 'row', alignItems: 'center', gap: 14,
       backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
-      borderRadius: 16, padding: 16,
+      borderRadius: 16, padding: 16, marginTop: 10,
     },
     audioPlayerActive: { borderColor: C.borderGold, backgroundColor: C.goldSoft },
     audioPlayIcon: {
       width: 44, height: 44, borderRadius: 22, backgroundColor: C.overlay,
-      justifyContent: 'center', alignItems: 'center',
+      justifyContent: 'center' as const, alignItems: 'center' as const,
       borderWidth: 1, borderColor: C.border,
     },
     audioPlayIconActive: { backgroundColor: C.gold, borderColor: C.gold },
-    audioPlayerLabel: { fontSize: 14, fontWeight: '700', color: C.ink, marginBottom: 2 },
+    audioPlayerLabel: { fontSize: 14, fontWeight: '700' as const, color: C.ink, marginBottom: 2 },
     audioPlayerSub: { fontSize: 11.5, color: C.inkDim },
 
     // ═══════════════════════════════════════════════════════════
@@ -882,7 +882,129 @@ function SkeletonCard({ width }: { width: number }) {
 }
 
 
-// ─── Welcome Toast ───────────────────────────────────────────────────────────────
+// ─── Welcome Modal (new user, first login) ───────────────────────────────────────
+function WelcomeModal({ name, onClose }: { name: string; onClose: () => void }) {
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const cardScale       = useRef(new Animated.Value(0.85)).current;
+  const cardOpacity     = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.spring(cardScale,   { toValue: 1, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  function dismiss() {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(cardOpacity,     { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.spring(cardScale, { toValue: 0.88, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start(() => onClose());
+  }
+
+  return (
+    <Animated.View style={{
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 999, justifyContent: 'center', alignItems: 'center',
+      paddingHorizontal: 32,
+      backgroundColor: 'rgba(10,8,6,0.72)',
+      opacity: backdropOpacity,
+    }}>
+      <Animated.View style={{
+        width: '100%', backgroundColor: C.surface, borderRadius: 28,
+        overflow: 'hidden', borderWidth: 1, borderColor: C.borderGold,
+        shadowColor: C.gold, shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 8 }, shadowRadius: 24, elevation: 16,
+        opacity: cardOpacity, transform: [{ scale: cardScale }],
+      }}>
+        {/* Gold header band */}
+        <LinearGradient
+          colors={[C.gold, C.goldBright ?? C.gold]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ paddingTop: 28, paddingBottom: 24, alignItems: 'center', paddingHorizontal: 24 }}
+        >
+          {/* X button */}
+          <TouchableOpacity
+            onPress={dismiss} activeOpacity={0.7}
+            style={{
+              position: 'absolute', top: 14, right: 14,
+              width: 28, height: 28, borderRadius: 14,
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              justifyContent: 'center', alignItems: 'center',
+            }}
+          >
+            <Ionicons name="close" size={16} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={{
+            width: 64, height: 64, borderRadius: 32,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+            borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
+          }}>
+            <Ionicons name="map-outline" size={30} color="#fff" />
+          </View>
+          <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 3, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>
+            ETURISMO
+          </Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5, textAlign: 'center' }}>
+            Welcome, {name}!
+          </Text>
+        </LinearGradient>
+
+        {/* Body */}
+        <View style={{ padding: 24 }}>
+          <Text style={{ fontSize: 14.5, color: C.inkMid, lineHeight: 23, textAlign: 'center', marginBottom: 24 }}>
+            You're now part of the{' '}
+            <Text style={{ color: C.ink, fontWeight: '700' }}>Sacred Heritage Collection</Text>.
+            {'\n\n'}Explore centuries of culture, scan artifacts, and discover the stories behind every piece.
+          </Text>
+
+          {/* Feature highlights */}
+          {[
+            { icon: 'scan-outline',     text: 'Scan QR codes on artifacts to learn their story' },
+            { icon: 'bookmark-outline', text: 'Save your favourite artifacts for later' },
+            { icon: 'headset-outline',  text: 'Listen to multilingual audio guides' },
+          ].map((f, i) => (
+            <View key={i} style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              marginBottom: i < 2 ? 12 : 20,
+            }}>
+              <View style={{
+                width: 36, height: 36, borderRadius: 10,
+                backgroundColor: C.goldSoft, justifyContent: 'center', alignItems: 'center',
+                borderWidth: 1, borderColor: C.borderGold,
+              }}>
+                <Ionicons name={f.icon as any} size={17} color={C.gold} />
+              </View>
+              <Text style={{ flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 19 }}>{f.text}</Text>
+            </View>
+          ))}
+
+          {/* OK button */}
+          <TouchableOpacity
+            onPress={dismiss} activeOpacity={0.85}
+            style={{
+              backgroundColor: C.ink, borderRadius: 16, paddingVertical: 15,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+              shadowColor: C.ink, shadowOpacity: 0.2,
+              shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 4,
+            }}
+          >
+            <Ionicons name="compass-outline" size={18} color="#fff" />
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 }}>
+              Start Exploring
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ─── Welcome Toast (returning user) ──────────────────────────────────────────────
 function WelcomeToast({ name }: { name: string }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.88)).current;
@@ -1507,6 +1629,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [playingLang, setPlayingLang] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ja' | 'fil' | 'es' | 'ko'>(appLanguage);
@@ -1532,10 +1655,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   // ── Offline / ratings / comments state ──
   const [isOffline, setIsOffline] = useState(false);
   const [ratingsMap, setRatingsMap] = useState<RatingsMap>({});
-  const [commentsMap, setCommentsMap] = useState<CommentsMap>({});
   const [ratingDraft, setRatingDraft] = useState(0);
-  const [commentDraft, setCommentDraft] = useState('');
-  const [commentSaved, setCommentSaved] = useState(false);
 
   // ── Map state ──
   const MUSEUM_LOCATION = { latitude: 14.016902, longitude: 121.402152 };
@@ -1545,6 +1665,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [locationError, setLocationError] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const [langRowOpen, setLangRowOpen] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
 
   // ── Routing state ──
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
@@ -1580,6 +1701,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const {
     words: audioWords,
     highlightedIndex,
+    currentTime: audioCurrentTime,
     startHighlight,
     stopHighlight,
     resetHighlight,
@@ -1655,11 +1777,10 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       setSelectedLanguage(appLanguage);
       setDescExpanded(false);
       setLangRowOpen(false);
+      setPlaybackRate(1);
       resetHighlight();
       // Seed draft from saved values
       setRatingDraft(ratingsMap[selectedArtifact.id] || 0);
-      setCommentDraft(commentsMap[selectedArtifact.id] || '');
-      setCommentSaved(false);
       // Log visit
       logVisit({
         artifactId:   selectedArtifact.id,
@@ -1685,9 +1806,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     const interested = await getStringArray(STORAGE_KEYS.interestedEvents);
     setSavedArtifactIds(saved);
     setInterestedIds(interested);
-    const [rm, cm] = await Promise.all([getRatings(), getComments()]);
+    const [rm] = await Promise.all([getRatings()]);
     setRatingsMap(rm);
-    setCommentsMap(cm);
     try {
       const rs = await AsyncStorage.getItem('recentSearches');
       if (rs) setRecentSearches(JSON.parse(rs));
@@ -1712,6 +1832,27 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     setPlayingLang(null);
     stopHighlight();
   }
+
+  function handleAudioSeek(seconds: number) {
+    if (!playerRef.current) return;
+    // seekTo takes seconds (expo-audio AudioPlayer API)
+    try { playerRef.current.seekTo(seconds); } catch (_) {}
+  }
+  function handleAudioRate(rate: number) {
+    if (!playerRef.current) return;
+    // setPlaybackRate is the correct expo-audio method
+    try { playerRef.current.setPlaybackRate(rate); setPlaybackRate(rate); } catch (_) {}
+  }
+  function handleAudioSkip(delta: number) {
+    const next = Math.max(0, Math.min(audioCurrentTime + delta, audioDuration - 0.5));
+    handleAudioSeek(next);
+  }
+  function formatAudioTime(s: number): string {
+    if (!isFinite(s) || isNaN(s) || s < 0) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  }
   async function playAudio(audioUrl: string, lang: string) {
     try {
       cleanupAudio();
@@ -1720,10 +1861,15 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       const player = createAudioPlayer({ uri: audioUrl }) as any;
       playerRef.current = player;
       const sub = player.addListener('playbackStatusUpdate', (status: any) => {
-        // Capture duration when known
-        if (status.durationMillis && status.durationMillis > 0) {
-          setAudioDuration(status.durationMillis / 1000);
-        }
+        // Read duration from player.duration (seconds) — more reliable than durationMillis
+        const dur: number =
+          typeof player.duration === 'number' && player.duration > 0
+            ? player.duration
+            : status.durationMillis && status.durationMillis > 0
+              ? status.durationMillis / 1000
+              : 0;
+        if (dur > 0) setAudioDuration(dur);
+
         if (status.didJustFinish) {
           setPlayingLang(null);
           stopHighlight();
@@ -1751,7 +1897,18 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
         .eq('id', authUser.id).single();
       if (userError) throw userError;
       setUser(userData);
-      setShowToast(true);
+
+      // ── Welcome: new user → modal, returning user → toast ──
+      const welcomeKey = `welcome_modal_seen_${authUser.id}`;
+      const alreadySeen = await AsyncStorage.getItem(welcomeKey);
+      if (!alreadySeen) {
+        // First login on this install — show welcome modal and mark as seen
+        await AsyncStorage.setItem(welcomeKey, 'true');
+        setShowWelcomeModal(true);
+      } else {
+        // Returning user — show welcome back toast
+        setShowToast(true);
+      }
 
       const { data: items, error: itemsError } = await supabase
         .from('artifacts')
@@ -1854,7 +2011,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
     const artifactLink = `https://sacredheritage.ph/artifacts/${selectedArtifact.id}`;
     const shareText =
-      `✦ ${selectedArtifact.name}\n` +
+      `${selectedArtifact.name}\n` +
       `${selectedArtifact.category} — Sacred Heritage Collection\n\n` +
       `${selectedArtifact.description?.slice(0, 120) ?? 'A treasured piece of liturgical history.'}…\n\n` +
       `Discover it at the National Shrine of Our Lady of Sorrows.\n` +
@@ -1868,7 +2025,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       try {
         // Derive a local filename from the URL (keep extension, fallback to .jpg)
         const ext = imageUrl.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpg';
-        const localUri = `${FileSystem.cacheDirectory}artifact_${selectedArtifact.id}.${ext}`;
+        const localUri = `${FileSystem.Paths.cache}artifact_${selectedArtifact.id}.${ext}`;
 
         // Download only if not already cached
         const fileInfo = await FileSystem.getInfoAsync(localUri);
@@ -2108,7 +2265,9 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       <SafeAreaView style={[styles.safe, styles.centerScreen]} edges={['top']}>
         <StatusBar style="dark" translucent backgroundColor="transparent" />
         <View style={styles.errorInner}>
-          <Text style={styles.errorGlyph}>✦</Text>
+          <View style={styles.loadingOrb}>
+            <Ionicons name="cloud-offline-outline" size={28} color={C.gold} />
+          </View>
           <Text style={styles.errorTitle}>Collection Unavailable</Text>
           <Text style={styles.errorBody}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchData} activeOpacity={0.8}>
@@ -2129,6 +2288,13 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
         <View style={styles.toastWrapper} pointerEvents="none">
           <WelcomeToast name={firstName} />
         </View>
+      )}
+
+      {showWelcomeModal && (
+        <WelcomeModal
+          name={user?.first_name || 'there'}
+          onClose={() => setShowWelcomeModal(false)}
+        />
       )}
 
       <ScrollView
@@ -2315,7 +2481,9 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           />
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyGlyph}>✦</Text>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.goldSoft, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+              <Ionicons name="search-outline" size={26} color={C.inkDim} />
+            </View>
             <Text style={styles.emptyTitle}>Nothing found</Text>
             <Text style={styles.emptySub}>
               {activeTab !== 'All' ? `No artifacts in "${activeTab}".` : 'Try a different search.'}
@@ -2623,11 +2791,17 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
                 <View style={styles.visitInfoGrid}>
                   <View style={styles.visitInfoBlock}>
-                    <Text style={styles.visitInfoLabel}>📍 LOCATION</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                      <Ionicons name="location-outline" size={10} color="rgba(255,255,255,0.4)" />
+                      <Text style={styles.visitInfoLabel}>LOCATION</Text>
+                    </View>
                     <Text style={styles.visitInfoValue}>National Shrine of Our Lady of Sorrows</Text>
                   </View>
                   <View style={styles.visitInfoBlock}>
-                    <Text style={styles.visitInfoLabel}>🕐 HOURS</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                      <Ionicons name="time-outline" size={10} color="rgba(255,255,255,0.4)" />
+                      <Text style={styles.visitInfoLabel}>HOURS</Text>
+                    </View>
                     <Text style={styles.visitInfoValue}>8:00 AM – 5:00 PM{'\n'}Daily · Free Entry</Text>
                   </View>
                 </View>
@@ -2773,30 +2947,38 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                 {/* Audio Guide */}
                 {(() => {
                   const translations = selectedArtifact.translations || [];
-                  const langMeta: Record<string, { label: string; flag: string; name: string }> = {
-                    en:  { label: 'EN',  flag: '🇺🇸', name: 'English'  },
-                    fil: { label: 'FIL', flag: '🇵🇭', name: 'Filipino' },
-                    ja:  { label: 'JA',  flag: '🇯🇵', name: 'Japanese' },
-                    es:  { label: 'ES',  flag: '🇪🇸', name: 'Spanish'  },
-                    ko:  { label: 'KO',  flag: '🇰🇷', name: 'Korean'   },
+                  const langMeta: Record<string, { label: string; icon: string; name: string }> = {
+                    en:  { label: 'EN',  icon: 'language-outline', name: 'English'  },
+                    fil: { label: 'FIL', icon: 'language-outline', name: 'Filipino' },
+                    ja:  { label: 'JA',  icon: 'language-outline', name: 'Japanese' },
+                    es:  { label: 'ES',  icon: 'language-outline', name: 'Spanish'  },
+                    ko:  { label: 'KO',  icon: 'language-outline', name: 'Korean'   },
                   };
                   const available = translations.filter(t => t.audio_url || t.description);
                   if (!available.length) return null;
-                  const selectedMeta = langMeta[selectedLanguage] || { label: selectedLanguage.toUpperCase(), flag: '🌐', name: selectedLanguage };
+                  const cur = available.find(t => t.language_code === selectedLanguage) || available[0];
+                  const isPlaying = !!(cur && playingLang === cur.language_code);
                   return (
                     <View style={styles.modalSection}>
                       {/* Section header */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                         <Ionicons name="headset-outline" size={13} color={C.gold} />
-                        <Text style={styles.modalSectionLabel}>AUDIO GUIDE & LANGUAGE</Text>
+                        <Text style={styles.modalSectionLabel}>AUDIO GUIDE</Text>
+                        {isPlaying && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, height: 16, marginLeft: 2 }}>
+                            {[0.5, 1, 0.7, 0.9, 0.6].map((h, i) => (
+                              <View key={i} style={{ width: 2.5, height: 14 * h, borderRadius: 2, backgroundColor: C.gold }} />
+                            ))}
+                          </View>
+                        )}
                       </View>
                       <View style={styles.modalSectionUnderline} />
 
-                      {/* ── Language chips (always visible) ── */}
+                      {/* ── Language chips ── */}
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                         <View style={styles.audioLangRow}>
                           {available.map(t => {
-                            const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), flag: '🌐', name: t.language_code };
+                            const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), icon: 'language-outline', name: t.language_code };
                             const isActive = selectedLanguage === t.language_code;
                             return (
                               <TouchableOpacity
@@ -2809,7 +2991,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                                 }}
                                 activeOpacity={0.7}
                               >
-                                <Text style={styles.audioLangFlag}>{meta.flag}</Text>
+                                <Ionicons name={(meta.icon || 'language-outline') as any} size={13} color={isActive ? C.gold : C.inkDim} />
                                 <Text style={[styles.audioLangLabel, isActive && styles.audioLangLabelActive]}>
                                   {meta.name}
                                 </Text>
@@ -2822,59 +3004,97 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                         </View>
                       </ScrollView>
 
-                      {/* ── Audio player ── */}
-                      {(() => {
-                        const cur = available.find(t => t.language_code === selectedLanguage) || available[0];
-                        if (!cur) return null;
-                        const meta = langMeta[cur.language_code] || { label: cur.language_code.toUpperCase(), flag: '🌐', name: cur.language_code };
-                        const isPlaying = playingLang === cur.language_code;
-                        return cur.audio_url ? (
-                          <TouchableOpacity
-                            style={[styles.audioPlayer, isPlaying && styles.audioPlayerActive]}
-                            onPress={() => {
-                              if (isPlaying) { cleanupAudio(); }
-                              else { playAudio(cur.audio_url!, cur.language_code); }
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <View style={[styles.audioPlayIcon, isPlaying && styles.audioPlayIconActive]}>
+                      {/* ── Audio player card ── */}
+                      {cur && cur.audio_url ? (
+                        <View style={[styles.audioPlayer, isPlaying && styles.audioPlayerActive]}>
+                          {/* Top row */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                            <TouchableOpacity
+                              style={[styles.audioPlayIcon, isPlaying && styles.audioPlayIconActive]}
+                              onPress={() => {
+                                if (isPlaying) cleanupAudio();
+                                else playAudio(cur.audio_url!, cur.language_code);
+                              }}
+                              activeOpacity={0.8}
+                            >
                               <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={isPlaying ? C.void : C.ink} />
-                            </View>
+                            </TouchableOpacity>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.audioPlayerLabel}>{isPlaying ? 'Now playing…' : 'Tap to listen'}</Text>
-                              <Text style={styles.audioPlayerSub}>{meta.flag} {meta.name} narration</Text>
-                              {isPlaying && (
-                                <Text style={{ fontSize: 10, color: C.gold, fontStyle: 'italic', marginTop: 2 }}>
-                                  ↑ Words highlighted as audio plays
-                                </Text>
-                              )}
+                              <Text style={styles.audioPlayerSub}>
+                                {(langMeta[cur.language_code] || { name: cur.language_code }).name} narration
+                              </Text>
                             </View>
-                            {isPlaying ? (
-                              // Inline waveform bars
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, height: 24 }}>
-                                {[0.6, 1, 0.7, 0.9, 0.5].map((h, i) => (
-                                  <View key={i} style={{ width: 3, height: 20 * h, borderRadius: 2, backgroundColor: C.gold }} />
-                                ))}
-                              </View>
-                            ) : (
-                              <Ionicons name="volume-medium-outline" size={20} color={C.inkDim} />
-                            )}
-                          </TouchableOpacity>
-                        ) : (
-                          /* No audio for this language */
-                          <View style={{
-                            flexDirection: 'row', alignItems: 'center', gap: 10,
-                            backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
-                            borderRadius: 14, padding: 14,
-                          }}>
-                            <Ionicons name="volume-mute-outline" size={18} color={C.inkDim} />
-                            <Text style={{ flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 20 }}>
-                              No audio available for {meta.name} yet.
-                              {available.some(t2 => t2.audio_url) ? ' Switch language to listen.' : ''}
-                            </Text>
                           </View>
-                        );
-                      })()}
+
+                          {/* Progress + controls — only when playing */}
+                          {isPlaying && (
+                            <View style={{ marginTop: 14, gap: 6 }}>
+                              {/* Progress track */}
+                              <View style={{ height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                                <View style={{
+                                  height: '100%', backgroundColor: C.gold, borderRadius: 2,
+                                  width: `${audioDuration > 0 ? Math.min((audioCurrentTime / audioDuration) * 100, 100) : 0}%`,
+                                }} />
+                              </View>
+                              {/* Times */}
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ fontSize: 10, color: C.inkDim }}>{formatAudioTime(audioCurrentTime)}</Text>
+                                <Text style={{ fontSize: 10, color: C.inkDim }}>{formatAudioTime(audioDuration)}</Text>
+                              </View>
+                              {/* Controls */}
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                                <TouchableOpacity
+                                  style={{ alignItems: 'center', gap: 2, paddingHorizontal: 6 }}
+                                  onPress={() => handleAudioSkip(-10)} activeOpacity={0.7}
+                                >
+                                  <Ionicons name="play-back" size={18} color={C.inkMid} />
+                                  <Text style={{ fontSize: 9, color: C.inkMid, fontWeight: '600' }}>10s</Text>
+                                </TouchableOpacity>
+
+                                <View style={{ flexDirection: 'row', gap: 4 }}>
+                                  {([0.75, 1, 1.5, 2] as const).map(r => (
+                                    <TouchableOpacity
+                                      key={r}
+                                      style={{
+                                        paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20,
+                                        backgroundColor: playbackRate === r ? C.gold : C.goldSoft,
+                                        borderWidth: 1,
+                                        borderColor: playbackRate === r ? C.gold : C.borderGold,
+                                      }}
+                                      onPress={() => handleAudioRate(r)} activeOpacity={0.7}
+                                    >
+                                      <Text style={{ fontSize: 11, fontWeight: '700', color: playbackRate === r ? C.ink : C.inkMid }}>
+                                        {r === 1 ? '1×' : `${r}×`}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+
+                                <TouchableOpacity
+                                  style={{ alignItems: 'center', gap: 2, paddingHorizontal: 6 }}
+                                  onPress={() => handleAudioSkip(10)} activeOpacity={0.7}
+                                >
+                                  <Ionicons name="play-forward" size={18} color={C.inkMid} />
+                                  <Text style={{ fontSize: 9, color: C.inkMid, fontWeight: '600' }}>10s</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                      ) : (
+                        <View style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 10,
+                          backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
+                          borderRadius: 14, padding: 14, marginTop: 10,
+                        }}>
+                          <Ionicons name="volume-mute-outline" size={18} color={C.inkDim} />
+                          <Text style={{ flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 20 }}>
+                            No audio available for {(langMeta[cur?.language_code] || { name: selectedLanguage }).name} yet.
+                            {available.some(t2 => t2.audio_url) ? ' Switch language to listen.' : ''}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   );
                 })()}
@@ -2914,44 +3134,14 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                     )}
                   </View>
 
-                  {/* Comment input */}
-                  <Text style={[styles.modalSectionLabel, { marginBottom: 8 }]}>YOUR NOTE</Text>
-                  <View style={styles.modalSectionUnderline} />
-                  <TextInput
-                    style={{
-                      backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
-                      borderRadius: 12, padding: 14, fontSize: 13 * fontScale,
-                      color: C.ink, minHeight: 80, textAlignVertical: 'top',
-                      lineHeight: 20,
-                    }}
-                    placeholder="Write a personal note about this artifact…"
-                    placeholderTextColor={C.inkDim}
-                    value={commentDraft}
-                    onChangeText={t => { setCommentDraft(t); setCommentSaved(false); }}
-                    multiline
-                    maxLength={300}
+                  {/* Community comments */}
+                  <ArtifactComments
+                    artifactId={selectedArtifact.id}
+                    currentUserId={user?.id ?? null}
+                    currentUser={user ? { first_name: user.first_name, last_name: user.last_name, profile_picture: user.profile_picture } : null}
+                    C={C}
+                    fontScale={fontScale}
                   />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                    <Text style={{ fontSize: 10, color: C.inkDim }}>{commentDraft.length}/300</Text>
-                    <TouchableOpacity
-                      onPress={async () => {
-                        const updated = await setComment(selectedArtifact.id, commentDraft.trim());
-                        setCommentsMap(updated);
-                        setCommentSaved(true);
-                      }}
-                      activeOpacity={0.8}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 5,
-                        backgroundColor: commentSaved ? 'rgba(46,204,113,0.1)' : C.gold,
-                        paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50,
-                      }}
-                    >
-                      <Ionicons name={commentSaved ? 'checkmark' : 'save-outline'} size={13} color={commentSaved ? C.teal : C.void} />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: commentSaved ? C.teal : C.void }}>
-                        {commentSaved ? 'Saved' : 'Save Note'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
               </View>
             </ScrollView>

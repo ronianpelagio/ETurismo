@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   TextInput, Image, Alert, ActivityIndicator, Animated, Keyboard,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -133,7 +134,11 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     } catch (e: any) {
       setSaveFeedback('error');
       Alert.alert('Error', e.message || 'Failed to save changes.');
-      setSaveFeedback('idle');
+      Animated.sequence([
+        Animated.timing(feedbackAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.delay(1800),
+        Animated.timing(feedbackAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start(() => setSaveFeedback('idle'));
     }
   }
 
@@ -148,29 +153,32 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     const uri = result.assets[0].uri;
     setUploadingAvatar(true);
     try {
-      // Upload to Supabase Storage (avatars bucket)
       const { data: { user: auth } } = await supabase.auth.getUser();
       if (!auth) throw new Error('Not authenticated');
 
       const fileName = `avatar_${auth.id}_${Date.now()}.jpg`;
-      const formData = new FormData();
-      formData.append('file', { uri, name: fileName, type: 'image/jpeg' } as any);
+
+      // Fetch the local URI as a blob — avoids atob/FormData which don't
+      // work correctly with local file URIs on React Native.
+      const response = await fetch(uri);
+      const blob = await response.blob();
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, formData as any, { upsert: true, contentType: 'image/jpeg' });
+        .from('media-Profile')
+        .upload(fileName, blob, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from('media-Profile').getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
 
       await supabase.from('users').update({ profile_picture: publicUrl }).eq('id', auth.id);
       setAvatarUri(publicUrl);
       setUser(prev => prev ? { ...prev, profile_picture: publicUrl } : prev);
     } catch {
-      // If storage upload fails, use local URI as preview
+      // If storage upload fails, show local URI as preview only
       setAvatarUri(uri);
+      Alert.alert('Upload Failed', 'Could not upload photo. Your changes were saved locally.');
     } finally {
       setUploadingAvatar(false);
     }
@@ -296,6 +304,10 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
         </View>
       </Animated.View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.scroll}
@@ -502,6 +514,12 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
               C={C}
             />
             <MenuRow
+              icon="heart" label="Favorite Artifacts"
+              sub="Artifacts you've marked as favorite"
+              onPress={() => navigation?.navigate?.('FavoriteArtifacts')}
+              C={C}
+            />
+            <MenuRow
               icon="library" label="Full Collection"
               sub="Browse all artifacts"
               onPress={() => navigation?.navigate?.('CollectionPage')}
@@ -537,6 +555,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
 
         <Text style={s.version}>Version 2.0.0 · Sacred Heritage</Text>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

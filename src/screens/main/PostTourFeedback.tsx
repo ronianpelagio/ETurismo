@@ -164,10 +164,10 @@ function SuccessView({ onClose, C }: { onClose: () => void; C: ReturnType<typeof
         </Text>
 
         {/* Decorative row */}
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: 28, marginBottom: 40 }}>
-          {['✦', '◈', '✦'].map((sym, i) => (
-            <Text key={i} style={{ fontSize: 12, color: C.borderGold, letterSpacing: 2 }}>{sym}</Text>
-          ))}
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 28, marginBottom: 40, alignItems: 'center' }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: C.borderGold, opacity: 0.4 }} />
+          <Ionicons name="diamond-outline" size={12} color={C.borderGold} />
+          <View style={{ flex: 1, height: 1, backgroundColor: C.borderGold, opacity: 0.4 }} />
         </View>
 
         <TouchableOpacity
@@ -354,7 +354,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
           <SuccessView onClose={dismiss} C={C} />
         ) : (
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}
           >
             {/* Drag Handle */}
@@ -373,9 +373,9 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
               {/* ── Hero Header ── */}
               <View style={styles(C).heroSection}>
                 <View style={styles(C).trophyCircle}>
-                  <Text style={{ fontSize: 36 }}>🏛️</Text>
+                  <Ionicons name="business-outline" size={36} color={C.gold} />
                 </View>
-                <Text style={styles(C).eyebrow}>✦ TOUR COMPLETE</Text>
+                <Text style={styles(C).eyebrow}>TOUR COMPLETE</Text>
                 <Text style={styles(C).heroTitle}>You've Explored All{'\n'}{totalArtifacts} Artifacts!</Text>
                 <View style={styles(C).goldDivider} />
                 <Text style={styles(C).heroSub}>

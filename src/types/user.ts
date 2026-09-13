@@ -17,6 +17,8 @@ export interface User {
   status: UserStatus;
   created_at?: string;
   updated_at?: string;
+  /** ISO timestamp updated every time the user opens the app or logs in */
+  last_seen?: string | null;
 }
 
 export interface UserProfile extends User {

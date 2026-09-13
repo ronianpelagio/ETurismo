@@ -20,6 +20,25 @@ const queryCount = async (table: string, filter?: Record<string, unknown>) => {
   return count ?? 0;
 };
 
+/**
+ * Count users whose last_seen timestamp is within the last `minutes` minutes.
+ * Falls back to status='active' for rows that predate the last_seen column.
+ */
+export async function fetchActiveUserCount(minutes = 5): Promise<number> {
+  const threshold = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+
+  // Primary: users that pinged the app recently
+  const { count: recentCount, error: recentErr } = await supabase
+    .from("users")
+    .select("id", { head: true, count: "exact" })
+    .gte("last_seen", threshold);
+
+  if (!recentErr && recentCount !== null) return recentCount;
+
+  // Fallback (last_seen column doesn't exist yet): count status='active'
+  return queryCount("users", { status: "active" });
+}
+
 const querySafe = async <T>(fn: () => Promise<T>) => {
   try {
     return await fn();
@@ -28,7 +47,7 @@ const querySafe = async <T>(fn: () => Promise<T>) => {
   }
 };
 
-export async function fetchDashboardStats(): Promise<DashboardStats> {
+export async function fetchDashboardStats(fromDate?: string): Promise<DashboardStats> {
   const [
     artifacts,
     users,
@@ -43,7 +62,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   ] = await Promise.all([
     queryCount("artifacts"),
     queryCount("users"),
-    queryCount("users", { status: "active" }),
+    fetchActiveUserCount(5),
     // schema now uses 'active' / 'inactive' for user status
     queryCount("users", { status: "inactive" }),
     queryCount("user_ratings"),
@@ -64,13 +83,14 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       return data as Array<{ rating?: number | null }>;
     }),
     querySafe(async () => {
-      const weekAgo = new Date(
-        Date.now() - 6 * 24 * 60 * 60 * 1000,
-      ).toISOString();
+      // Use fromDate if provided, otherwise default to 6 days ago (7-day window)
+      const start = fromDate
+        ? new Date(fromDate).toISOString()
+        : new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("users")
         .select("created_at")
-        .gte("created_at", weekAgo)
+        .gte("created_at", start)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as Array<{ created_at?: string | null }>;
@@ -94,9 +114,11 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length
     : 0;
 
-  const trendDays = Array.from({ length: 7 }).map((_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - index));
+  // Build trend days spanning from fromDate to today
+  const startMs = fromDate ? new Date(fromDate).getTime() : Date.now() - 6 * 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.round((Date.now() - startMs) / (24 * 60 * 60 * 1000)) + 1);
+  const trendDays = Array.from({ length: totalDays }).map((_, index) => {
+    const date = new Date(startMs + index * 24 * 60 * 60 * 1000);
     return {
       date: date.toISOString().slice(0, 10),
       count: 0,

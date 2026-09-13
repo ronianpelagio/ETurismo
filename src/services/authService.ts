@@ -42,6 +42,12 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   if (!profile) return { user: null, error: 'Profile not found. Please sign up again.' };
   if (profile.status !== 'active') return { user: null, error: 'Account inactive. Contact support.' };
 
+  // Stamp last_seen so the admin dashboard knows this user is active
+  await supabase
+    .from('users')
+    .update({ last_seen: new Date().toISOString() })
+    .eq('id', data.user.id);
+
   return { user: profile as User, error: null };
 }
 
@@ -81,4 +87,15 @@ export async function updateUserProfile(
     .eq('id', userId);
 
   return { error: error?.message ?? null };
+}
+
+/**
+ * Silently stamp last_seen for a user.
+ * Call this whenever the app is opened or a session is resumed.
+ */
+export async function touchLastSeen(userId: string): Promise<void> {
+  await supabase
+    .from('users')
+    .update({ last_seen: new Date().toISOString() })
+    .eq('id', userId);
 }

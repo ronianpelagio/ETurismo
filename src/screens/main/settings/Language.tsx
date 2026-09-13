@@ -60,7 +60,11 @@ function getStyles(C: ReturnType<typeof buildC>) {
     rowActive: { backgroundColor: C.goldSoft },
 
     langInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    langFlag: { fontSize: 24 },
+    langIconWrap: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: C.goldSoft, justifyContent: 'center', alignItems: 'center',
+      borderWidth: 1, borderColor: C.borderGold,
+    },
     langTextWrap: { gap: 1 },
     langName: { fontSize: 15, fontWeight: '600', color: C.ink },
     langNative: { fontSize: 12, color: C.inkLight },
@@ -98,7 +102,7 @@ export default function Language({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backTxt}>‹</Text>
+          <Ionicons name="arrow-back" size={20} color={C.ink} />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>Language</Text>
         <View style={{ width: 40 }} />
@@ -127,7 +131,9 @@ export default function Language({ navigation }: any) {
                 activeOpacity={0.7}
               >
                 <View style={styles.langInfo}>
-                  <Text style={styles.langFlag}>{meta.flag}</Text>
+                  <View style={styles.langIconWrap}>
+                    <Ionicons name="language-outline" size={20} color={isActive ? C.gold : C.inkMid} />
+                  </View>
                   <View style={styles.langTextWrap}>
                     <Text style={styles.langName}>{meta.name}</Text>
                     {meta.nativeName !== meta.name && (

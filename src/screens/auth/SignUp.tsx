@@ -18,9 +18,9 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
 
 import { supabase } from '../../services/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Ionicons as Icon } from '@expo/vector-icons';
 
@@ -823,75 +823,37 @@ export default function SignUp({
          UPLOAD PROFILE PHOTO
       ---------------------------------------------------------------------- */
 
-      let profilePictureUrl:
-        string | null = null;
+      let profilePictureUrl: string | null = null;
 
       if (profilePicUri) {
-        const resizedUri =
-          (await getResizedProfileUri()) ??
-          profilePicUri;
+        try {
+          const resizedUri = (await getResizedProfileUri()) ?? profilePicUri;
 
-        const fileName =
-          `${normalizedEmail.replace(
-            /[^a-z0-9]/g,
-            '_'
-          )}_${Date.now()}.jpg`;
+          const fileName = `${normalizedEmail.replace(/[^a-z0-9]/g, '_')}_${Date.now()}.jpg`;
 
-        const base64 =
-          await FileSystem.readAsStringAsync(
-            resizedUri,
-            {
-              encoding:
-                FileSystem.EncodingType
-                  .Base64,
-            }
-          );
+          // Fetch the local file as a blob — avoids atob which is unavailable in RN
+          const response = await fetch(resizedUri);
+          const blob = await response.blob();
 
-        const byteArray =
-          Uint8Array.from(
-            atob(base64),
-            character =>
-              character.charCodeAt(
-                0
-              )
-          );
+          const { error: uploadError } = await supabase.storage
+            .from('media-Profile')
+            .upload(fileName, blob, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            });
 
-        const {
-          error: uploadError,
-        } =
-          await supabase.storage
-            .from(
-              'media-Profile'
-            )
-            .upload(
-              fileName,
-              byteArray,
-              {
-                contentType:
-                  'image/jpeg',
-                upsert: true,
-              }
-            );
+          if (uploadError) throw uploadError;
 
-        if (uploadError) {
-          throw uploadError;
+          const { data: { publicUrl } } = supabase.storage
+            .from('media-Profile')
+            .getPublicUrl(fileName);
+
+          profilePictureUrl = publicUrl;
+        } catch (uploadErr: any) {
+          // Profile photo upload failed — continue account creation without it
+          console.warn('Profile photo upload failed:', uploadErr?.message);
+          profilePictureUrl = null;
         }
-
-        const {
-          data: {
-            publicUrl,
-          },
-        } =
-          supabase.storage
-            .from(
-              'media-Profile'
-            )
-            .getPublicUrl(
-              fileName
-            );
-
-        profilePictureUrl =
-          publicUrl;
       }
 
       /* ----------------------------------------------------------------------
@@ -935,6 +897,12 @@ export default function SignUp({
       if (error) {
         throw error;
       }
+
+      // Save OTP send timestamp so the countdown persists if the app is closed
+      await AsyncStorage.setItem(
+        `otp_sent_at_${normalizedEmail}`,
+        Date.now().toString()
+      );
 
       navigation.navigate('VerifyOTP', { email: normalizedEmail });
 

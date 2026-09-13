@@ -1,69 +1,39 @@
 /**
  * useAudioWordHighlight
  *
- * A hook that drives word-level highlighting in sync with an audio narration.
- *
- * Strategy:
- *   - We split the description text into an array of words.
- *   - When audio starts, we record the start timestamp.
- *   - We poll the player's elapsed time with setInterval and map elapsed seconds
- *     → highlighted-word index using a simple linear model:
- *       wordsPerSecond = totalWords / audioDurationSeconds
- *   - When the description comes with explicit per-word timestamps (optional), we
- *     use those for more accurate sync.
- *
- * Usage:
- *   const { words, highlightedIndex, startHighlight, stopHighlight, resetHighlight } =
- *     useAudioWordHighlight({ text: description, durationSeconds: audioDuration });
- *
- *   In JSX, render each word with a highlighted style when index === highlightedIndex.
+ * Drives word-level highlighting by reading player.currentTime directly
+ * from the expo-audio AudioPlayer object. This gives exact sync with no
+ * wall-clock drift and automatically stays correct after seeks or rate changes.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export type WordTimestamp = {
-  /** 0-based index of the word in the words array */
   index: number;
-  /** seconds from audio start when this word should be highlighted */
-  startTime: number;
+  startTime: number; // seconds from audio start
 };
 
 type Options = {
-  /** Full text to be narrated */
   text: string;
-  /**
-   * Total duration of the audio in seconds.
-   * Used only for linear interpolation when no wordTimestamps are provided.
-   */
   durationSeconds?: number;
-  /**
-   * Optional explicit per-word timestamps (more accurate).
-   * If provided, durationSeconds is ignored.
-   */
   wordTimestamps?: WordTimestamp[];
 };
 
 type AudioWordHighlightResult = {
-  /** The text split into individual word strings */
   words: string[];
-  /** Index of the currently highlighted word (−1 = nothing highlighted) */
   highlightedIndex: number;
-  /** Call this when audio playback begins. Pass the player object (expo-audio) */
-  startHighlight: (playerRef: any) => void;
-  /** Call this when audio is stopped / paused */
+  /** Current playback position in seconds — read directly from the player */
+  currentTime: number;
+  startHighlight: (player: any) => void;
   stopHighlight: () => void;
-  /** Reset state (e.g. when modal closes) */
   resetHighlight: () => void;
 };
 
-/** Split text preserving punctuation-attached tokens as single visual words */
 function splitWords(text: string): string[] {
   if (!text) return [];
-  // Split on whitespace, keep empty filter
   return text.split(/\s+/).filter(Boolean);
 }
 
-/** Given elapsed seconds, return the word index via linear interpolation */
 function linearWordIndex(
   elapsed: number,
   totalWords: number,
@@ -74,21 +44,17 @@ function linearWordIndex(
   return Math.min(Math.floor(ratio * totalWords), totalWords - 1);
 }
 
-/** Given elapsed seconds and explicit timestamps, find the current word index */
 function timestampWordIndex(elapsed: number, timestamps: WordTimestamp[]): number {
   if (!timestamps.length) return -1;
   let current = -1;
   for (const ts of timestamps) {
-    if (elapsed >= ts.startTime) {
-      current = ts.index;
-    } else {
-      break;
-    }
+    if (elapsed >= ts.startTime) current = ts.index;
+    else break;
   }
   return current;
 }
 
-const POLL_INTERVAL_MS = 150; // how often we check player position (ms)
+const POLL_MS = 100; // poll every 100 ms — fast enough to feel immediate
 
 export function useAudioWordHighlight({
   text,
@@ -96,15 +62,26 @@ export function useAudioWordHighlight({
   wordTimestamps,
 }: Options): AudioWordHighlightResult {
   const words = splitWords(text);
+
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playerRef = useRef<any>(null);
-  const startTimestampRef = useRef<number>(0); // wall-clock ms when play started
-  const elapsedOffsetRef = useRef<number>(0);  // resume offset in seconds
+  const playerRef   = useRef<any>(null);
+
+  // Keep a ref to the latest durationSeconds so the interval closure always
+  // uses the up-to-date value even after state updates.
+  const durationRef      = useRef<number>(durationSeconds);
+  const wordCountRef     = useRef<number>(words.length);
+  const wordTimestampRef = useRef(wordTimestamps);
+
+  // Sync refs whenever the values change (no stale closures)
+  useEffect(() => { durationRef.current = durationSeconds; }, [durationSeconds]);
+  useEffect(() => { wordCountRef.current = words.length; });
+  useEffect(() => { wordTimestampRef.current = wordTimestamps; }, [wordTimestamps]);
 
   const stopHighlight = useCallback(() => {
-    if (intervalRef.current) {
+    if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
@@ -113,51 +90,60 @@ export function useAudioWordHighlight({
   const resetHighlight = useCallback(() => {
     stopHighlight();
     setHighlightedIndex(-1);
-    elapsedOffsetRef.current = 0;
+    setCurrentTime(0);
     playerRef.current = null;
   }, [stopHighlight]);
 
-  const startHighlight = useCallback(
-    (player: any) => {
-      playerRef.current = player;
-      startTimestampRef.current = Date.now();
+  const startHighlight = useCallback((player: any) => {
+    // Store the player so the interval can read currentTime from it
+    playerRef.current = player;
 
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    // Clear any previous interval
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
 
-      intervalRef.current = setInterval(() => {
-        // Compute elapsed time from wall clock — works even if expo-audio
-        // doesn't expose a reliable currentTime property synchronously.
-        const wallElapsed = (Date.now() - startTimestampRef.current) / 1000 + elapsedOffsetRef.current;
+    intervalRef.current = setInterval(() => {
+      const p = playerRef.current;
+      if (!p) return;
 
-        let idx: number;
-        if (wordTimestamps && wordTimestamps.length > 0) {
-          idx = timestampWordIndex(wallElapsed, wordTimestamps);
-        } else {
-          idx = linearWordIndex(wallElapsed, words.length, durationSeconds);
-        }
-        setHighlightedIndex(idx);
+      // Read the real position directly from the player — no wall-clock math
+      const elapsed: number =
+        typeof p.currentTime === 'number' ? p.currentTime : 0;
 
-        // Stop polling if we've exceeded the duration (linear mode)
-        if (
-          !wordTimestamps &&
-          durationSeconds > 0 &&
-          wallElapsed >= durationSeconds
-        ) {
-          stopHighlight();
-          // Keep the last word highlighted briefly, then reset
-          setTimeout(() => setHighlightedIndex(-1), 800);
-        }
-      }, POLL_INTERVAL_MS);
-    },
-    [words.length, durationSeconds, wordTimestamps, stopHighlight],
-  );
+      setCurrentTime(elapsed);
+
+      const dur   = durationRef.current;
+      const wc    = wordCountRef.current;
+      const tsArr = wordTimestampRef.current;
+
+      let idx: number;
+      if (tsArr && tsArr.length > 0) {
+        idx = timestampWordIndex(elapsed, tsArr);
+      } else {
+        idx = linearWordIndex(elapsed, wc, dur);
+      }
+      setHighlightedIndex(idx);
+
+      // Auto-stop once we've passed the end
+      if (!tsArr && dur > 0 && elapsed >= dur) {
+        stopHighlight();
+        setTimeout(() => setHighlightedIndex(-1), 600);
+      }
+    }, POLL_MS);
+  }, [stopHighlight]); // stable — no captured state
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
     };
   }, []);
 
-  return { words, highlightedIndex, startHighlight, stopHighlight, resetHighlight };
+  return {
+    words,
+    highlightedIndex,
+    currentTime,
+    startHighlight,
+    stopHighlight,
+    resetHighlight,
+  };
 }

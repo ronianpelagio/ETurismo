@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming,
   withSequence, FadeIn, FadeOut, ZoomIn, SlideInDown,
@@ -23,22 +24,46 @@ const C = {
   success: '#27AE60',
 };
 
-const OTP_LENGTH = 6;
-const TIMER_SECONDS = 300;
+const OTP_LENGTH    = 6;
+const TIMER_SECONDS = 180; // 3 minutes — matches Supabase OTP expiry
+
 const BOX_SIZE = 48;
 
 type Status = 'idle' | 'verifying' | 'success' | 'expired' | 'invalid';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function formatTime(s: number) {
-  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const m   = Math.floor(s / 60).toString().padStart(2, '0');
   const sec = (s % 60).toString().padStart(2, '0');
   return `${m}:${sec}`;
 }
 
+// AsyncStorage key — unique per email so multiple attempts don't collide
+function otpTimestampKey(email: string) {
+  return `otp_sent_at_${email.toLowerCase().trim()}`;
+}
+
+async function saveOtpTimestamp(email: string) {
+  await AsyncStorage.setItem(otpTimestampKey(email), Date.now().toString());
+}
+
+async function clearOtpTimestamp(email: string) {
+  await AsyncStorage.removeItem(otpTimestampKey(email));
+}
+
+/** Returns how many seconds remain on the OTP, or 0 if expired / not found. */
+async function getRemainingSeconds(email: string): Promise<number> {
+  const raw = await AsyncStorage.getItem(otpTimestampKey(email));
+  if (!raw) return TIMER_SECONDS; // first visit — full timer
+  const sentAt   = parseInt(raw, 10);
+  const elapsed  = Math.floor((Date.now() - sentAt) / 1000);
+  const remaining = TIMER_SECONDS - elapsed;
+  return remaining > 0 ? remaining : 0;
+}
+
 // ─── Single digit box ─────────────────────────────────────────────────────────
-function OtpBox({
-  digit, focused, hasError,
-}: {
+function OtpBox({ digit, focused, hasError }: {
   digit: string; focused: boolean; hasError: boolean;
 }) {
   const scale = useSharedValue(1);
@@ -83,9 +108,7 @@ function SuccessScreen({ onContinue }: { onContinue: () => void }) {
 }
 
 // ─── Expired overlay ──────────────────────────────────────────────────────────
-function ExpiredScreen({
-  onResend, onChangeEmail,
-}: {
+function ExpiredScreen({ onResend, onChangeEmail }: {
   onResend: () => void; onChangeEmail: () => void;
 }) {
   return (
@@ -111,29 +134,55 @@ function ExpiredScreen({
 export default function VerifyOTP({ route, navigation }: any) {
   const { email } = route.params as { email: string };
 
-  const [code, setCode]           = useState('');
+  const [code, setCode]         = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [status, setStatus]       = useState<Status>('idle');
-  const [timeLeft, setTimeLeft]   = useState(TIMER_SECONDS);
+  const [status, setStatus]     = useState<Status>('idle');
+  const [timeLeft, setTimeLeft] = useState<number | null>(null); // null = loading from storage
   const [resending, setResending] = useState(false);
 
-  // ONE real TextInput drives all six visual boxes
   const inputRef = useRef<TextInput>(null);
   const shakeX   = useSharedValue(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-focus on mount
+  // ── On mount: restore remaining time from AsyncStorage ────────────────────
   useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 400);
-    return () => clearTimeout(t);
-  }, []);
+    let cancelled = false;
 
-  // Countdown timer
+    getRemainingSeconds(email).then(remaining => {
+      if (cancelled) return;
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setStatus('expired');
+      } else {
+        setTimeLeft(remaining);
+      }
+    });
+
+    // Auto-focus keyboard
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(focusTimer);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [email]);
+
+  // ── Countdown tick — only runs after timeLeft is loaded from storage ──────
   useEffect(() => {
-    if (timeLeft <= 0) { setStatus('expired'); return; }
-    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(id);
+    if (timeLeft === null) return; // still loading
+    if (timeLeft <= 0) {
+      setStatus(prev => prev === 'success' ? prev : 'expired');
+      clearOtpTimestamp(email).catch(() => {});
+      return;
+    }
+    timerRef.current = setTimeout(() => setTimeLeft(t => (t ?? 1) - 1), 1000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [timeLeft]);
 
+  // ── Shake animation ───────────────────────────────────────────────────────
   const shake = () => {
     shakeX.value = withSequence(
       withTiming(-10, { duration: 60 }), withTiming(10, { duration: 60 }),
@@ -146,12 +195,14 @@ export default function VerifyOTP({ route, navigation }: any) {
     transform: [{ translateX: shakeX.value }],
   }));
 
+  // ── Input ─────────────────────────────────────────────────────────────────
   const handleChangeText = (text: string) => {
     const cleaned = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setCode(cleaned);
     if (status === 'invalid') setStatus('idle');
   };
 
+  // ── Verify ────────────────────────────────────────────────────────────────
   const handleVerify = useCallback(async (codeToVerify: string) => {
     if (codeToVerify.length < OTP_LENGTH) return;
 
@@ -166,11 +217,13 @@ export default function VerifyOTP({ route, navigation }: any) {
 
     if (!error) {
       setStatus('success');
+      await clearOtpTimestamp(email);
     } else if (
       error.message?.toLowerCase().includes('expired') ||
       error.message?.toLowerCase().includes('otp')
     ) {
       setStatus('expired');
+      await clearOtpTimestamp(email);
     } else {
       setStatus('invalid');
       shake();
@@ -189,34 +242,45 @@ export default function VerifyOTP({ route, navigation }: any) {
     }
   }, [code]);
 
+  // ── Resend ────────────────────────────────────────────────────────────────
   const handleResend = async () => {
     setResending(true);
     setCode('');
     setStatus('idle');
-    setTimeLeft(TIMER_SECONDS);
     try {
       await supabase.auth.resend({ type: 'email', email });
+      // Save new timestamp so the fresh 3-minute window persists across app restarts
+      await saveOtpTimestamp(email);
+      setTimeLeft(TIMER_SECONDS);
     } catch {
-      // silently fail
+      // silently fail — timer still resets so user can retry
+      setTimeLeft(TIMER_SECONDS);
     } finally {
       setResending(false);
       setTimeout(() => inputRef.current?.focus(), 200);
     }
   };
 
-  // Spread the single `code` string across 6 visual boxes
-  const digits = Array.from({ length: OTP_LENGTH }, (_, i) => code[i] ?? '');
-  const hasError    = status === 'invalid';
+  // ── Render helpers ────────────────────────────────────────────────────────
+  const digits    = Array.from({ length: OTP_LENGTH }, (_, i) => code[i] ?? '');
+  const hasError  = status === 'invalid';
   const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, (_, a, b, c) =>
     a + '*'.repeat(b.length) + c
   );
+
+  // Still reading timestamp from storage — show nothing yet
+  if (timeLeft === null) return null;
+
+  // Resend is available after 30 seconds have elapsed (timeLeft dropped below TIMER - 30)
+  const resendDisabled = resending || (timeLeft ?? 0) > TIMER_SECONDS - 30;
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {status === 'success' && (
-        <SuccessScreen onContinue={() => navigation.replace('SignIn')} />
+        // AuthNavigator's onAuthStateChange handles navigation automatically
+        <SuccessScreen onContinue={() => {}} />
       )}
       {status === 'expired' && (
         <ExpiredScreen
@@ -245,7 +309,6 @@ export default function VerifyOTP({ route, navigation }: any) {
             <Text style={styles.emailHighlight}>{maskedEmail}</Text>
           </Text>
 
-          {/* Tap anywhere on the boxes row to (re-)focus the input */}
           <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxesWrap}>
             <Animated.View style={[styles.boxRow, shakeStyle]}>
               {digits.map((digit, i) => (
@@ -260,11 +323,8 @@ export default function VerifyOTP({ route, navigation }: any) {
           </Pressable>
 
           {/*
-            ── The real TextInput ──────────────────────────────────────────
-            Positioned off-screen so it never visually appears, but remains
-            accessible to the OS keyboard.
-            IMPORTANT: opacity:0 on Android prevents the keyboard from
-            showing — we use opacity:0.01 instead (invisible but tappable).
+            The real TextInput — invisible but drives the OS keyboard.
+            opacity:0 blocks keyboard on Android, use 0.01 instead.
           */}
           <TextInput
             ref={inputRef}
@@ -313,16 +373,10 @@ export default function VerifyOTP({ route, navigation }: any) {
 
           <View style={styles.resendRow}>
             <Text style={styles.resendLabel}>Didn't receive it? </Text>
-            <TouchableOpacity
-              onPress={handleResend}
-              disabled={resending || timeLeft > TIMER_SECONDS - 30}
-            >
+            <TouchableOpacity onPress={handleResend} disabled={resendDisabled}>
               {resending
                 ? <ActivityIndicator size="small" color={C.gold} />
-                : <Text style={[
-                    styles.resendLink,
-                    timeLeft > TIMER_SECONDS - 30 && styles.resendDisabled,
-                  ]}>
+                : <Text style={[styles.resendLink, resendDisabled && styles.resendDisabled]}>
                     Resend Code
                   </Text>
               }
@@ -367,7 +421,6 @@ const styles = StyleSheet.create({
   },
   emailHighlight: { color: C.gold, fontWeight: '700' },
 
-  // Boxes
   boxesWrap: { marginBottom: 16 },
   boxRow: { flexDirection: 'row', gap: 10 },
   otpBox: {
@@ -380,14 +433,9 @@ const styles = StyleSheet.create({
   otpBoxError:   { borderColor: C.error, backgroundColor: '#FDF0EE' },
   otpDigit: { fontSize: 22, fontWeight: '800', color: C.ink },
 
-  // opacity:0 blocks keyboard on Android — use 0.01 (invisible but functional)
   hiddenInput: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0.01,
-    bottom: 0,
-    left: 0,
+    position: 'absolute', width: 1, height: 1,
+    opacity: 0.01, bottom: 0, left: 0,
   },
 
   errorTxt: { color: C.error, fontSize: 13, marginBottom: 12 },
@@ -412,7 +460,6 @@ const styles = StyleSheet.create({
   resendLink: { color: C.gold, fontWeight: '700', fontSize: 14 },
   resendDisabled: { color: C.inkLight },
 
-  // Overlays
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(26,22,18,0.55)',

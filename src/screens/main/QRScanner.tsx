@@ -479,30 +479,37 @@ function getSfStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 }
 
 // ─── Audio-Guide Waveform Animation ─────────────────────────────────────────────
-function AudioWaveform({ isPlaying }: { isPlaying: boolean }) {
-  const bars = [useRef(new Animated.Value(0.4)).current, useRef(new Animated.Value(0.6)).current, useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.8)).current, useRef(new Animated.Value(0.5)).current];
+function AudioWaveform({ isPlaying, color = '#C9A84C' }: { isPlaying: boolean; color?: string }) {
+  const bars = [useRef(new Animated.Value(0.35)).current, useRef(new Animated.Value(0.6)).current, useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.8)).current, useRef(new Animated.Value(0.45)).current];
   useEffect(() => {
-    if (!isPlaying) { bars.forEach(b => Animated.timing(b, { toValue: 0.3, duration: 300, useNativeDriver: true }).start()); return; }
+    if (!isPlaying) { bars.forEach(b => Animated.spring(b, { toValue: 0.3, useNativeDriver: true }).start()); return; }
     const anims = bars.map((bar, i) =>
       Animated.loop(Animated.sequence([
-        Animated.delay(i * 80),
-        Animated.timing(bar, { toValue: 1, duration: 300 + i * 60, useNativeDriver: true }),
-        Animated.timing(bar, { toValue: 0.25, duration: 300 + i * 60, useNativeDriver: true }),
+        Animated.delay(i * 70),
+        Animated.timing(bar, { toValue: 1,    duration: 280 + i * 55, useNativeDriver: true }),
+        Animated.timing(bar, { toValue: 0.22, duration: 280 + i * 55, useNativeDriver: true }),
       ]))
     );
     anims.forEach(a => a.start());
     return () => anims.forEach(a => a.stop());
   }, [isPlaying]);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 24 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 22 }}>
       {bars.map((b, i) => (
-        <Animated.View key={i} style={{ width: 3, borderRadius: 2, backgroundColor: C.gold, transform: [{ scaleY: b }], height: 20 }} />
+        <Animated.View key={i} style={{ width: 3, borderRadius: 2, backgroundColor: color, transform: [{ scaleY: b }], height: 18 }} />
       ))}
     </View>
   );
 }
 
 // ─── Artifact Detail Modal (Redesigned with Audio Guide + Word Highlighting) ────
+function formatTime(s: number): string {
+  if (!isFinite(s) || isNaN(s) || s < 0) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
 function ArtifactModal({
   artifact, onClose,
 }: { artifact: Artifact | null; onClose: () => void }) {
@@ -515,7 +522,8 @@ function ArtifactModal({
   const [selectedLanguage, setSelectedLanguage] = useState<string>(appLanguage);
   const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
   const [isSaved, setIsSaved] = useState(false);
-  const [audioDuration, setAudioDuration] = useState<number>(60); // seconds, updated on load
+  const [audioDuration, setAudioDuration] = useState<number>(60);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
 
@@ -533,7 +541,7 @@ function ArtifactModal({
   const currentDesc = getDescByLang(selectedLanguage);
 
   // ── Word-highlighting hook ──
-  const { words, highlightedIndex, startHighlight, stopHighlight, resetHighlight } =
+  const { words, highlightedIndex, currentTime, startHighlight, stopHighlight, resetHighlight } =
     useAudioWordHighlight({ text: currentDesc, durationSeconds: audioDuration });
 
   useEffect(() => {
@@ -597,14 +605,20 @@ function ArtifactModal({
     try {
       await stopAudio();
       setPlayingLang(lang);
+      setPlaybackRate(1);
       const player = createAudioPlayer({ uri: audioUrl }) as any;
       playerRef.current = player;
 
       const sub = player.addListener('playbackStatusUpdate', (status: any) => {
-        // Capture duration when known
-        if (status.durationMillis && status.durationMillis > 0) {
-          setAudioDuration(status.durationMillis / 1000);
-        }
+        // Read duration from player.duration (seconds) — more reliable than durationMillis
+        const dur: number =
+          typeof player.duration === 'number' && player.duration > 0
+            ? player.duration
+            : status.durationMillis && status.durationMillis > 0
+              ? status.durationMillis / 1000
+              : 0;
+        if (dur > 0) setAudioDuration(dur);
+
         if (status.didJustFinish) {
           setPlayingLang(null);
           stopHighlight();
@@ -615,8 +629,6 @@ function ArtifactModal({
       });
       playbackSubscriptionRef.current = sub;
       player.play();
-
-      // Start word highlighting
       startHighlight(player);
     } catch (e: any) {
       console.error('Playback error:', e.message);
@@ -639,6 +651,28 @@ function ArtifactModal({
     stopHighlight();
   }
 
+  function handleSeek(seconds: number) {
+    if (!playerRef.current) return;
+    try {
+      // seekTo takes seconds (expo-audio AudioPlayer API)
+      playerRef.current.seekTo(seconds);
+    } catch (_) {}
+  }
+
+  function handleRateChange(rate: number) {
+    if (!playerRef.current) return;
+    try {
+      // setPlaybackRate is the correct expo-audio method
+      playerRef.current.setPlaybackRate(rate);
+      setPlaybackRate(rate);
+    } catch (_) {}
+  }
+
+  function handleSkip(delta: number) {
+    const next = Math.max(0, Math.min(currentTime + delta, audioDuration - 0.5));
+    handleSeek(next);
+  }
+
   const handleClose = () => {
     stopAudio();
     resetHighlight();
@@ -652,12 +686,12 @@ function ArtifactModal({
 
   const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
 
-  const langMeta: Record<string, { label: string; flag: string }> = {
-    en:  { label: 'English',  flag: '🇺🇸' },
-    fil: { label: 'Filipino', flag: '🇵🇭' },
-    ja:  { label: 'Japanese', flag: '🇯🇵' },
-    es:  { label: 'Spanish',  flag: '🇪🇸' },
-    ko:  { label: 'Korean',   flag: '🇰🇷' },
+  const langMeta: Record<string, { label: string; icon: string }> = {
+    en:  { label: 'English',  icon: 'language-outline' },
+    fil: { label: 'Filipino', icon: 'language-outline' },
+    ja:  { label: 'Japanese', icon: 'language-outline' },
+    es:  { label: 'Spanish',  icon: 'language-outline' },
+    ko:  { label: 'Korean',   icon: 'language-outline' },
   };
 
   const availableLangs = translations.filter(t => t.description || t.audio_url);
@@ -722,7 +756,7 @@ function ArtifactModal({
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
                   <View style={ams.langRow}>
                     {availableLangs.map(t => {
-                      const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), flag: '🌐' };
+                      const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), icon: 'language-outline' };
                       const isActive = selectedLanguage === t.language_code;
                       return (
                         <TouchableOpacity
@@ -731,7 +765,7 @@ function ArtifactModal({
                           onPress={() => { setSelectedLanguage(t.language_code); stopAudio(); }}
                           activeOpacity={0.7}
                         >
-                          <Text style={ams.langFlag}>{meta.flag}</Text>
+                          <Ionicons name="language-outline" size={13} color={isActive ? C.gold : C.inkLight} />
                           <Text style={[ams.langLabel, isActive && ams.langLabelActive]}>{meta.label}</Text>
                           {t.audio_url && (
                             <Ionicons name="volume-medium-outline" size={11} color={isActive ? C.gold : C.inkLight} />
@@ -770,41 +804,80 @@ function ArtifactModal({
               <View style={ams.sectionHeaderRow}>
                 <Ionicons name="headset-outline" size={14} color={C.gold} />
                 <Text style={ams.sectionLabel}>AUDIO GUIDE</Text>
+                {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
               </View>
 
               {currentLangAudio ? (
-                /* Player card */
-                <TouchableOpacity
-                  style={[ams.playerCard, isCurrentlyPlaying && ams.playerCardActive]}
-                  onPress={() => isCurrentlyPlaying ? stopAudio() : playAudio(currentLangAudio.audio_url!, selectedLanguage)}
-                  activeOpacity={0.85}
-                >
-                  {/* Play / pause circle */}
-                  <View style={[ams.playCircle, isCurrentlyPlaying && ams.playCircleActive]}>
-                    <Ionicons name={isCurrentlyPlaying ? 'pause' : 'play'} size={22} color={isCurrentlyPlaying ? C.ink : C.gold} />
+                <View style={[ams.playerCard, isCurrentlyPlaying && ams.playerCardActive]}>
+                  {/* Top row: play/pause + track info + waveform */}
+                  <View style={ams.playerTopRow}>
+                    <TouchableOpacity
+                      style={[ams.playCircle, isCurrentlyPlaying && ams.playCircleActive]}
+                      onPress={() => isCurrentlyPlaying ? stopAudio() : playAudio(currentLangAudio.audio_url!, selectedLanguage)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name={isCurrentlyPlaying ? 'pause' : 'play'} size={22} color={isCurrentlyPlaying ? C.ink : C.gold} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ams.playerLabel}>
+                        {isCurrentlyPlaying ? 'Now playing…' : 'Tap to listen'}
+                      </Text>
+                      <Text style={ams.playerSub}>
+                        {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} narration
+                      </Text>
+                    </View>
+                    {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={ams.playerLabel}>
-                      {isCurrentlyPlaying ? 'Now playing…' : 'Tap to listen'}
-                    </Text>
-                    <Text style={ams.playerSub}>
-                      {(langMeta[selectedLanguage] || { flag: '🌐' }).flag}{' '}
-                      {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} narration
-                    </Text>
-                    {isCurrentlyPlaying && (
-                      <Text style={ams.highlightHint}>↑ Words highlighted above as audio plays</Text>
-                    )}
-                  </View>
+                  {/* Progress bar + time — only while playing */}
+                  {isCurrentlyPlaying && (
+                    <View style={ams.progressBlock}>
+                      {/* Track */}
+                      <View style={ams.progressTrack}>
+                        <View
+                          style={[
+                            ams.progressFill,
+                            { width: `${audioDuration > 0 ? Math.min((currentTime / audioDuration) * 100, 100) : 0}%` },
+                          ]}
+                        />
+                      </View>
+                      {/* Times */}
+                      <View style={ams.progressTimes}>
+                        <Text style={ams.progressTime}>{formatTime(currentTime)}</Text>
+                        <Text style={ams.progressTime}>{formatTime(audioDuration)}</Text>
+                      </View>
 
-                  {/* Waveform / volume icon */}
-                  {isCurrentlyPlaying
-                    ? <AudioWaveform isPlaying />
-                    : <Ionicons name="volume-medium-outline" size={22} color={C.inkLight} />
-                  }
-                </TouchableOpacity>
+                      {/* Controls row: skip back, speed pills, skip forward */}
+                      <View style={ams.controlsRow}>
+                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(-10)} activeOpacity={0.7}>
+                          <Ionicons name="play-back" size={18} color={C.inkMid} />
+                          <Text style={ams.skipLabel}>10s</Text>
+                        </TouchableOpacity>
+
+                        <View style={ams.rateRow}>
+                          {([0.75, 1, 1.5, 2] as const).map(r => (
+                            <TouchableOpacity
+                              key={r}
+                              style={[ams.rateBtn, playbackRate === r && ams.rateBtnActive]}
+                              onPress={() => handleRateChange(r)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[ams.rateText, playbackRate === r && ams.rateTextActive]}>
+                                {r === 1 ? '1×' : `${r}×`}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+
+                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(10)} activeOpacity={0.7}>
+                          <Ionicons name="play-forward" size={18} color={C.inkMid} />
+                          <Text style={ams.skipLabel}>10s</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
               ) : (
-                /* No audio available for this language */
                 <View style={ams.noAudioBox}>
                   <Ionicons name="volume-mute-outline" size={20} color={C.inkLight} />
                   <Text style={ams.noAudioText}>
@@ -812,14 +885,6 @@ function ArtifactModal({
                     {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} yet.
                     {availableLangs.some(t => t.audio_url) ? ' Try another language above.' : ''}
                   </Text>
-                </View>
-              )}
-
-              {/* Tip only shown when audio is playing */}
-              {isCurrentlyPlaying && (
-                <View style={ams.tipRow}>
-                  <Ionicons name="information-circle-outline" size={14} color={C.gold} />
-                  <Text style={ams.tipText}>Words in the description are highlighted as the guide speaks.</Text>
                 </View>
               )}
             </View>
@@ -916,7 +981,6 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     backgroundColor: C.goldLight, borderWidth: 1.5, borderColor: C.borderGold,
   },
   langChipActive: { backgroundColor: C.goldSoft, borderColor: C.gold },
-  langFlag: { fontSize: 14 },
   langLabel: { fontSize: 12, fontWeight: '700', color: C.inkMid },
   langLabelActive: { color: C.gold },
 
@@ -933,12 +997,13 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 
   // ── Audio player card ──
   playerCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: C.bg,
     borderWidth: 1.5, borderColor: C.border,
     borderRadius: 18, padding: 16, marginTop: 10,
+    gap: 0,
   },
   playerCardActive: { borderColor: C.borderGold, backgroundColor: C.goldLight },
+  playerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   playCircle: {
     width: 52, height: 52, borderRadius: 26,
     backgroundColor: C.surface,
@@ -948,7 +1013,32 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   playCircleActive: { backgroundColor: C.gold, borderColor: C.gold },
   playerLabel: { fontSize: 14, fontWeight: '700', color: C.ink, marginBottom: 2 },
   playerSub: { fontSize: 12, color: C.inkLight },
-  highlightHint: { fontSize: 10, color: C.gold, fontStyle: 'italic', marginTop: 4 },
+
+  // ── Progress bar ──
+  progressBlock: { marginTop: 14, gap: 6 },
+  progressTrack: {
+    height: 4, backgroundColor: C.border, borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: C.gold, borderRadius: 2 },
+  progressTimes: { flexDirection: 'row', justifyContent: 'space-between' },
+  progressTime: { fontSize: 10, color: C.inkLight },
+
+  // ── Controls row ──
+  controlsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginTop: 4,
+  },
+  skipBtn: { alignItems: 'center', gap: 2, paddingHorizontal: 6 },
+  skipLabel: { fontSize: 9, color: C.inkMid, fontWeight: '600' },
+  rateRow: { flexDirection: 'row', gap: 4 },
+  rateBtn: {
+    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20,
+    backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.borderGold,
+  },
+  rateBtnActive: { backgroundColor: C.gold, borderColor: C.gold },
+  rateText: { fontSize: 11, fontWeight: '700', color: C.inkMid },
+  rateTextActive: { color: C.ink },
 
   // ── No audio ──
   noAudioBox: {
@@ -957,14 +1047,6 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     borderRadius: 14, padding: 14, marginTop: 10,
   },
   noAudioText: { flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 20 },
-
-  // ── Tip ──
-  tipRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: C.goldLight, borderRadius: 12, padding: 12,
-    marginTop: 10, borderWidth: 1, borderColor: C.borderGold,
-  },
-  tipText: { flex: 1, fontSize: 12, color: C.inkMid, lineHeight: 18 },
 
   // ── Done button ──
   closeFullBtn: {
@@ -998,6 +1080,8 @@ export default function QRScanner({
   const [photoMatching, setPhotoMatching] = useState(false);
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inCooldown  = useRef(false);
   const pulse = useRef(new Animated.Value(0)).current;
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
@@ -1010,6 +1094,7 @@ export default function QRScanner({
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
     if (isActive && !artifact) {
+      if (inCooldown.current) return; // still in cooldown — don't re-enable yet
       // Small delay so the swipe animation finishes before camera activates
       const t = setTimeout(() => {
         setScanned(false);
@@ -1083,6 +1168,7 @@ export default function QRScanner({
   useEffect(() => () => {
     toastTimer.current && clearTimeout(toastTimer.current);
     errorTimer.current && clearTimeout(errorTimer.current);
+    cooldownTimer.current && clearTimeout(cooldownTimer.current);
   }, []);
 
   const showToast = (msg: string) => {
@@ -1151,10 +1237,21 @@ export default function QRScanner({
   };
 
   const reset = () => {
-    setArtifact(null);   // closing artifact triggers isActive effect to re-enable camera
+    setArtifact(null);   // closing artifact modal
     setScanned(false);
     setScanError(null);
-    showToast('Ready to scan');
+    // ── 5-second cooldown before camera re-enables ───────────────────────────
+    inCooldown.current = true;
+    cooldownTimer.current && clearTimeout(cooldownTimer.current);
+    cooldownTimer.current = setTimeout(() => {
+      inCooldown.current = false;
+      if (isActive) {
+        setScanned(false);
+        setScanError(null);
+        setCameraActive(true);
+      }
+    }, 5000);
+    showToast('Camera ready in 5s…');
   };
 
   const startScanning = () => {
@@ -1267,7 +1364,7 @@ export default function QRScanner({
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.eyebrow}>✦ SACRED HERITAGE</Text>
+            <Text style={styles.eyebrow}>SACRED HERITAGE</Text>
             <Text style={styles.title}>QR Scanner</Text>
             <View style={styles.goldLine} />
           </View>
@@ -1357,7 +1454,7 @@ export default function QRScanner({
             </View>
           ) : cameraActive && !scanned ? (
             <View style={styles.hintBox}>
-              <Text style={styles.hintIco}>◈</Text>
+              <Ionicons name="scan-outline" size={18} color={C.gold} style={{ marginTop: 1 }} />
               <Text style={styles.hintTxt}>
                 Point your camera at an artifact's QR code to reveal its sacred history and liturgical significance
               </Text>

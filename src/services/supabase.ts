@@ -9,8 +9,17 @@ import { createClient } from '@supabase/supabase-js';
 // Password: your Brevo SMTP password
 // ─────────────────────────────────────────────────────────────────────────────
 
-const supabaseUrl = 'https://crcrgkskhoruqcbssvaw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyY3Jna3NraG9ydXFjYnNzdmF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNjgxNzQsImV4cCI6MjA5Mjk0NDE3NH0.SbgnbogBFjtuUbI7zp0bz65L7YA4oiEpCBs10syHJY0';
+// Keys are read from .env (EXPO_PUBLIC_ prefix makes them available at runtime).
+// Never hardcode secrets in source — keep them in .env and out of version control.
+const supabaseUrl     = process.env.EXPO_PUBLIC_SUPABASE_URL     as string;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase environment variables.\n' +
+    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.'
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

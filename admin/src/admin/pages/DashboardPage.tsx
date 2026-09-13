@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
   Boxes,
   Star,
-  Headphones,
   Activity,
-  Plus,
-  Megaphone,
-  Calendar,
-  ArrowUpRight,
   MessageSquare,
   ThumbsUp,
   ThumbsDown,
   TrendingUp,
+  Calendar,
+  RefreshCw,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import {
   XAxis,
@@ -29,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
-import { CardSkeleton, Skeleton } from "../components/LoadingSkeleton";
+import { Skeleton } from "../components/LoadingSkeleton";
 import {
   AdminUser,
   DashboardDemographics as DashboardDemographicsType,
@@ -40,7 +39,9 @@ import {
   fetchDashboardStats,
   fetchTourFeedbackStats,
   fetchUserDemographics,
+  fetchActiveUserCount,
 } from "./dashboardData";
+import { supabase } from "../services/supabase";
 import { useTheme } from "@/utils/theme";
 
 const defaultStats: DashboardStats = {
@@ -88,6 +89,17 @@ const defaultFeedbackStats: TourFeedbackStats = {
   recentFeedback: [],
 };
 
+// ─── Date range presets ───────────────────────────────────────────────────────
+type RangePreset = "7d" | "30d" | "90d" | "all";
+
+function getFromDate(preset: RangePreset, customFrom?: string): string | undefined {
+  if (preset === "all") return undefined;
+  if (preset === "7d")  return new Date(Date.now() - 6  * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (preset === "30d") return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (preset === "90d") return new Date(Date.now() - 89 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return customFrom;
+}
+
 type DashboardPageProps = { profile: AdminUser };
 
 export default function DashboardPage({ profile }: DashboardPageProps) {
@@ -99,36 +111,79 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Date range state ────────────────────────────────────────────────────────
+  const [rangePreset, setRangePreset] = useState<RangePreset>("7d");
+  const [customFrom, setCustomFrom]   = useState("");
+  const [customTo, setCustomTo]       = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const fromDate = rangePreset === "all"
+    ? undefined
+    : customFrom && rangePreset === "7d" // custom overrides only when explicitly set
+      ? customFrom
+      : getFromDate(rangePreset);
+
+  const load = useCallback(async (from?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [s, d, f] = await Promise.all([
+        fetchDashboardStats(from),
+        fetchUserDemographics(),
+        fetchTourFeedbackStats(),
+      ]);
+      setStats(s);
+      setDemographics(d);
+      setFeedbackStats(f);
+    } catch (err: any) {
+      setError(err?.message || "Unable to load dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [s, d, f] = await Promise.all([
-          fetchDashboardStats(),
-          fetchUserDemographics(),
-          fetchTourFeedbackStats(),
-        ]);
-        if (!mounted) return;
-        setStats(s);
-        setDemographics(d);
-        setFeedbackStats(f);
-      } catch (err: any) {
-        if (mounted) setError(err?.message || "Unable to load dashboard.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    load(fromDate);
+  }, [rangePreset]);
+
+  // ── Realtime: refresh active-user count whenever any user row changes ───────
+  useEffect(() => {
+    const channel = supabase
+      .channel("active-users-watch")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "users" },
+        async () => {
+          const count = await fetchActiveUserCount(5);
+          setStats((prev) => ({ ...prev, activeUsers: count }));
+        },
+      )
+      .subscribe();
+
     return () => {
-      mounted = false;
+      supabase.removeChannel(channel);
     };
   }, []);
+
+  const handleCustomApply = () => {
+    if (!customFrom) return;
+    load(customFrom);
+    setShowAdvanced(false);
+  };
+
+  const handleRefresh = () => load(fromDate);
 
   const chartData = stats.visitorsTrend.map((p) => ({
     date: p.date.slice(5),
     visitors: p.count,
   }));
+
+  const rangeLabelMap: Record<RangePreset, string> = {
+    "7d":  "Last 7 days",
+    "30d": "Last 30 days",
+    "90d": "Last 90 days",
+    "all": "All time",
+  };
 
   const { theme } = useTheme();
 
@@ -206,7 +261,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         <StatCard
           label="Active Users"
           value={stats.activeUsers.toLocaleString()}
-          delta={`${stats.blockedUsers} inactive`}
+          delta="active in last 5 min"
           icon={<Activity className="h-4 w-4" />}
           loading={loading}
         />
@@ -218,17 +273,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
           loading={loading}
         />
         <StatCard
-          label="Audio Plays"
-          value={stats.audioPlays.toLocaleString()}
-          delta="Guided tours"
-          icon={<Headphones className="h-4 w-4" />}
-          loading={loading}
-        />
-      </div>
-
-      {/* Stat cards row 2 */}
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard
           label="Avg. Rating"
           value={stats.averageRating ? stats.averageRating.toFixed(1) : "—"}
           delta={`${stats.reviews} artifact reviews`}
@@ -237,27 +281,116 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         />
       </div>
 
-      {/* Charts row */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Visitor trend */}
-        <Card className="lg:col-span-2 rounded-2xl border-border bg-card">
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+      {/* Charts row — full width visitor trend */}
+      <div className="mt-4">
+        <Card className="rounded-2xl border-border bg-card">
+          <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Last 7 days
+                {rangeLabelMap[rangePreset]}
               </div>
               <CardTitle className="mt-0.5 text-base font-semibold">
                 Visitor trend
               </CardTitle>
             </div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-border text-[10px] text-muted-foreground"
-            >
-              <Activity className="mr-1 h-3 w-3" /> Realtime
-            </Badge>
+
+            {/* Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Preset buttons */}
+              {(["7d", "30d", "90d", "all"] as RangePreset[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setRangePreset(p); setCustomFrom(""); setCustomTo(""); }}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
+                    rangePreset === p
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-muted/30 text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                  }`}
+                >
+                  {p === "all" ? "All time" : p.toUpperCase()}
+                </button>
+              ))}
+
+              {/* Advanced / custom range toggle */}
+              <button
+                onClick={() => setShowAdvanced((v) => !v)}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
+                  showAdvanced
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-muted/30 text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                }`}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                Custom
+              </button>
+
+              {/* Refresh */}
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-foreground/40 hover:text-foreground"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            </div>
           </CardHeader>
-          <CardContent className="h-[220px] px-2 pb-2">
+
+          {/* Advanced / custom date panel */}
+          {showAdvanced && (
+            <div className="mx-4 mb-3 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={customTo}
+                  min={customFrom}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                />
+              </div>
+              <Button
+                size="sm"
+                className="h-8 rounded-lg text-xs"
+                onClick={handleCustomApply}
+                disabled={!customFrom}
+              >
+                <Calendar className="mr-1.5 h-3 w-3" />
+                Apply
+              </Button>
+              <button
+                onClick={() => { setCustomFrom(""); setCustomTo(""); setShowAdvanced(false); }}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+              <p className="w-full text-[10px] text-muted-foreground">
+                Showing registrations from{" "}
+                <span className="font-semibold text-foreground">
+                  {customFrom || "—"}
+                </span>{" "}
+                to{" "}
+                <span className="font-semibold text-foreground">
+                  {customTo || "today"}
+                </span>
+              </p>
+            </div>
+          )}
+
+          <CardContent className="h-[320px] px-2 pb-2">
             {loading ? (
               <Skeleton className="h-full w-full rounded-xl" />
             ) : (
@@ -268,28 +401,17 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 >
                   <defs>
                     <linearGradient id="visGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor={chartColors.stroke}
-                        stopOpacity={0.35}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={chartColors.stroke}
-                        stopOpacity={0}
-                      />
+                      <stop offset="0%" stopColor={chartColors.stroke} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={chartColors.stroke} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    stroke={chartColors.grid}
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
+                  <CartesianGrid stroke={chartColors.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="date"
                     tick={{ fill: chartColors.text, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
+                    interval={chartData.length > 30 ? Math.floor(chartData.length / 15) : chartData.length > 14 ? 3 : 0}
                   />
                   <YAxis
                     tick={{ fill: chartColors.text, fontSize: 11 }}
@@ -298,10 +420,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                     allowDecimals={false}
                   />
                   <Tooltip
-                    cursor={{
-                      stroke: chartColors.cursor,
-                      strokeDasharray: "3 3",
-                    }}
+                    cursor={{ stroke: chartColors.cursor, strokeDasharray: "3 3" }}
                     contentStyle={{
                       background: chartColors.tooltipBg,
                       border: `1px solid ${chartColors.tooltipBorder}`,
@@ -309,6 +428,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       color: chartColors.text,
                       fontSize: 12,
                     }}
+                    formatter={(value: number) => [value, "Visitors"]}
                   />
                   <Area
                     type="monotone"
@@ -320,40 +440,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 </AreaChart>
               </ResponsiveContainer>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Quick actions */}
-        <Card className="rounded-2xl border-border bg-card">
-          <CardHeader className="pb-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Shortcuts
-            </div>
-            <CardTitle className="mt-0.5 text-base font-semibold">
-              Quick actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <QuickAction
-              icon={<Plus className="h-3.5 w-3.5" />}
-              label="Add artifact"
-              hint="Inventory"
-            />
-            <QuickAction
-              icon={<Megaphone className="h-3.5 w-3.5" />}
-              label="New announcement"
-              hint="Visitor news"
-            />
-            <QuickAction
-              icon={<Calendar className="h-3.5 w-3.5" />}
-              label="Schedule event"
-              hint="Programming"
-            />
-            <QuickAction
-              icon={<Users className="h-3.5 w-3.5" />}
-              label="Invite admin"
-              hint="Access"
-            />
           </CardContent>
         </Card>
       </div>
@@ -759,34 +845,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-function QuickAction({
-  icon,
-  label,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <motion.button
-      whileHover={{ x: 2 }}
-      className="group flex w-full items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition hover:border-foreground/30 hover:bg-muted/60"
-    >
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-foreground">
-          {icon}
-        </div>
-        <div>
-          <div className="text-xs font-medium text-foreground">{label}</div>
-          <div className="text-[10px] text-muted-foreground">{hint}</div>
-        </div>
-      </div>
-      <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition group-hover:text-foreground" />
-    </motion.button>
   );
 }
 

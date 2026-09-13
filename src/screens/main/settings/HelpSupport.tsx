@@ -90,7 +90,7 @@ export default function HelpSupport({ navigation }: any) {
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backTxt}>‹</Text>
+          <Ionicons name="arrow-back" size={20} color={C.ink} />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>Help & Support</Text>
         <View style={{ width: 40 }} />
