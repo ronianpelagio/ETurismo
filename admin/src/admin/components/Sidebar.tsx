@@ -71,7 +71,7 @@ export default function Sidebar({
           collapsed && "justify-center px-0",
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-[13px] font-bold tracking-tight">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background text-[13px] font-bold tracking-tight shadow-sm ring-1 ring-background/20">
           E
         </div>
         {!collapsed && (
@@ -107,7 +107,7 @@ export default function Sidebar({
                   onClick={() => onSelect(item.key)}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    "group relative flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-all",
+                    "group relative flex min-h-10 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-all",
                     active
                       ? "bg-sidebar-accent text-foreground"
                       : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
@@ -125,7 +125,16 @@ export default function Sidebar({
                       }}
                     />
                   )}
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+                      active
+                        ? "bg-background shadow-sm"
+                        : "group-hover:bg-background/70",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
                   {!collapsed && <span className="truncate">{item.label}</span>}
                 </button>
               </li>

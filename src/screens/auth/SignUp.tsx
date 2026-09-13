@@ -23,6 +23,11 @@ import { supabase } from '../../services/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Ionicons as Icon } from '@expo/vector-icons';
+import {
+  LocationFields,
+  LocationValue,
+} from '../../features/auth/components/LocationFields';
+import { savePendingProfile } from '../../features/auth/services/pendingProfile';
 
 /* ============================================================================
    ETURISMO THEME
@@ -342,8 +347,8 @@ function ProfilePhoto({
 
           <Text style={styles.profileDescription}>
             {uri
-              ? 'You can change your photo anytime.'
-              : 'A profile photo is optional.'}
+              ? 'Ready to upload securely after email verification.'
+              : 'Optional · JPG or PNG · You can add one later.'}
           </Text>
 
           <View style={styles.profileActions}>
@@ -478,8 +483,14 @@ export default function SignUp({
   const [age, setAge] =
     useState('');
 
-  const [address, setAddress] =
-    useState('');
+  const [location, setLocation] = useState<LocationValue>({
+    countryMode: '',
+    country: '',
+    province: null,
+    city: null,
+    barangay: null,
+    addressLine: '',
+  });
 
   const [profilePicUri, setProfilePicUri] =
     useState<string | null>(null);
@@ -675,9 +686,18 @@ export default function SignUp({
       }
     }
 
-    if (!address.trim()) {
-      newErrors.address =
-        'Address is required';
+    if (!location.countryMode) {
+      newErrors.location = 'Select your country';
+    } else if (
+      location.countryMode === 'PH' &&
+      (!location.province || !location.city || !location.barangay)
+    ) {
+      newErrors.location = 'Select your province, city or municipality, and barangay';
+    } else if (
+      location.countryMode === 'OTHER' &&
+      (!location.country.trim() || !location.addressLine.trim())
+    ) {
+      newErrors.location = 'Enter your country and full address';
     }
 
     setErrors(newErrors);
@@ -819,50 +839,20 @@ export default function SignUp({
           .toLowerCase()
           .trim();
 
-      /* ----------------------------------------------------------------------
-         UPLOAD PROFILE PHOTO
-      ---------------------------------------------------------------------- */
-
-      let profilePictureUrl: string | null = null;
-
-      if (profilePicUri) {
-        try {
-          const resizedUri = (await getResizedProfileUri()) ?? profilePicUri;
-
-          const fileName = `${normalizedEmail.replace(/[^a-z0-9]/g, '_')}_${Date.now()}.jpg`;
-
-          // Fetch the local file as a blob — avoids atob which is unavailable in RN
-          const response = await fetch(resizedUri);
-          const blob = await response.blob();
-
-          const { error: uploadError } = await supabase.storage
-            .from('media-Profile')
-            .upload(fileName, blob, {
-              contentType: 'image/jpeg',
-              upsert: true,
-            });
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('media-Profile')
-            .getPublicUrl(fileName);
-
-          profilePictureUrl = publicUrl;
-        } catch (uploadErr: any) {
-          // Profile photo upload failed — continue account creation without it
-          console.warn('Profile photo upload failed:', uploadErr?.message);
-          profilePictureUrl = null;
-        }
-      }
+      const address = [
+        location.addressLine.trim(),
+        location.barangay?.name,
+        location.city?.name,
+        location.province?.name,
+        location.country,
+      ].filter(Boolean).join(', ');
+      const resizedProfileUri = await getResizedProfileUri();
 
       /* ----------------------------------------------------------------------
          CREATE SUPABASE ACCOUNT
       ---------------------------------------------------------------------- */
 
-      const {
-        error,
-      } =
+      const { error } =
         await supabase.auth.signUp({
           email:
             normalizedEmail,
@@ -886,10 +876,12 @@ export default function SignUp({
                 ),
 
               Address:
-                address.trim(),
+                address,
 
-              profile_picture:
-                profilePictureUrl,
+              country: location.country,
+              province: location.province?.name ?? null,
+              city: location.city?.name ?? null,
+              barangay: location.barangay?.name ?? null,
             },
           },
         });
@@ -897,6 +889,20 @@ export default function SignUp({
       if (error) {
         throw error;
       }
+
+      await savePendingProfile({
+        email: normalizedEmail,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        gender: gender as Gender,
+        age: parseInt(age, 10),
+        address,
+        country: location.country,
+        province: location.province?.name ?? null,
+        city: location.city?.name ?? null,
+        barangay: location.barangay?.name ?? null,
+        profilePicUri: resizedProfileUri,
+      });
 
       // Save OTP send timestamp so the countdown persists if the app is closed
       await AsyncStorage.setItem(
@@ -1194,15 +1200,13 @@ export default function SignUp({
                   </View>
                 </View>
 
-                {/* ADDRESS — required */}
-
-                <Field
-                  label="Address"
-                  value={address}
-                  onChangeText={text => { setAddress(text); clearError('address'); }}
-                  placeholder="City, Province"
-                  autoCapitalize="words"
-                  error={errors.address}
+                <LocationFields
+                  value={location}
+                  onChange={value => {
+                    setLocation(value);
+                    clearError('location');
+                  }}
+                  error={errors.location}
                 />
 
                 {/* CONTINUE */}

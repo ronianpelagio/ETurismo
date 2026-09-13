@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
+import { finalizePendingProfile } from '../../features/auth/services/pendingProfile';
 
 const C = {
   bg: '#F7F4EF',
@@ -29,7 +30,7 @@ const TIMER_SECONDS = 180; // 3 minutes — matches Supabase OTP expiry
 
 const BOX_SIZE = 48;
 
-type Status = 'idle' | 'verifying' | 'success' | 'expired' | 'invalid';
+type Status = 'idle' | 'verifying' | 'success' | 'expired' | 'invalid' | 'profile_error';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ export default function VerifyOTP({ route, navigation }: any) {
   const [status, setStatus]     = useState<Status>('idle');
   const [timeLeft, setTimeLeft] = useState<number | null>(null); // null = loading from storage
   const [resending, setResending] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   const inputRef = useRef<TextInput>(null);
   const shakeX   = useSharedValue(0);
@@ -170,7 +172,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
   // ── Countdown tick — only runs after timeLeft is loaded from storage ──────
   useEffect(() => {
-    if (timeLeft === null) return; // still loading
+    if (timeLeft === null || status === 'success' || status === 'profile_error') return;
     if (timeLeft <= 0) {
       setStatus(prev => prev === 'success' ? prev : 'expired');
       clearOtpTimestamp(email).catch(() => {});
@@ -180,7 +182,7 @@ export default function VerifyOTP({ route, navigation }: any) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeLeft]);
+  }, [timeLeft, status]);
 
   // ── Shake animation ───────────────────────────────────────────────────────
   const shake = () => {
@@ -209,15 +211,22 @@ export default function VerifyOTP({ route, navigation }: any) {
     setStatus('verifying');
     inputRef.current?.blur();
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       email,
       token: codeToVerify,
       type: 'email',
     });
 
     if (!error) {
-      setStatus('success');
       await clearOtpTimestamp(email);
+      try {
+        if (!data.user) throw new Error('Verified user session was not returned.');
+        await finalizePendingProfile(email, data.user.id);
+        setStatus('success');
+      } catch (setupError: any) {
+        setProfileError(setupError?.message || 'Your profile could not be saved. Please try again.');
+        setStatus('profile_error');
+      }
     } else if (
       error.message?.toLowerCase().includes('expired') ||
       error.message?.toLowerCase().includes('otp')
@@ -280,7 +289,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
       {status === 'success' && (
         // AuthNavigator's onAuthStateChange handles navigation automatically
-        <SuccessScreen onContinue={() => {}} />
+        <SuccessScreen onContinue={() => { supabase.auth.refreshSession().catch(() => {}); }} />
       )}
       {status === 'expired' && (
         <ExpiredScreen
@@ -359,10 +368,10 @@ export default function VerifyOTP({ route, navigation }: any) {
           <TouchableOpacity
             style={[
               styles.verifyBtn,
-              (status === 'verifying' || code.length < OTP_LENGTH) && styles.btnOff,
+              (status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error') && styles.btnOff,
             ]}
             onPress={() => handleVerify(code)}
-            disabled={status === 'verifying' || code.length < OTP_LENGTH}
+            disabled={status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error'}
             activeOpacity={0.85}
           >
             {status === 'verifying'
@@ -370,6 +379,34 @@ export default function VerifyOTP({ route, navigation }: any) {
               : <Text style={styles.verifyBtnTxt}>Verify Code</Text>
             }
           </TouchableOpacity>
+
+          {status === 'profile_error' && (
+            <View style={styles.profileErrorCard}>
+              <Icon name="cloud-offline-outline" size={18} color={C.error} />
+              <View style={styles.profileErrorCopy}>
+                <Text style={styles.profileErrorTitle}>Profile setup needs another try</Text>
+                <Text style={styles.profileErrorText}>{profileError}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={async () => {
+                  setStatus('verifying');
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  try {
+                    if (!sessionData.session?.user) throw new Error('Your session expired. Please sign in again.');
+                    await finalizePendingProfile(email, sessionData.session.user.id);
+                    setStatus('success');
+                    await supabase.auth.refreshSession();
+                  } catch (retryError: any) {
+                    setProfileError(retryError?.message || 'Profile setup failed.');
+                    setStatus('profile_error');
+                  }
+                }}
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.resendRow}>
             <Text style={styles.resendLabel}>Didn't receive it? </Text>
@@ -454,6 +491,15 @@ const styles = StyleSheet.create({
   },
   btnOff: { opacity: 0.45 },
   verifyBtnTxt: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  profileErrorCard: {
+    width: '100%', marginTop: 14, padding: 13, borderRadius: 12,
+    backgroundColor: '#FDF0EE', flexDirection: 'row', alignItems: 'center', gap: 9,
+  },
+  profileErrorCopy: { flex: 1 },
+  profileErrorTitle: { color: C.error, fontSize: 12, fontWeight: '800' },
+  profileErrorText: { color: C.inkMid, fontSize: 10.5, lineHeight: 15, marginTop: 2 },
+  retryButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: C.error },
+  retryButtonText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
 
   resendRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
   resendLabel: { color: C.inkMid, fontSize: 14 },

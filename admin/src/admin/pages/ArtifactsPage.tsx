@@ -34,6 +34,7 @@ import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import { Skeleton } from "../components/LoadingSkeleton";
 import Modal, { ConfirmModal } from "../components/Modal";
+import ArtifactFormProgress from "../components/ArtifactFormProgress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -274,7 +275,8 @@ export default function ArtifactsPage() {
   const [txIds, setTxIds] = useState<Partial<Record<LangCode, string>>>({});
   const [form, setForm] = useState<AForm>(emptyForm);
   const [imagePreview, setImagePreview] = useState("");
-  const [modalStep, setModalStep] = useState(1);
+  const [modalStep, setModalStep] = useState<1 | 2 | 3>(1);
+  const [reviewQrPreview, setReviewQrPreview] = useState("");
   const [activeLang, setActiveLang] = useState<LangCode>("en");
   const [saving, setSaving] = useState(false);
   const [saveStep, setSaveStep] = useState("");
@@ -331,6 +333,20 @@ export default function ArtifactsPage() {
       })
       .catch(() => {});
   }, [activeLang]);
+
+  useEffect(() => {
+    if (modalStep !== 3) return;
+    let active = true;
+    const qrValue = editingId || form.name.trim() || "artifact-preview";
+
+    void QRCode.toDataURL(qrValue).then((url) => {
+      if (active) setReviewQrPreview(url);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [editingId, form.name, modalStep]);
 
   const fetchData = async (p: number) => {
     setLoading(true);
@@ -1182,16 +1198,18 @@ export default function ArtifactsPage() {
         title={editingId ? "Edit Artifact" : "New Artifact"}
         description={
           modalStep === 1
-            ? "Basic information and image."
-            : "Multilingual descriptions and audio."
+            ? "Add the artifact's identity, provenance, and image."
+            : modalStep === 2
+              ? "Prepare translations and accessible audio narration."
+              : "Review the visitor-facing record before publishing."
         }
         size="lg"
         footer={
           <div className="flex w-full items-center justify-between">
-            {modalStep === 2 ? (
+            {modalStep > 1 ? (
               <Button
                 variant="ghost"
-                onClick={() => setModalStep(1)}
+                onClick={() => setModalStep((step) => (step - 1) as 1 | 2 | 3)}
                 disabled={saving}
                 className="rounded-xl"
               >
@@ -1207,21 +1225,17 @@ export default function ArtifactsPage() {
               </Button>
             )}
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 mr-3">
-                <span
-                  className={`h-2 w-2 rounded-full ${modalStep === 1 ? "bg-foreground" : "bg-muted-foreground/30"}`}
-                />
-                <span
-                  className={`h-2 w-2 rounded-full ${modalStep === 2 ? "bg-foreground" : "bg-muted-foreground/30"}`}
-                />
-              </div>
-              {modalStep === 1 ? (
+              {modalStep < 3 ? (
                 <Button
-                  onClick={() => setModalStep(2)}
-                  disabled={!form.name.trim()}
+                  onClick={() =>
+                    setModalStep((step) => (step + 1) as 1 | 2 | 3)
+                  }
+                  disabled={
+                    modalStep === 1 ? !form.name.trim() : !form.desc_en.trim()
+                  }
                   className="rounded-xl"
                 >
-                  Next <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  Continue <ChevronRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
               ) : (
                 <Button
@@ -1246,6 +1260,7 @@ export default function ArtifactsPage() {
         }
       >
         <div className="space-y-4">
+          <ArtifactFormProgress step={modalStep} />
           <AnimatePresence mode="wait">
             {modalStep === 1 && (
               <motion.div
@@ -1581,6 +1596,100 @@ export default function ArtifactsPage() {
                     </Button>
                   </div>
                 )}
+              </motion.div>
+            )}
+
+            {modalStep === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                className="space-y-4"
+              >
+                <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
+                  <div className="space-y-4 rounded-2xl border border-border bg-muted/25 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
+                        {imagePreview || form.image_url ? (
+                          <img
+                            src={imagePreview || form.image_url}
+                            alt="Artifact preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon
+                            className="h-5 w-5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">
+                          {form.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {form.category}
+                          {form.creator ? ` · ${form.creator}` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl border border-border bg-background p-3">
+                        <p className="text-muted-foreground">Languages ready</p>
+                        <p className="mt-1 text-lg font-semibold">
+                          {
+                            LANGUAGES.filter((language) =>
+                              String(
+                                form[`desc_${language.code}` as keyof AForm] ||
+                                  "",
+                              ).trim(),
+                            ).length
+                          }
+                          <span className="text-xs font-normal text-muted-foreground">
+                            /{LANGUAGES.length}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3">
+                        <p className="text-muted-foreground">Audio tracks</p>
+                        <p className="mt-1 text-lg font-semibold">
+                          {Object.values(audioMap).filter(Boolean).length}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs text-emerald-800 dark:text-emerald-200">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                        Ready to publish
+                      </div>
+                      <p className="mt-1 leading-relaxed opacity-80">
+                        The QR code and missing audio tracks are generated
+                        during the save process.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-background p-4 text-center">
+                    {reviewQrPreview ? (
+                      <img
+                        src={reviewQrPreview}
+                        alt={`QR preview for ${form.name}`}
+                        className="h-36 w-36 rounded-lg"
+                      />
+                    ) : (
+                      <Skeleton className="h-36 w-36 rounded-lg" />
+                    )}
+                    <p className="mt-3 text-xs font-semibold">
+                      Visitor QR preview
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      The permanent code is finalized after saving.
+                    </p>
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

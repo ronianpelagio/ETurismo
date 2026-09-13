@@ -226,7 +226,7 @@ export default function App() {
         {/* Main */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Sticky top bar */}
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border/80 bg-background/85 px-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] backdrop-blur-xl sm:px-6">
             <Button
               variant="ghost"
               size="icon"
@@ -247,6 +247,15 @@ export default function App() {
               </span>
             </nav>
 
+            <div className="min-w-0 sm:hidden">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {pageTitleMap[activePage]}
+              </p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                ETurismo Admin
+              </p>
+            </div>
+
             <div className="ml-auto flex items-center gap-2">
               <SearchBar
                 className="hidden w-64 md:block"
@@ -265,7 +274,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
-                className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+                className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"
               >
                 <Suspense
                   fallback={

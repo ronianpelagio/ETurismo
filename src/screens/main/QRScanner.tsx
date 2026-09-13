@@ -125,6 +125,38 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     fontWeight: '800',
     color: C.ink,
   },
+  tourProgressPill: {
+    marginTop: 4,
+    minWidth: 92,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 16,
+    backgroundColor: C.goldSoft,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  tourProgressTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tourProgressText: {
+    color: C.ink,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tourProgressTrack: {
+    height: 3,
+    marginTop: 7,
+    overflow: 'hidden',
+    borderRadius: 2,
+    backgroundColor: C.border,
+  },
+  tourProgressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: C.gold,
+  },
 
   // ── Camera Container ──
   cameraContainer: {
@@ -1328,7 +1360,14 @@ export default function QRScanner({
       </View>
       <Text style={styles.permTitle}>Camera Access Needed</Text>
       <Text style={styles.permSub}>Allow camera access to scan artifact QR codes and discover their sacred history</Text>
-      <TouchableOpacity style={styles.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.permBtn}
+        onPress={requestPermission}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Grant camera permission"
+        accessibilityHint="Allows ETurismo to scan museum QR codes"
+      >
         <Text style={styles.permBtnTxt}>Grant Permission</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -1345,12 +1384,28 @@ export default function QRScanner({
             <Text style={styles.title}>QR Scanner</Text>
             <View style={styles.goldLine} />
           </View>
-          {/* Scan history badge */}
+          {/* Tour progress */}
           {scannedArtifacts.length > 0 && (
-            <View style={styles.collectionIconCircle}>
-              <Ionicons name="scan-outline" size={20} color={C.gold} />
-              <View style={styles.collectionBadge}>
-                <Text style={styles.collectionBadgeText}>{scannedArtifacts.length}</Text>
+            <View
+              style={styles.tourProgressPill}
+              accessible
+              accessibilityLabel={`${scannedArtifacts.length} of ${totalArtifacts || scannedArtifacts.length} artifacts scanned`}
+            >
+              <View style={styles.tourProgressTop}>
+                <Ionicons name="footsteps-outline" size={14} color={C.gold} />
+                <Text style={styles.tourProgressText}>
+                  {scannedArtifacts.length}/{totalArtifacts || '—'} visited
+                </Text>
+              </View>
+              <View style={styles.tourProgressTrack}>
+                <View
+                  style={[
+                    styles.tourProgressFill,
+                    {
+                      width: `${totalArtifacts > 0 ? Math.min((scannedArtifacts.length / totalArtifacts) * 100, 100) : 0}%`,
+                    },
+                  ]}
+                />
               </View>
             </View>
           )}
@@ -1385,6 +1440,9 @@ export default function QRScanner({
               style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
               onPress={() => setTorchOn(v => !v)}
               activeOpacity={0.8}
+              accessibilityRole="switch"
+              accessibilityLabel="Camera flashlight"
+              accessibilityState={{ checked: torchOn }}
             >
               <Ionicons name={torchOn ? 'flashlight' : 'flashlight-outline'} size={20} color={torchOn ? C.ink : C.gold} />
             </TouchableOpacity>
@@ -1411,12 +1469,12 @@ export default function QRScanner({
       <SafeAreaView edges={['bottom']} style={styles.statusSafe}>
         <View style={styles.statusArea}>
           {scanning ? (
-            <View style={styles.statusRow}>
+            <View style={styles.statusRow} accessibilityLiveRegion="polite">
               <ActivityIndicator size="small" color={C.gold} />
               <Text style={styles.statusTxt}>Looking up artifact…</Text>
             </View>
           ) : scanError ? (
-            <View style={styles.errorBox}>
+            <View style={styles.errorBox} accessibilityLiveRegion="assertive">
               <View style={styles.errorIcon}>
                 <Text style={styles.errorIconTxt}>!</Text>
               </View>
@@ -1425,7 +1483,13 @@ export default function QRScanner({
                 <Text style={styles.errorSub}>{scanError}</Text>
                 <Text style={styles.errorAutoReset}>Retrying automatically…</Text>
               </View>
-              <TouchableOpacity onPress={startScanning} style={styles.retryBtn} activeOpacity={0.85}>
+              <TouchableOpacity
+                onPress={startScanning}
+                style={styles.retryBtn}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Retry QR scan"
+              >
                 <Text style={styles.retryBtnTxt}>Retry</Text>
               </TouchableOpacity>
             </View>
@@ -1445,6 +1509,9 @@ export default function QRScanner({
             onPress={handlePhotoFallback}
             disabled={photoMatching}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Identify an artifact from a photo"
+            accessibilityState={{ disabled: photoMatching, busy: photoMatching }}
             style={{
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
               borderWidth: 1.5, borderColor: C.borderGold,
@@ -1468,7 +1535,10 @@ export default function QRScanner({
 
       {/* ── Toast ── */}
       {toast && (
-        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+        <Animated.View
+          style={[styles.toast, { opacity: toastOpacity }]}
+          accessibilityLiveRegion="polite"
+        >
           <Ionicons name="checkmark-circle" size={16} color={C.gold} />
           <Text style={styles.toastText}>{toast}</Text>
         </Animated.View>

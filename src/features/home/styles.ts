@@ -531,7 +531,14 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     modalBody: { padding: 24 },
     modalGoldAccent: { width: 30, height: 2, backgroundColor: C.gold, borderRadius: 1, marginBottom: 16 },
     modalTitle: { fontSize: 28, fontWeight: '900', color: C.ink, letterSpacing: -0.8, marginBottom: 4 },
-    modalDate: { fontSize: 12, color: C.inkDim, fontStyle: 'italic', marginBottom: 20 },
+    modalDate: { fontSize: 12, color: C.inkDim, fontStyle: 'italic', marginBottom: 12 },
+    modalFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 18 },
+    modalFactChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      paddingHorizontal: 10, paddingVertical: 6, borderRadius: 50,
+      backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.borderGold,
+    },
+    modalFactText: { fontSize: 10, fontWeight: '700', color: C.inkMid },
     modalActions: { flexDirection: 'row', gap: 10, marginBottom: 28 },
     modalActionBtn: {
       flex: 1, flexDirection: 'row', alignItems: 'center',

@@ -40,7 +40,7 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="relative w-full max-w-md rounded-3xl border border-border bg-card/90 p-8 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+        className="relative w-full max-w-md rounded-[2rem] border border-border bg-card/90 p-7 shadow-[0_40px_80px_-28px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-9"
       >
         <div className="mb-7 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background text-base font-bold tracking-tight">
@@ -56,8 +56,13 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
           </div>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Sign in
+        <div className="mb-5 flex gap-2" aria-hidden="true">
+          <span className="h-1 w-8 rounded-full bg-foreground" />
+          <span className="h-1 w-3 rounded-full bg-muted" />
+        </div>
+
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">
+          Welcome back
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Sacred Heritage Collection · Administrator access only.

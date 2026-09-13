@@ -12,6 +12,11 @@ export interface User {
   gender?: 'Male' | 'Female' | 'Other';
   age?: number;
   address?: string;
+  Address?: string | null;
+  country?: string | null;
+  province?: string | null;
+  city?: string | null;
+  barangay?: string | null;
   profile_picture?: string | null;
   role: UserRole;
   status: UserStatus;

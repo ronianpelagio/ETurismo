@@ -1,127 +1,71 @@
-﻿import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
 import { useAppTheme } from '../../../context/ThemeContext';
-import { StatusBar } from 'expo-status-bar';
-import { THEMES } from '../../../constants/themes';
-function buildC(t: typeof THEMES[keyof typeof THEMES]) {
-  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
-}
-let C = buildC(THEMES.light);
-function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
-  pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
-  titleDivider: { height: 3, backgroundColor: C.gold, marginHorizontal: 20, borderRadius: 2, marginBottom: 4 },
-
-  scrollContent: { paddingBottom: 40 },
-  section: { paddingHorizontal: 20, paddingTop: 24 },
-  sectionLabel: { fontSize: 10, fontWeight: '800', color: C.gold, letterSpacing: 2.5, marginBottom: 12 },
-
-  faqCard: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  faqBorder: {
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  faqQuestion: { fontSize: 14, fontWeight: '600', color: C.ink, marginBottom: 8 },
-  faqAnswer: { fontSize: 13, color: C.inkMid, lineHeight: 20 },
-
-  contactSection: { paddingHorizontal: 20, paddingTop: 24 },
-  contactCard: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    gap: 14,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  contactText: { fontSize: 14, fontWeight: '500', color: C.ink, flex: 1 },
-});
-}
-
-let styles = getStyles(C);
+import SettingsPageShell, { settingsPalette } from '../../../features/settings/components/SettingsPageShell';
+import { SectionLabel } from '../../../features/settings/components/PreferenceCard';
 
 const FAQS = [
-  { question: 'How do I save artifacts?', answer: 'Tap the bookmark icon on any artifact to save it to your collection.' },
-  { question: 'How do I mark favorites?', answer: 'Tap the heart icon to mark artifacts as your favorites.' },
-  { question: 'Can I listen to audio in multiple languages?', answer: 'Yes, each artifact has audio guides in English, Filipino, Japanese, Spanish, and Korean.' },
-  { question: 'How do I scan QR codes?', answer: 'Use the QR Scanner from the main menu to scan artifact QR codes.' },
+  { question: 'How do I save artifacts?', answer: 'Open an artifact and tap the bookmark icon. You can find it again from your profile collection.' },
+  { question: 'How do I mark favorites?', answer: 'Tap the heart icon on an artifact. Favorites stay separate from your general saved collection.' },
+  { question: 'Can I listen in different languages?', answer: 'Yes. Available artifact guides can be played in English, Filipino, Japanese, Spanish, and Korean.' },
+  { question: 'How do I scan a QR code?', answer: 'Tap the raised Scan button in the main navigation, allow camera access, and place the museum QR code inside the frame.' },
 ];
 
 export default function HelpSupport({ navigation }: any) {
-  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
+  const { theme } = useAppTheme();
+  const C = settingsPalette(theme);
+  const styles = createStyles(C);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={C.ink} />
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Help & Support</Text>
-        <View style={{ width: 40 }} />
+    <SettingsPageShell navigation={navigation} title="Help & Support" eyebrow="WE'RE HERE TO HELP"
+      headline="Find an answer quickly" description="Browse common questions or contact the ETurismo team directly."
+      icon="help-buoy-outline">
+      <SectionLabel C={C}>POPULAR QUESTIONS</SectionLabel>
+      <View style={styles.faqList}>
+        {FAQS.map((faq, index) => {
+          const open = openIndex === index;
+          return (
+            <TouchableOpacity key={faq.question} style={[styles.faq, open && styles.faqOpen]}
+              onPress={() => setOpenIndex(open ? null : index)} activeOpacity={0.78}
+              accessibilityRole="button" accessibilityState={{ expanded: open }}>
+              <View style={styles.faqHeader}>
+                <View style={styles.questionIcon}><Ionicons name="help" size={14} color={C.gold} /></View>
+                <Text style={styles.question}>{faq.question}</Text>
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={C.inkDim} />
+              </View>
+              {open ? <Text style={styles.answer}>{faq.answer}</Text> : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
-      <View style={styles.titleDivider} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>FREQUENTLY ASKED QUESTIONS</Text>
-          {FAQS.map((faq, idx) => (
-            <View key={idx} style={[styles.faqCard, idx < FAQS.length - 1 && styles.faqBorder]}>
-              <Text style={styles.faqQuestion}>❓ {faq.question}</Text>
-              <Text style={styles.faqAnswer}>{faq.answer}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionLabel}>CONTACT US</Text>
-          <View style={styles.contactCard}>
-            <View style={styles.contactRow}>
-              <Ionicons name="mail" size={20} color={C.gold} />
-              <Text style={styles.contactText}>support@etorismo.com</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Ionicons name="call" size={20} color={C.gold} />
-              <Text style={styles.contactText}>+1 (555) 123-4567</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <SectionLabel C={C}>CONTACT SUPPORT</SectionLabel>
+      <TouchableOpacity style={styles.contactCard}
+        onPress={() => Linking.openURL('mailto:support@etorismo.com?subject=ETurismo%20Support')}
+        activeOpacity={0.78} accessibilityRole="link" accessibilityLabel="Email ETurismo support">
+        <View style={styles.contactIcon}><Ionicons name="mail-outline" size={20} color={C.gold} /></View>
+        <View style={styles.contactCopy}><Text style={styles.contactTitle}>Email support</Text><Text style={styles.contactText}>support@etorismo.com</Text></View>
+        <Ionicons name="arrow-forward" size={18} color={C.gold} />
+      </TouchableOpacity>
+    </SettingsPageShell>
   );
+}
+
+function createStyles(C: ReturnType<typeof settingsPalette>) {
+  return StyleSheet.create({
+    faqList: { gap: 9, marginBottom: 22 },
+    faq: { padding: 15, borderRadius: 16, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+    faqOpen: { borderColor: C.borderGold, backgroundColor: C.raised },
+    faqHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    questionIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: C.goldSoft },
+    question: { flex: 1, color: C.ink, fontSize: 13.5, fontWeight: '700' },
+    answer: { color: C.inkMid, fontSize: 12, lineHeight: 19, marginTop: 11, marginLeft: 38 },
+    contactCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 17, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+    contactIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.borderGold },
+    contactCopy: { flex: 1 },
+    contactTitle: { color: C.ink, fontSize: 13.5, fontWeight: '800' },
+    contactText: { color: C.inkDim, fontSize: 11.5, marginTop: 2 },
+  });
 }

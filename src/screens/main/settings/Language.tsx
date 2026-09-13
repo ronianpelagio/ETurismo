@@ -5,16 +5,15 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '../../../context/ThemeContext';
-import { THEMES } from '../../../constants/themes';
+import { AppTheme } from '../../../constants/themes';
 import { useLanguage, AppLanguage, LANGUAGE_META } from '../../../context/LanguageContext';
+import SettingsPageShell from '../../../features/settings/components/SettingsPageShell';
 
-function buildC(t: typeof THEMES[keyof typeof THEMES]) {
+function buildC(t: AppTheme) {
   return {
     bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid,
     inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft,
@@ -22,29 +21,10 @@ function buildC(t: typeof THEMES[keyof typeof THEMES]) {
     border: t.border, error: t.crimson, success: t.teal,
   };
 }
-let C = buildC(THEMES.light);
 
 function getStyles(C: ReturnType<typeof buildC>) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: C.bg },
-    header: {
-      flexDirection: 'row', alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 12,
-    },
-    backBtn: {
-      width: 40, height: 40, borderRadius: 20,
-      backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-      justifyContent: 'center', alignItems: 'center',
-    },
-    backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
-    pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
-    titleDivider: {
-      height: 3, backgroundColor: C.gold,
-      marginHorizontal: 20, borderRadius: 2, marginBottom: 4,
-    },
-
-    section: { paddingHorizontal: 20, paddingTop: 24 },
+    section: { paddingTop: 0 },
     sectionLabel: { fontSize: 10, fontWeight: '800', color: C.gold, letterSpacing: 2.5, marginBottom: 10 },
     sectionHint: { fontSize: 12, color: C.inkLight, marginBottom: 14, lineHeight: 18 },
 
@@ -76,8 +56,6 @@ function getStyles(C: ReturnType<typeof buildC>) {
   });
 }
 
-let styles = getStyles(C);
-
 const LANGUAGES: { code: AppLanguage }[] = [
   { code: 'en' },
   { code: 'fil' },
@@ -87,7 +65,9 @@ const LANGUAGES: { code: AppLanguage }[] = [
 ];
 
 export default function Language({ navigation }: any) {
-  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
+  const { theme } = useAppTheme();
+  const C = buildC(theme);
+  const styles = getStyles(C);
   const { language, setLanguage } = useLanguage();
 
   const handleSelect = async (code: AppLanguage) => {
@@ -96,20 +76,9 @@ export default function Language({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={C.ink} />
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Language</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <View style={styles.titleDivider} />
-
-      {/* Language list */}
+    <SettingsPageShell navigation={navigation} title="Language" eyebrow="YOUR GUIDE"
+      headline="Explore in your language" description="Choose the default language for artifact stories and available audio guides."
+      icon="language-outline">
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>SELECT LANGUAGE</Text>
         <Text style={styles.sectionHint}>
@@ -129,6 +98,8 @@ export default function Language({ navigation }: any) {
                 ]}
                 onPress={() => handleSelect(code)}
                 activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isActive }}
               >
                 <View style={styles.langInfo}>
                   <View style={styles.langIconWrap}>
@@ -158,6 +129,6 @@ export default function Language({ navigation }: any) {
           })}
         </View>
       </View>
-    </SafeAreaView>
+    </SettingsPageShell>
   );
 }

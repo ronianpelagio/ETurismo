@@ -17,6 +17,10 @@ export interface SignUpData {
   gender?: 'Male' | 'Female' | 'Other';
   age?: number;
   address?: string;
+  country?: string;
+  province?: string;
+  city?: string;
+  barangay?: string;
   profile_picture?: string | null;
 }
 
