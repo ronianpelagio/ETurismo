@@ -42,6 +42,7 @@ import {
   isNewArtifact,
 } from '../../features/home/dateUtils';
 import SmartImage from '../../features/home/SmartImage';
+import HomeSummary from '../../features/home/HomeSummary';
 import { buildC, getStyles, widgetS } from '../../features/home/styles';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -261,6 +262,10 @@ function ArtifactCard({ item, width, onPress, isSaved, index }: {
     <Animated.View style={{ width, opacity: fadeAnim, transform: [{ scale: scaleAnim }, { translateY: slideAnim }] }}>
       <TouchableOpacity
         style={styles.card} onPress={onPress} activeOpacity={1}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${item.category}${isSaved ? ', saved' : ''}`}
+        accessibilityHint="Opens artifact details"
         onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, tension: 300, friction: 12 }).start()}
         onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 12 }).start()}
       >
@@ -372,7 +377,13 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
   const backgroundColor = bgAnim.interpolate({ inputRange: [0, 1], outputRange: [C.raised, C.gold] });
   const borderColor = bgAnim.interpolate({ inputRange: [0, 1], outputRange: [C.border, C.gold] });
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${label} artifacts`}
+    >
       <Animated.View style={[styles.tab, { backgroundColor, borderColor }]}>
         <Ionicons name={(ARTIFACT_TAB_ICONS[label as ArtifactTab] || 'apps-outline') as any} size={12} color={active ? C.void : C.inkMid} />
         <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
@@ -1384,7 +1395,13 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               <Text style={styles.heroLogo}>ETURISMO</Text>
               <Text style={styles.heroLogoSub}>CULTURE · HISTORY · HERITAGE</Text>
             </View>
-            <TouchableOpacity style={styles.heroProfileBtn} onPress={openProfileSheet} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.heroProfileBtn}
+              onPress={openProfileSheet}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile summary"
+            >
               {user?.profile_picture
                 ? <Image source={{ uri: user.profile_picture }} style={styles.heroProfileImage} />
                 : <Text style={styles.heroProfileInitial}>{firstName[0]?.toUpperCase()}</Text>}
@@ -1400,6 +1417,13 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           </View>
         </ImageBackground>
 
+        <HomeSummary
+          artifactCount={artifacts.length}
+          savedCount={savedArtifactIds.length}
+          eventCount={events.length}
+          colors={C}
+        />
+
         {/* ══════════════════════════════════════════════════════
             FEATURED EXHIBITION
         ══════════════════════════════════════════════════════ */}
@@ -1412,13 +1436,25 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                   <Text style={styles.sectionEyebrow}>FEATURED</Text>
                   <Text style={styles.sectionTitle}>Exhibition Spotlight</Text>
                 </View>
-                <TouchableOpacity onPress={() => setActiveTab('All')} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={() => setActiveTab('All')}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="View all artifacts"
+                >
                   <Text style={styles.sectionAction}>View all</Text>
                 </TouchableOpacity>
               </View>
 
               <Animated.View style={{ opacity: spotlightFade }}>
-                <TouchableOpacity style={styles.featuredCard} onPress={() => setSelectedArtifact(featured)} activeOpacity={0.9}>
+                <TouchableOpacity
+                  style={styles.featuredCard}
+                  onPress={() => setSelectedArtifact(featured)}
+                  activeOpacity={0.9}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Featured exhibition: ${featured.name}`}
+                  accessibilityHint="Opens artifact details"
+                >
                   <SmartImage uri={featured.image_url} style={styles.featuredImage} resizeMode="cover" />
                   <View style={styles.featuredOverlay} />
                   <View style={styles.featuredContent}>
@@ -1458,10 +1494,16 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
+              accessibilityLabel="Search the artifact collection"
               onSubmitEditing={() => { if (searchQuery.trim()) saveRecentSearch(searchQuery); }}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Clear artifact search"
+              >
                 <Ionicons name="close-circle" size={18} color={C.inkDim} />
               </TouchableOpacity>
             )}
@@ -1550,266 +1592,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
             onSeeAllEvents={() => openFeedModal('events')}
           />
         )}
-        {false && (announcements.length > 0 || events.length > 0) && !searchQuery && (
-          <View style={{ marginTop: 8 }}>
-            {/* Section header */}
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionEyebrow}>STAY CONNECTED</Text>
-                <View style={styles.updateTitleRow}>
-                  <Text style={styles.sectionTitle}>Latest Updates</Text>
-                  {hasUnreadFeed && <View style={styles.unreadDot} />}
-                </View>
-              </View>
-            </View>
-
-            {/* ── Announcements block ── */}
-            {announcements.length > 0 && (
-              <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-                {/* Sub-header row */}
-                <View style={{
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  marginBottom: 12,
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={{
-                      width: 32, height: 32, borderRadius: 10,
-                      backgroundColor: 'rgba(133,79,11,0.12)',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Ionicons name="megaphone" size={16} color="#A0640A" />
-                    </View>
-                    <View>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: C.ink, letterSpacing: -0.2 }}>
-                        Announcements
-                      </Text>
-                      <Text style={{ fontSize: 10, color: C.inkDim, fontWeight: '500' }}>
-                        {announcements.length} update{announcements.length !== 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => openFeedModal('announcements')}
-                    activeOpacity={0.7}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 4,
-                      backgroundColor: 'rgba(133,79,11,0.1)',
-                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50,
-                      borderWidth: 1, borderColor: 'rgba(133,79,11,0.2)',
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#A0640A' }}>See all</Text>
-                    <Ionicons name="chevron-forward" size={12} color="#A0640A" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Cards — show up to 2 */}
-                <View style={{ gap: 10 }}>
-                  {announcements.slice(0, 2).map(item => {
-                    const date = new Date(item.announcement_datetime);
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        onPress={() => openFeedModal('announcements')}
-                        activeOpacity={0.8}
-                        accessible
-                        accessibilityRole="button"
-                        accessibilityLabel={`Announcement: ${item.title}`}
-                        accessibilityHint="Opens full announcements list"
-                        style={{
-                          backgroundColor: C.surface,
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: C.border,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {item.image_url ? (
-                          <Image
-                            source={{ uri: item.image_url }}
-                            style={{ width: '100%', height: 120 }}
-                            resizeMode="cover"
-                            accessible={false}
-                          />
-                        ) : null}
-                        <View style={{ padding: 14, gap: 6 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 5,
-                              backgroundColor: 'rgba(133,79,11,0.1)',
-                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50,
-                            }}>
-                              <Ionicons name="megaphone-outline" size={10} color="#A0640A" />
-                              <Text style={{ fontSize: 9, fontWeight: '800', color: '#A0640A', letterSpacing: 0.6 }}>
-                                ANNOUNCEMENT
-                              </Text>
-                            </View>
-                            <Text style={{ fontSize: 10, color: C.inkDim }}>
-                              {getTimeAgo(date)}
-                            </Text>
-                          </View>
-                          <Text
-                            style={{ fontSize: 14, fontWeight: '700', color: C.ink, lineHeight: 20 }}
-                            numberOfLines={2}
-                          >
-                            {item.title}
-                          </Text>
-                          {item.description ? (
-                            <Text
-                              style={{ fontSize: 12, color: C.inkMid, lineHeight: 18 }}
-                              numberOfLines={2}
-                            >
-                              {item.description}
-                            </Text>
-                          ) : null}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                              <Ionicons name="calendar-outline" size={11} color={C.inkDim} />
-                              <Text style={{ fontSize: 11, color: C.inkDim }}>
-                                {formatDate(item.announcement_datetime)}
-                              </Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Text style={{ fontSize: 11, fontWeight: '600', color: C.gold }}>Read more</Text>
-                              <Ionicons name="chevron-forward" size={12} color={C.gold} />
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* ── Events block ── */}
-            {events.length > 0 && (
-              <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
-                {/* Sub-header row */}
-                <View style={{
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  marginBottom: 12,
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={{
-                      width: 32, height: 32, borderRadius: 10,
-                      backgroundColor: 'rgba(8,80,65,0.12)',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Ionicons name="calendar" size={16} color="#085041" />
-                    </View>
-                    <View>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: C.ink, letterSpacing: -0.2 }}>
-                        Upcoming Events
-                      </Text>
-                      <Text style={{ fontSize: 10, color: C.inkDim, fontWeight: '500' }}>
-                        {events.length} event{events.length !== 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => openFeedModal('events')}
-                    activeOpacity={0.7}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 4,
-                      backgroundColor: 'rgba(8,80,65,0.1)',
-                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50,
-                      borderWidth: 1, borderColor: 'rgba(8,80,65,0.2)',
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#085041' }}>See all</Text>
-                    <Ionicons name="chevron-forward" size={12} color="#085041" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Cards — show up to 2 */}
-                <View style={{ gap: 10 }}>
-                  {events.slice(0, 2).map(item => {
-                    const date = new Date(item.event_datetime);
-                    const countdown = getEventCountdown(item.event_datetime);
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        onPress={() => openFeedModal('events')}
-                        activeOpacity={0.8}
-                        accessible
-                        accessibilityRole="button"
-                        accessibilityLabel={`Event: ${item.title}`}
-                        accessibilityHint="Opens full events list"
-                        style={{
-                          backgroundColor: C.surface,
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: C.border,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {item.image_url ? (
-                          <Image
-                            source={{ uri: item.image_url }}
-                            style={{ width: '100%', height: 120 }}
-                            resizeMode="cover"
-                            accessible={false}
-                          />
-                        ) : null}
-                        <View style={{ padding: 14, gap: 6 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 5,
-                              backgroundColor: 'rgba(8,80,65,0.1)',
-                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50,
-                            }}>
-                              <Ionicons name="calendar-outline" size={10} color="#085041" />
-                              <Text style={{ fontSize: 9, fontWeight: '800', color: '#085041', letterSpacing: 0.6 }}>
-                                EVENT
-                              </Text>
-                            </View>
-                            {countdown && (
-                              <View style={{
-                                backgroundColor: 'rgba(8,80,65,0.08)',
-                                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50,
-                                borderWidth: 1, borderColor: 'rgba(8,80,65,0.2)',
-                              }}>
-                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#085041' }}>{countdown}</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text
-                            style={{ fontSize: 14, fontWeight: '700', color: C.ink, lineHeight: 20 }}
-                            numberOfLines={2}
-                          >
-                            {item.title}
-                          </Text>
-                          {item.description ? (
-                            <Text
-                              style={{ fontSize: 12, color: C.inkMid, lineHeight: 18 }}
-                              numberOfLines={2}
-                            >
-                              {item.description}
-                            </Text>
-                          ) : null}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                              <Ionicons name="time-outline" size={11} color={C.inkDim} />
-                              <Text style={{ fontSize: 11, color: C.inkDim }}>
-                                {formatDate(item.event_datetime)} · {formatEventTime(date)}
-                              </Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Text style={{ fontSize: 11, fontWeight: '600', color: C.gold }}>Details</Text>
-                              <Ionicons name="chevron-forward" size={12} color={C.gold} />
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-        {/* end legacy updates */}
 
         {/* ══════════════════════════════════════════════════════
             VISIT CARD
@@ -1893,7 +1675,13 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           <TouchableOpacity style={styles.modalBackdrop} onPress={handleModalClose} activeOpacity={1} />
           <Animated.View style={[styles.modalSheet, { transform: [{ translateY: modalSlide }] }]}>
             <View style={styles.modalHandle} />
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={handleModalClose} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={handleModalClose}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close artifact details"
+            >
               <Ionicons name="close" size={18} color={C.inkMid} />
             </TouchableOpacity>
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
@@ -1916,10 +1704,34 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                 <View style={styles.modalGoldAccent} />
                 <Text style={styles.modalTitle}>{selectedArtifact.name}</Text>
                 <Text style={styles.modalDate}>{selectedArtifact.date}</Text>
+                <View style={styles.modalFacts}>
+                  {selectedArtifact.creator ? (
+                    <View style={styles.modalFactChip}>
+                      <Ionicons name="person-outline" size={12} color={C.gold} />
+                      <Text style={styles.modalFactText}>{selectedArtifact.creator}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.modalFactChip}>
+                    <Ionicons name="language-outline" size={12} color={C.gold} />
+                    <Text style={styles.modalFactText}>
+                      {selectedArtifact.translations?.length || 1} language
+                      {(selectedArtifact.translations?.length || 1) === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                  {(selectedArtifact.audio_url || selectedArtifact.translations?.some(t => t.audio_url)) ? (
+                    <View style={styles.modalFactChip}>
+                      <Ionicons name="headset-outline" size={12} color={C.gold} />
+                      <Text style={styles.modalFactText}>Audio available</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, modalIsSaved && styles.modalActionBtnGold]}
                     onPress={toggleModalSave} activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={modalIsSaved ? 'Remove artifact from saved items' : 'Save artifact'}
+                    accessibilityState={{ selected: modalIsSaved }}
                   >
                     <Ionicons name={modalIsSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={modalIsSaved ? C.void : C.inkMid} />
                     <Text style={[styles.modalActionText, modalIsSaved && styles.modalActionTextDark]}>
@@ -1930,6 +1742,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                     style={styles.modalActionBtn}
                     onPress={shareArtifact}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Share ${selectedArtifact.name}`}
                   >
                     <Ionicons name="share-social-outline" size={18} color={C.inkMid} />
                     <Text style={styles.modalActionText}>Share</Text>
@@ -1990,6 +1804,19 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                     })()}
                   </View>
                 )}
+
+                {selectedArtifact.Historical_Significance ? (
+                  <View style={styles.modalSection}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="time-outline" size={13} color={C.gold} />
+                      <Text style={styles.modalSectionLabel}>HISTORICAL SIGNIFICANCE</Text>
+                    </View>
+                    <View style={styles.modalSectionUnderline} />
+                    <Text style={styles.modalDesc}>
+                      {selectedArtifact.Historical_Significance}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {/* Audio Guide */}
                 {(() => {
@@ -2164,6 +1991,9 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                         }}
                         activeOpacity={0.7}
                         style={{ padding: 4 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${star} star${star === 1 ? '' : 's'}`}
+                        accessibilityState={{ selected: ratingDraft === star }}
                       >
                         <Ionicons
                           name={star <= ratingDraft ? 'star' : 'star-outline'}
