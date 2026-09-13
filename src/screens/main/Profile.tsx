@@ -59,12 +59,11 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
   const feedbackAnim = useRef(new Animated.Value(0)).current;
   const editBorderAnim = useRef(new Animated.Value(0)).current;
 
-  // Always hide navbar on settings tab
-  useEffect(() => { setNavbarVisible?.(false); }, []);
   useFocusEffect(useCallback(() => {
-    setNavbarVisible?.(false);
+    setNavbarVisible?.(true);
     fetchCounts();
-  }, []));
+    return () => setNavbarVisible?.(false);
+  }, [setNavbarVisible]));
 
   useEffect(() => { fetchUser(); }, []);
 

@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../context/ThemeContext';
+import { AppTheme } from '../constants/themes';
 
 // Screens
 import Home from '../screens/main/Home';
@@ -23,10 +24,10 @@ import SettingsStack from './SettingsStack';
 // ─────────────────────────────────────────────
 // SACRED HERITAGE THEME TOKENS
 // ─────────────────────────────────────────────
-function buildColors(t: any) {
+function buildColors(t: AppTheme) {
   return {
     background: t.bg,
-    surface: 'rgba(255,255,255,0.85)',
+    surface: t.surface,
     border: t.border,
     borderLight: t.borderGold,
     textPrimary: t.ink,
@@ -39,7 +40,7 @@ function buildColors(t: any) {
     shadow: t.ink,
   };
 }
-let COLORS = buildColors({ bg: '#FFFCF8', border: '#EAE5DF', borderGold: 'rgba(199,168,75,0.25)', ink: '#1E1B17', inkMid: '#5C564B', inkDim: '#9B948A', gold: '#C7A84B', goldBright: '#D4B86A', goldSoft: '#FDF8F0', crimson: '#E74C3C' });
+type NavigationColors = ReturnType<typeof buildColors>;
 
 // ─────────────────────────────────────────────
 // TABS
@@ -52,26 +53,26 @@ const TABS = [
     inactiveIcon: 'home-outline',
   },
   {
-    key: 'Settings',
-    label: 'Settings',
-    activeIcon: 'grid',
-    inactiveIcon: 'grid-outline',
+    key: 'Profile',
+    label: 'Profile',
+    activeIcon: 'person',
+    inactiveIcon: 'person-outline',
   },
-];
+] as const;
 
 // ─────────────────────────────────────────────
 // MAIN NAVIGATOR
 // ─────────────────────────────────────────────
 export default function TabNavigator() {
-  const { theme } = useAppTheme(); COLORS = buildColors(theme);
+  const { theme } = useAppTheme();
+  const colors = buildColors(theme);
   const pagerRef = useRef<PagerView>(null);
   const insets = useSafeAreaInsets();
 
   const [index, setIndex] = useState(0);
   const [navbarVisible, setNavbarVisible] = useState(true);
 
-  // Always hide navbar on settings tab (index 2)
-  const effectiveNavbarVisible = index === 2 ? false : navbarVisible;
+  const effectiveNavbarVisible = navbarVisible;
 
   const navbarTranslate = useRef(new Animated.Value(0)).current;
   const navbarOpacity = useRef(new Animated.Value(1)).current;
@@ -107,7 +108,7 @@ export default function TabNavigator() {
   };
 
   return (
-        <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
           <PagerView
             ref={pagerRef}
             style={{ flex: 1 }}
@@ -130,18 +131,40 @@ export default function TabNavigator() {
               },
             ]}
           >
-            <BlurView intensity={35} tint="light" style={styles.navbar}>
-              <TabItem label={TABS[0].label} activeIcon={TABS[0].activeIcon} inactiveIcon={TABS[0].inactiveIcon} focused={index === 0} onPress={() => goToPage(0)} />
+            <BlurView
+              intensity={35}
+              tint="light"
+              style={[
+                styles.navbar,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  shadowColor: colors.shadow,
+                },
+              ]}
+            >
+              <TabItem colors={colors} label={TABS[0].label} activeIcon={TABS[0].activeIcon} inactiveIcon={TABS[0].inactiveIcon} focused={index === 0} onPress={() => goToPage(0)} />
               <View style={{ width: 80 }} />
-              <TabItem label={TABS[1].label} activeIcon={TABS[1].activeIcon} inactiveIcon={TABS[1].inactiveIcon} focused={index === 2} onPress={() => goToPage(2)} />
+              <TabItem colors={colors} label={TABS[1].label} activeIcon={TABS[1].activeIcon} inactiveIcon={TABS[1].inactiveIcon} focused={index === 2} onPress={() => goToPage(2)} />
             </BlurView>
             <TouchableOpacity
               activeOpacity={0.9}
-              style={[styles.scanButton, index === 1 && styles.scanButtonActive]}
+              style={[
+                styles.scanButton,
+                {
+                  backgroundColor: index === 1 ? colors.gold : colors.textPrimary,
+                  borderColor: colors.background,
+                  shadowColor: colors.shadow,
+                },
+              ]}
               onPress={() => goToPage(1)}
+              accessibilityRole="tab"
+              accessibilityLabel="Scan artifact QR code"
+              accessibilityState={{ selected: index === 1 }}
             >
-              <View style={styles.scanGlow} />
+              <View style={[styles.scanGlow, { backgroundColor: colors.goldSoft }]} />
               <Ionicons name={index === 1 ? 'scan' : 'scan-outline'} size={24} color="#fff" />
+              <Text style={styles.scanLabel}>SCAN</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -152,15 +175,22 @@ export default function TabNavigator() {
 // TAB ITEM - WITH GOLD ACCENTS
 // ─────────────────────────────────────────────
 function TabItem({
+  colors,
   label,
   activeIcon,
   inactiveIcon,
   focused,
   onPress,
-}: any) {
+}: {
+  colors: NavigationColors;
+  label: string;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  inactiveIcon: keyof typeof Ionicons.glyphMap;
+  focused: boolean;
+  onPress: () => void;
+}) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(focused ? 1 : 0.55)).current;
-  const goldGlow = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -174,24 +204,17 @@ function TabItem({
         duration: 180,
         useNativeDriver: true,
       }),
-      Animated.timing(goldGlow, {
-        toValue: focused ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
     ]).start();
-  }, [focused]);
-
-  const iconColor = goldGlow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [COLORS.textMuted, COLORS.gold],
-  });
+  }, [focused, opacity, scale]);
 
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       style={styles.tabButton}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: focused }}
     >
       <Animated.View
         style={{
@@ -200,13 +223,13 @@ function TabItem({
           opacity,
         }}
       >
-        {focused && <View style={styles.activeDot} />}
+        {focused && <View style={[styles.activeDot, { backgroundColor: colors.gold }]} />}
 
         <Animated.View>
           <Ionicons
             name={focused ? activeIcon : inactiveIcon}
             size={21}
-            color={focused ? COLORS.gold : COLORS.textMuted}
+            color={focused ? colors.gold : colors.textMuted}
           />
         </Animated.View>
 
@@ -214,7 +237,7 @@ function TabItem({
           style={[
             styles.label,
             {
-              color: focused ? COLORS.gold : COLORS.textMuted,
+              color: focused ? colors.gold : colors.textMuted,
               fontWeight: focused ? '700' : '500',
             },
           ]}
@@ -232,24 +255,23 @@ function TabItem({
 const styles = StyleSheet.create({
   navWrapper: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
     alignItems: 'center',
   },
 
   navbar: {
     width: '100%',
-    height: 56,
-    borderRadius: 28,
+    maxWidth: 430,
+    height: 64,
+    borderRadius: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1,
-    borderColor: '#EAE5DF',
-    paddingHorizontal: 6,
-    shadowColor: '#1E1B17',
+    paddingHorizontal: 10,
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -275,29 +297,21 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 10,
-    backgroundColor: '#C7A84B', // Gold accent
   },
 
   scanButton: {
     position: 'absolute',
-    top: -18,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#1E1B17', // Deep warm black (ink)
+    top: -20,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: '#FFFCF8', // Matches background
-    shadowColor: '#1E1B17',
     shadowOpacity: 0.18,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
-  },
-
-  scanButtonActive: {
-    backgroundColor: '#C7A84B', // Gold when active
   },
 
   scanGlow: {
@@ -305,7 +319,14 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(199,168,75,0.15)',
     transform: [{ scale: 1.12 }],
+  },
+  scanLabel: {
+    position: 'absolute',
+    bottom: 8,
+    color: '#FFF',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
