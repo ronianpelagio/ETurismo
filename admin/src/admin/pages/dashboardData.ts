@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin } from "../services/supabase";
+import { supabase } from "../services/supabase";
 import {
   DashboardDemographics,
   DashboardStats,
@@ -47,7 +47,9 @@ const querySafe = async <T>(fn: () => Promise<T>) => {
   }
 };
 
-export async function fetchDashboardStats(fromDate?: string): Promise<DashboardStats> {
+export async function fetchDashboardStats(
+  fromDate?: string,
+): Promise<DashboardStats> {
   const [
     artifacts,
     users,
@@ -115,8 +117,13 @@ export async function fetchDashboardStats(fromDate?: string): Promise<DashboardS
     : 0;
 
   // Build trend days spanning from fromDate to today
-  const startMs = fromDate ? new Date(fromDate).getTime() : Date.now() - 6 * 24 * 60 * 60 * 1000;
-  const totalDays = Math.max(1, Math.round((Date.now() - startMs) / (24 * 60 * 60 * 1000)) + 1);
+  const startMs = fromDate
+    ? new Date(fromDate).getTime()
+    : Date.now() - 6 * 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(
+    1,
+    Math.round((Date.now() - startMs) / (24 * 60 * 60 * 1000)) + 1,
+  );
   const trendDays = Array.from({ length: totalDays }).map((_, index) => {
     const date = new Date(startMs + index * 24 * 60 * 60 * 1000);
     return {
@@ -154,7 +161,9 @@ export async function fetchDashboardStats(fromDate?: string): Promise<DashboardS
 export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   const rowsResponse = await querySafe(async () => {
     // users table stores `age` (integer) and `Address` (text) for location breakdown
-    const { data, error } = await supabase.from("users").select("gender, age, Address");
+    const { data, error } = await supabase
+      .from("users")
+      .select("gender, age, Address");
     if (error) throw error;
     return data as Array<Record<string, any>>;
   });
@@ -212,7 +221,6 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   return result;
 }
 
-
 // ─── Tour Feedback Stats ──────────────────────────────────────────────────────
 
 const defaultTourFeedbackStats: TourFeedbackStats = {
@@ -233,9 +241,9 @@ const defaultTourFeedbackStats: TourFeedbackStats = {
 
 export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
   // Fetch all rows directly from the tour_feedback table — no views needed.
-  // Use supabaseAdmin (service role) to bypass RLS so the admin can see all rows.
+  // The authenticated admin policy in sql/tour_feedback.sql grants this read.
   const allRowsResponse = await querySafe(async () => {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("tour_feedback")
       .select(
         "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",
@@ -245,24 +253,36 @@ export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
     return data as TourFeedbackRow[];
   });
 
-  const all: TourFeedbackRow[] = Array.isArray(allRowsResponse) ? allRowsResponse : [];
+  const all: TourFeedbackRow[] = Array.isArray(allRowsResponse)
+    ? allRowsResponse
+    : [];
 
   if (all.length === 0) return defaultTourFeedbackStats;
 
   const now = Date.now();
-  const sevenDaysAgo  = new Date(now - 7  * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now - 29 * 24 * 60 * 60 * 1000);
 
   // ── Volume ──────────────────────────────────────────────────────────────────
-  const totalSubmissions   = all.length;
-  const submissionsLast7d  = all.filter((r) => new Date(r.submitted_at) >= sevenDaysAgo).length;
-  const submissionsLast30d = all.filter((r) => new Date(r.submitted_at) >= thirtyDaysAgo).length;
+  const totalSubmissions = all.length;
+  const submissionsLast7d = all.filter(
+    (r) => new Date(r.submitted_at) >= sevenDaysAgo,
+  ).length;
+  const submissionsLast30d = all.filter(
+    (r) => new Date(r.submitted_at) >= thirtyDaysAgo,
+  ).length;
 
   // ── Ratings ─────────────────────────────────────────────────────────────────
   const avgRating =
     all.reduce((s, r) => s + r.overall_rating, 0) / totalSubmissions;
 
-  const ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number> = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
   all.forEach((r) => {
     const star = r.overall_rating as 1 | 2 | 3 | 4 | 5;
     if (star >= 1 && star <= 5) ratingDistribution[star] += 1;
@@ -270,14 +290,13 @@ export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
 
   // ── Recommendation ──────────────────────────────────────────────────────────
   const recommendYes = all.filter((r) => r.would_recommend).length;
-  const recommendNo  = all.filter((r) => !r.would_recommend).length;
+  const recommendNo = all.filter((r) => !r.would_recommend).length;
   const recommendPct = Math.round((recommendYes / totalSubmissions) * 100);
 
   // ── Visit types ─────────────────────────────────────────────────────────────
   const visitTypes = { solo: 0, couple: 0, family: 0, group: 0, school: 0 };
   all.forEach((r) => {
-    if (r.visit_type in visitTypes)
-      (visitTypes as any)[r.visit_type] += 1;
+    if (r.visit_type in visitTypes) (visitTypes as any)[r.visit_type] += 1;
   });
 
   // ── Heard from (unnest the array column) ────────────────────────────────────
@@ -293,7 +312,10 @@ export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
     all.reduce((s, r) => s + (r.total_artifacts ?? 0), 0) / totalSubmissions;
 
   // ── 30-day daily trend ───────────────────────────────────────────────────────
-  const trendMap = new Map<string, { submissions: number; ratingSum: number }>();
+  const trendMap = new Map<
+    string,
+    { submissions: number; ratingSum: number }
+  >();
   all.forEach((r) => {
     const day = new Date(r.submitted_at).toISOString().slice(0, 10);
     if (!trendMap.has(day)) trendMap.set(day, { submissions: 0, ratingSum: 0 });
@@ -302,16 +324,20 @@ export async function fetchTourFeedbackStats(): Promise<TourFeedbackStats> {
     entry.ratingSum += r.overall_rating;
   });
 
-  const dailyTrend: TourFeedbackDailyTrend[] = Array.from({ length: 30 }).map((_, i) => {
-    const d = new Date(now - (29 - i) * 24 * 60 * 60 * 1000);
-    const key = d.toISOString().slice(0, 10);
-    const found = trendMap.get(key);
-    return {
-      day: key,
-      submissions: found?.submissions ?? 0,
-      avg_rating: found ? Number((found.ratingSum / found.submissions).toFixed(2)) : 0,
-    };
-  });
+  const dailyTrend: TourFeedbackDailyTrend[] = Array.from({ length: 30 }).map(
+    (_, i) => {
+      const d = new Date(now - (29 - i) * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      const found = trendMap.get(key);
+      return {
+        day: key,
+        submissions: found?.submissions ?? 0,
+        avg_rating: found
+          ? Number((found.ratingSum / found.submissions).toFixed(2))
+          : 0,
+      };
+    },
+  );
 
   // ── Recent 5 submissions ─────────────────────────────────────────────────────
   const recentFeedback = all.slice(0, 5);

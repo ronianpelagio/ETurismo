@@ -87,3 +87,4 @@ export const THEMES = {
 } as const;
 
 export type ThemeName = keyof typeof THEMES;
+export type AppTheme = (typeof THEMES)[ThemeName];

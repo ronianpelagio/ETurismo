@@ -65,13 +65,13 @@ export default function RatingsModal({
       transparent
       animationType="slide"
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={() => onClose()}
       statusBarTranslucent
     >
       <View style={styles.overlay}>
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
-          onPress={onClose}
+          onPress={() => onClose()}
           activeOpacity={1}
         />
         <View style={styles.sheet}>
@@ -84,7 +84,7 @@ export default function RatingsModal({
               <Text style={styles.eyebrow}>RATE THIS PIECE</Text>
               <Text style={styles.title}>{artifactName}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => onClose()} style={styles.closeBtn} activeOpacity={0.7}>
               <Ionicons name="close" size={20} color={C.inkMid} />
             </TouchableOpacity>
           </View>

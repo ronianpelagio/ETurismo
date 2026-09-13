@@ -248,7 +248,7 @@ export default function VerifyOTP({ route, navigation }: any) {
     setCode('');
     setStatus('idle');
     try {
-      await supabase.auth.resend({ type: 'email', email });
+      await supabase.auth.resend({ type: 'signup', email });
       // Save new timestamp so the fresh 3-minute window persists across app restarts
       await saveOtpTimestamp(email);
       setTimeLeft(TIMER_SECONDS);

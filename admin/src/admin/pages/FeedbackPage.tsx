@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { CardSkeleton, Skeleton } from "../components/LoadingSkeleton";
-import { supabaseAdmin } from "../services/supabase";
+import { supabase } from "../services/supabase";
 import { TourFeedbackRow } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,9 +31,9 @@ type SortField = "submitted_at" | "overall_rating" | "total_artifacts";
 type SortDir = "asc" | "desc";
 
 type FeedbackFilter = {
-  rating: number | null;       // 1-5 or null = all
-  recommend: boolean | null;   // true/false/null = all
-  visitType: string;            // "" = all
+  rating: number | null; // 1-5 or null = all
+  recommend: boolean | null; // true/false/null = all
+  visitType: string; // "" = all
 };
 
 type FeedbackSummary = {
@@ -73,7 +73,8 @@ function StarRow({ rating }: { rating: number }) {
 }
 
 function HeardFromChips({ heard }: { heard: string[] }) {
-  if (!heard?.length) return <span className="text-muted-foreground/50 text-[10px]">—</span>;
+  if (!heard?.length)
+    return <span className="text-muted-foreground/50 text-[10px]">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
       {heard.map((h) => (
@@ -105,7 +106,9 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
               Highlights
             </p>
-            <p className="text-xs text-foreground leading-relaxed">{fb.highlights}</p>
+            <p className="text-xs text-foreground leading-relaxed">
+              {fb.highlights}
+            </p>
           </div>
         ) : null}
         {fb.suggestions ? (
@@ -113,7 +116,9 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
               Suggestions
             </p>
-            <p className="text-xs text-foreground leading-relaxed">{fb.suggestions}</p>
+            <p className="text-xs text-foreground leading-relaxed">
+              {fb.suggestions}
+            </p>
           </div>
         ) : null}
         {!fb.highlights && !fb.suggestions && (
@@ -167,15 +172,17 @@ export default function FeedbackPage() {
     setLoading(true);
     setError(null);
     try {
-      let query = supabaseAdmin
+      let query = supabase
         .from("tour_feedback")
         .select(
           "id, user_id, overall_rating, visit_type, heard_from, highlights, suggestions, would_recommend, total_artifacts, submitted_at",
         )
         .order(sortField, { ascending: sortDir === "asc" });
 
-      if (filter.rating !== null) query = query.eq("overall_rating", filter.rating);
-      if (filter.recommend !== null) query = query.eq("would_recommend", filter.recommend);
+      if (filter.rating !== null)
+        query = query.eq("overall_rating", filter.rating);
+      if (filter.recommend !== null)
+        query = query.eq("would_recommend", filter.recommend);
       if (filter.visitType) query = query.eq("visit_type", filter.visitType);
 
       const { data, error: qErr } = await query;
@@ -245,7 +252,9 @@ export default function FeedbackPage() {
   // ── Clear filters ──────────────────────────────────────────────────────────
 
   const hasActiveFilter =
-    filter.rating !== null || filter.recommend !== null || filter.visitType !== "";
+    filter.rating !== null ||
+    filter.recommend !== null ||
+    filter.visitType !== "";
   const clearFilters = () =>
     setFilter({ rating: null, recommend: null, visitType: "" });
 
@@ -358,9 +367,7 @@ export default function FeedbackPage() {
             setFilter((f) => ({
               ...f,
               recommend:
-                e.target.value === ""
-                  ? null
-                  : e.target.value === "yes",
+                e.target.value === "" ? null : e.target.value === "yes",
             }))
           }
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
@@ -497,7 +504,8 @@ export default function FeedbackPage() {
                               variant="outline"
                               className="rounded-full border-border text-[10px] capitalize"
                             >
-                              {VISIT_TYPE_LABELS[fb.visit_type] ?? fb.visit_type}
+                              {VISIT_TYPE_LABELS[fb.visit_type] ??
+                                fb.visit_type}
                             </Badge>
                           </td>
 
@@ -506,12 +514,16 @@ export default function FeedbackPage() {
                             {fb.would_recommend ? (
                               <span className="flex items-center gap-1 text-foreground">
                                 <ThumbsUp className="h-3 w-3" />
-                                <span className="text-[10px] font-medium">Yes</span>
+                                <span className="text-[10px] font-medium">
+                                  Yes
+                                </span>
                               </span>
                             ) : (
                               <span className="flex items-center gap-1 text-muted-foreground">
                                 <ThumbsDown className="h-3 w-3" />
-                                <span className="text-[10px] font-medium">No</span>
+                                <span className="text-[10px] font-medium">
+                                  No
+                                </span>
                               </span>
                             )}
                           </td>
@@ -532,7 +544,9 @@ export default function FeedbackPage() {
                                 {fb.suggestions}
                               </p>
                             ) : (
-                              <span className="text-muted-foreground/40">—</span>
+                              <span className="text-muted-foreground/40">
+                                —
+                              </span>
                             )}
                           </td>
 

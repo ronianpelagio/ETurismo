@@ -10,7 +10,7 @@ import { useAppTheme } from '../../../context/ThemeContext';
 import { useAppContext, FontSizeLevel, FONT_SCALE } from '../../../context/AppContext';
 import { THEMES } from '../../../constants/themes';
 
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return {
     bg: t.bg, surface: t.surface, raised: t.raised,
     ink: t.ink, inkMid: t.inkMid, inkDim: t.inkDim,

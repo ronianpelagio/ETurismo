@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar as CalIcon,
@@ -441,10 +447,6 @@ export default function EventsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 
-  useEffect(() => {
-    load();
-  }, [currentPage]);
-
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     if (!q) return events;
@@ -455,7 +457,7 @@ export default function EventsPage() {
     );
   }, [events, query]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -479,7 +481,11 @@ export default function EventsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 

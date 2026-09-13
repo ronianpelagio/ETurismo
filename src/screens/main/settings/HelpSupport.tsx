@@ -7,12 +7,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../../../context/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { THEMES } from '../../../constants/themes';
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
 }
 let C = buildC(THEMES.light);

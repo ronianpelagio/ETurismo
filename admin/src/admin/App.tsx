@@ -1,17 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./services/supabase";
 import { AdminUser } from "./types";
 import Sidebar from "./components/Sidebar";
 import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
-import ArtifactsPage from "./pages/ArtifactsPage";
-import UsersPage from "./pages/UsersPage";
-import AnnouncementsPage from "./pages/AnnouncementsPage";
-import EventsPage from "./pages/EventsPage";
-import SettingsPage from "./pages/SettingsPage";
-import FeedbackPage from "./pages/FeedbackPage";
-import RecentLogsPage from "./pages/RecentLogsPage";
 import SearchBar from "./components/SearchBar";
 import NotificationDropdown from "./components/NotificationDropdown";
 import { ChevronRight, Loader2, Menu, Sun, Moon } from "lucide-react";
@@ -19,6 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ThemeProvider, useTheme } from "@/utils/theme";
 import { navPages, pageTitleMap, type PageKey } from "./navigation";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const ArtifactsPage = lazy(() => import("./pages/ArtifactsPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
+const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
+const EventsPage = lazy(() => import("./pages/EventsPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const FeedbackPage = lazy(() => import("./pages/FeedbackPage"));
+const RecentLogsPage = lazy(() => import("./pages/RecentLogsPage"));
 
 // ─── ThemeToggle outside App so hooks are never conditionally called ──────────
 
@@ -266,7 +267,16 @@ export default function App() {
                 transition={{ duration: 0.22, ease: "easeOut" }}
                 className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
               >
-                {renderPage()}
+                <Suspense
+                  fallback={
+                    <div className="flex min-h-64 items-center justify-center text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading page…
+                    </div>
+                  }
+                >
+                  {renderPage()}
+                </Suspense>
               </motion.div>
             </AnimatePresence>
           </main>
@@ -285,6 +295,3 @@ function Shell({ children }: { children: React.ReactNode }) {
     </ThemeProvider>
   );
 }
-
-export { navPages };
-export type { PageKey };

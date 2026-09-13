@@ -21,11 +21,13 @@ import PostTourFeedback from './PostTourFeedback';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
 import HighlightedText from '../../components/HighlightedText';
+import type { Artifact, ArtifactTranslation } from '../../features/artifacts/types';
+import { ARTIFACT_CATEGORY_IMAGES } from '../../features/artifacts/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── SACRED HERITAGE THEME TOKENS ──────────────────────────────────────────────
-function buildC(t: typeof THEMES.light) {
+function buildC(t: typeof THEMES[keyof typeof THEMES]) {
   return {
     bg: t.bg, surface: t.surface,
     ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim,
@@ -409,34 +411,6 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 
 let styles = getStyles(C);
 
-type ArtifactTranslation = {
-  language_code: string;
-  name: string;
-  description: string | null;
-  audio_url: string | null;
-};
-
-type Artifact = {
-  id: string;
-  name: string;
-  category: string;
-  qr_code: string;
-  qr_value: string;
-  created_at: string;
-  description?: string;
-  image_url?: string;
-  creator?: string;
-};
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  'Vestments':          'https://images.unsplash.com/photo-1582552938356-8b6b14c0e1ee?w=600',
-  'Sacred Vessels':     'https://images.unsplash.com/photo-1602351447937-7457d2e0ffc3?w=600',
-  'Liturgical Books':   'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
-  'Devotional Objects': 'https://images.unsplash.com/photo-1566505237780-6bf6d4c1b84e?w=600',
-  'Altar Furnishings':  'https://images.unsplash.com/photo-1601940462811-2c893df9477c?w=600',
-  'Sacramentals':       'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?w=600',
-};
-
 // ─── Corner Frame (with gold accent) ────────────────────────────────────────────
 function ScanFrame({ pulse }: { pulse: Animated.Value }) {
   const corners = [
@@ -684,7 +658,7 @@ function ArtifactModal({
 
   if (!artifact) return null;
 
-  const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
+  const imgUrl = artifact.image_url ?? ARTIFACT_CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
 
   const langMeta: Record<string, { label: string; icon: string }> = {
     en:  { label: 'English',  icon: 'language-outline' },
@@ -1123,13 +1097,16 @@ export default function QRScanner({
 
   // Fetch the total number of artifacts from Supabase (for tour-completion detection)
   useEffect(() => {
-    supabase
-      .from('artifacts')
-      .select('id', { count: 'exact', head: true })
-      .then(({ count }) => {
-        if (count != null && count > 0) setTotalArtifacts(count);
-      })
-      .catch(() => {});
+    let mounted = true;
+    void (async () => {
+      const { count } = await supabase
+        .from('artifacts')
+        .select('id', { count: 'exact', head: true });
+      if (mounted && count != null && count > 0) setTotalArtifacts(count);
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Tour-completion: show feedback modal when all artifacts have been scanned
