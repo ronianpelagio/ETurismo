@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import 'react-native-get-random-values';
@@ -200,6 +200,7 @@ interface Props {
 
 export default function PostTourFeedback({ visible, totalArtifacts, userId, onClose }: Props) {
   const { theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const C = buildC(theme);
 
   // Form state
@@ -368,7 +369,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
-              contentContainerStyle={{ paddingBottom: 48 }}
+              contentContainerStyle={{ paddingBottom: 48 + insets.bottom }}
             >
               {/* ── Hero Header ── */}
               <View style={styles(C).heroSection}>

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
@@ -251,6 +252,7 @@ function SocialButton({
 export default function SignIn({
   navigation,
 }: any) {
+  const insets = useSafeAreaInsets();
   const { width, height } =
     useWindowDimensions();
 
@@ -541,7 +543,7 @@ export default function SignIn({
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
 
       <ImageBackground
         source={require(
@@ -565,6 +567,8 @@ export default function SignIn({
               styles.scrollContent,
               {
                 minHeight: height,
+                paddingTop: Math.max(24, insets.top + 16),
+                paddingBottom: insets.bottom + 25,
               },
             ]}
             keyboardShouldPersistTaps="handled"
@@ -639,7 +643,7 @@ export default function SignIn({
               </Text>
 
               <View style={styles.benefitRow}>
-                <View style={styles.benefit}><Icon name="bookmark-outline" size={14} color={COLORS.gold} /><Text style={styles.benefitText}>Saved places</Text></View>
+                <View style={styles.benefit}><Icon name="heart-outline" size={14} color={COLORS.gold} /><Text style={styles.benefitText}>Favorite pieces</Text></View>
                 <View style={styles.benefitDivider} />
                 <View style={styles.benefit}><Icon name="shield-checkmark-outline" size={14} color={COLORS.gold} /><Text style={styles.benefitText}>Secure profile</Text></View>
               </View>
@@ -939,7 +943,7 @@ const styles = StyleSheet.create({
   },
 
   backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
 
     backgroundColor:
       'rgba(15, 13, 9, 0.62)',
