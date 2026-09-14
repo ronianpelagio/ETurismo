@@ -66,8 +66,8 @@ export default function FontSizeScreen({ navigation }: any) {
   });
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* ── Header ── */}
@@ -78,7 +78,7 @@ export default function FontSizeScreen({ navigation }: any) {
         >
           <LinearGradient
             colors={['rgba(255,252,248,0.95)', 'rgba(255,252,248,0.85)']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={s.header}>
             <TouchableOpacity onPress={() => navigation?.goBack()} style={s.backBtn} activeOpacity={0.7}>

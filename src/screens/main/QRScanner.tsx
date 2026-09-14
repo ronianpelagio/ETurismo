@@ -210,7 +210,7 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     backgroundColor: C.vignette,
   },
   frameContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -527,7 +527,7 @@ function ArtifactModal({
   const [playingLang, setPlayingLang] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(appLanguage);
   const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number>(60);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
   const playerRef = useRef<any>(null);
@@ -553,7 +553,7 @@ function ArtifactModal({
   useEffect(() => {
     if (artifact) {
       setupAudioModal();
-      checkSaveAndFavorite();
+      checkFavorite();
       fetchTranslations(artifact.id);
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
@@ -595,16 +595,16 @@ function ArtifactModal({
     }
   }
 
-  async function checkSaveAndFavorite() {
+  async function checkFavorite() {
     if (!artifact) return;
-    const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
-    setIsSaved(saved.includes(artifact.id));
+    const favorites = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
+    setIsFavorite(favorites.includes(artifact.id));
   }
 
-  async function toggleSave() {
+  async function toggleFavorite() {
     if (!artifact) return;
-    const updated = await toggleInStringArray(STORAGE_KEYS.savedArtifacts, artifact.id);
-    setIsSaved(updated.includes(artifact.id));
+    const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifact.id);
+    setIsFavorite(updated.includes(artifact.id));
   }
 
   async function playAudio(audioUrl: string, lang: string) {
@@ -746,9 +746,16 @@ function ArtifactModal({
                 <Text style={ams.name}>{artifact.name}</Text>
                 <Text style={ams.period}>Circa {new Date(artifact.created_at).getFullYear()}</Text>
               </View>
-              {/* Save button */}
-              <TouchableOpacity style={[ams.saveBtn, isSaved && ams.saveBtnActive]} onPress={toggleSave} activeOpacity={0.75}>
-                <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={20} color={isSaved ? C.gold : C.inkMid} />
+              {/* Favorite button */}
+              <TouchableOpacity
+                style={[ams.saveBtn, isFavorite && ams.saveBtnActive]}
+                onPress={toggleFavorite}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={isFavorite ? 'Remove artifact from favorites' : 'Add artifact to favorites'}
+                accessibilityState={{ selected: isFavorite }}
+              >
+                <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? C.gold : C.inkMid} />
               </TouchableOpacity>
             </View>
 
@@ -941,7 +948,7 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   // ── Hero ──
   heroWrap: { width: '100%', height: 240, position: 'relative' },
   heroImg: { width: '100%', height: '100%' },
-  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,8,5,0.28)' },
+  heroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.28)' },
   catPill: {
     position: 'absolute', bottom: 14, left: 18,
     backgroundColor: 'rgba(10,8,5,0.82)',
@@ -1375,7 +1382,7 @@ export default function QRScanner({
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
       {/* ── Header ── */}
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>

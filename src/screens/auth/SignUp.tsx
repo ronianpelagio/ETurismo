@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 
@@ -464,6 +465,7 @@ function TermsCheckbox({
 export default function SignUp({
   navigation,
 }: any) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] =
     useState(1);
 
@@ -929,7 +931,7 @@ export default function SignUp({
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
 
       {/* ----------------------------------------------------------------------
           BACKGROUND
@@ -957,9 +959,13 @@ export default function SignUp({
         }
       >
         <ScrollView
-          contentContainerStyle={
-            styles.scrollContent
-          }
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}
           showsVerticalScrollIndicator={
             false
           }

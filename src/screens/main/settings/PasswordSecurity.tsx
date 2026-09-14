@@ -147,8 +147,8 @@ export default function PasswordSecurity({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top']}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
 
       {/* ── Toast ── */}
       <Animated.View
