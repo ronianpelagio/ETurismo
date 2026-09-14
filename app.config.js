@@ -1,7 +1,5 @@
 const { withAppBuildGradle } = require('@expo/config-plugins');
 
-const GOOGLE_MAPS_PLACEHOLDER = '${googleMapsApiKey}';
-
 function withGoogleMapsEnvironment(config) {
   return withAppBuildGradle(config, (modConfig) => {
     const placeholderLine =
@@ -27,7 +25,7 @@ module.exports = ({ config }) => {
       ...config.android,
       config: {
         ...config.android?.config,
-        googleMaps: { apiKey: googleMapsApiKey || GOOGLE_MAPS_PLACEHOLDER },
+        googleMaps: { apiKey: googleMapsApiKey || undefined },
       },
     },
   });

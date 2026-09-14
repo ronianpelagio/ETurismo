@@ -666,6 +666,9 @@ function UpdatesWidget({
   );
 }
 
+// ─── Module-level constants ───────────────────────────────────────────────────
+const MUSEUM_LOCATION = { latitude: 14.016902, longitude: 121.402152 };
+
 // ─── HomeScreen ──────────────────────────────────────────────────────────────────
 export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (visible: boolean) => void }) {
   const { theme } = useAppTheme();
@@ -714,7 +717,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [isOffline, setIsOffline] = useState(false);
 
   // ── Map state ──
-  const MUSEUM_LOCATION = { latitude: 14.016902, longitude: 121.402152 };
   const [showMapModal, setShowMapModal] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -728,6 +730,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [routeSteps, setRouteSteps] = useState<{ instruction: string; distance: string }[]>([]);
   const [routeMode, setRouteMode] = useState<'driving' | 'walking'>('driving');
   const [routeLoading, setRouteLoading] = useState(false);
+  const [routeDistanceM, setRouteDistanceM] = useState<number | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [showSteps, setShowSteps] = useState(false);
 
@@ -1186,6 +1189,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     setRouteError(null);
     setRouteCoords([]);
     setRouteSteps([]);
+    setRouteDistanceM(null);
     try {
       const profile = mode === 'walking' ? 'foot' : 'car';
       const url =
@@ -1211,8 +1215,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           longitude: lng,
         }));
       setRouteCoords(coords);
-
-      // Fit map to route
+      setRouteDistanceM(route.distance ?? null);
       setTimeout(() => {
         mapRef.current?.fitToCoordinates(coords, {
           edgePadding: { top: 80, right: 60, bottom: 120, left: 60 },
@@ -1272,8 +1275,11 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   }
 
   function getTotalRouteDistance(): string {
-    if (!routeCoords.length || !userLocation) return getDistanceText();
-    // Sum step distances from OSRM if available
+    if (routeDistanceM !== null) {
+      return routeDistanceM < 1000
+        ? `${Math.round(routeDistanceM)} m`
+        : `${(routeDistanceM / 1000).toFixed(1)} km`;
+    }
     return getDistanceText();
   }
 
@@ -2151,7 +2157,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                   latitudeDelta: 0.04,
                   longitudeDelta: 0.04,
                 }}
-                showsUserLocation={!!userLocation}
                 showsMyLocationButton={false}
                 showsCompass
                 toolbarEnabled={false}
@@ -2226,7 +2231,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                     />
                     <View>
                       <Text style={styles.mapInfoLabel}>DISTANCE</Text>
-                      <Text style={styles.mapInfoValue}>{getDistanceText()}</Text>
+                      <Text style={styles.mapInfoValue}>{getTotalRouteDistance()}</Text>
                     </View>
                   </View>
                 </>
