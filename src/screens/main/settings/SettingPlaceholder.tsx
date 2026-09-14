@@ -21,8 +21,8 @@ export default function SettingPlaceholder({
 }) {
   const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
         <Ionicons name="chevron-back" size={20} color={C.ink} />

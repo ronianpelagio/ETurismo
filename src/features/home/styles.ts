@@ -77,7 +77,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     },
     heroBgImage: { resizeMode: 'cover' },
     heroOverlay: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(12,9,6,0.52)',
     },
     heroTopBar: {
@@ -211,12 +211,12 @@ export function getStyles(C: ReturnType<typeof buildC>) {
       borderColor: C.borderGold,
     },
     featuredImage: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      ...StyleSheet.absoluteFillObject as any,
       width: '100%',
       height: '100%',
     },
     featuredOverlay: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      ...StyleSheet.absoluteFillObject as any,
       backgroundColor: 'rgba(10,8,5,0.5)',
     },
     featuredContent: {
@@ -310,7 +310,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     },
     cardImageWrap: { width: '100%', aspectRatio: 1, position: 'relative' },
     cardImage: { width: '100%', height: '100%' },
-    cardScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.18)' },
+    cardScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.18)' },
     cardCatPill: {
       position: 'absolute', top: 8, left: 8,
       backgroundColor: 'rgba(235,219,204,0.88)',
@@ -483,7 +483,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
       justifyContent: 'flex-end', zIndex: 200,
     },
     modalBackdrop: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(8,7,6,0.72)',
     },
     modalHandle: {
@@ -508,7 +508,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     },
     modalHero: { width: '100%', height: 260, position: 'relative' },
     modalHeroImg: { width: '100%', height: '100%' },
-    modalHeroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,7,6,0.3)' },
+    modalHeroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,7,6,0.3)' },
     modalHeroCatPill: {
       position: 'absolute', bottom: 16, left: 18,
       backgroundColor: 'rgba(8,7,6,0.85)',
@@ -670,7 +670,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     },
     mapOpenExtBtnText: { color: C.void, fontSize: 12, fontWeight: '900' },
     mapLocatingOverlay: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+      ...StyleSheet.absoluteFillObject as any,
       backgroundColor: 'rgba(0,0,0,0.35)',
       alignItems: 'center', justifyContent: 'center', gap: 12,
     },

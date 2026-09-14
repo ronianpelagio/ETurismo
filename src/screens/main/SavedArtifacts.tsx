@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import { STORAGE_KEYS, getStringArray } from '../../utils/storage';
-import { useAppTheme } from '../../context/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
+import { useAppTheme } from '../../context/ThemeContext';
 import { THEMES } from '../../constants/themes';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -469,26 +470,26 @@ function ArtifactDetailModal({
   );
 }
 
-// ─── Main Favorite Artifacts Screen ─────────────────────────────────────────────
-export default function FavoriteArtifacts({ onBack }: { onBack: () => void }) {
+// ─── Main Saved Artifacts Screen ─────────────────────────────────────────────────
+export default function SavedArtifacts({ onBack }: { onBack: () => void }) {
   const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
   const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
-  const [favoriteArtifactIds, setFavoriteArtifactIds] = useState<string[]>([]);
+  const [savedArtifactIds, setSavedArtifactIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
 
   useEffect(() => {
-    loadFavoriteArtifacts();
+    loadSavedArtifacts();
   }, []);
 
-  async function loadFavoriteArtifacts() {
+  async function loadSavedArtifacts() {
     setLoading(true);
     try {
-      // Get favorite artifact IDs from storage
-      const favorites = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
-      setFavoriteArtifactIds(favorites);
+      // Get saved artifact IDs from storage
+      const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
+      setSavedArtifactIds(saved);
 
-      if (favorites.length === 0) {
+      if (saved.length === 0) {
         setAllArtifacts([]);
         return;
       }
@@ -497,16 +498,16 @@ export default function FavoriteArtifacts({ onBack }: { onBack: () => void }) {
       const { data, error } = await supabase
         .from('artifacts')
         .select('*')
-        .in('id', favorites);
+        .in('id', saved);
 
       if (error) {
-        console.error('Error fetching favorite artifacts:', error);
+        console.error('Error fetching saved artifacts:', error);
         return;
       }
 
       setAllArtifacts(data || []);
     } catch (error) {
-      console.error('Error loading favorite artifacts:', error);
+      console.error('Error loading saved artifacts:', error);
     } finally {
       setLoading(false);
     }
@@ -522,7 +523,7 @@ export default function FavoriteArtifacts({ onBack }: { onBack: () => void }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.eyebrow}>My Collection</Text>
-          <Text style={styles.title}>Favorite Pieces</Text>
+          <Text style={styles.title}>Saved Artifacts</Text>
           <View style={styles.goldLine} />
         </View>
       </View>
@@ -533,8 +534,8 @@ export default function FavoriteArtifacts({ onBack }: { onBack: () => void }) {
         </View>
       ) : allArtifacts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={48} color={C.inkLight} />
-          <Text style={styles.emptyText}>No favorite artifacts yet</Text>
+          <Ionicons name="bookmark-outline" size={48} color={C.inkLight} />
+          <Text style={styles.emptyText}>No saved artifacts yet</Text>
         </View>
       ) : (
         <FlatList

@@ -199,7 +199,7 @@ export default function PersonalInfo({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={C.gold} />
         </View>
@@ -210,8 +210,8 @@ export default function PersonalInfo({ navigation }: any) {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top']}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {/* ── Toast feedback ── */}
       <Animated.View

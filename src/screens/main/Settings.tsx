@@ -137,8 +137,8 @@ export default function Settings({ navigation }: any) {
   });
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* ── Hero Header ── */}
@@ -149,7 +149,7 @@ export default function Settings({ navigation }: any) {
         >
           <LinearGradient
             colors={['rgba(255,252,248,0.95)', 'rgba(255,252,248,0.85)']}
-            style={StyleSheet.absoluteFill}
+            style={StyleSheet.absoluteFillObject}
           />
           <View style={s.header}>
             <TouchableOpacity onPress={() => navigation?.goBack()} style={s.backBtn} activeOpacity={0.7}>
