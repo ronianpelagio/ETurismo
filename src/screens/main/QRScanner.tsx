@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated, Modal, ScrollView, Image,
@@ -516,42 +516,54 @@ function formatTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+
+// ─── Artifact Detail Tabs ────────────────────────────────────────────────────
+type ArtifactDetailTab = 'Overview' | 'History' | 'Significance' | 'Fun Facts';
+const ARTIFACT_DETAIL_TABS: ArtifactDetailTab[] = ['Overview', 'History', 'Significance', 'Fun Facts'];
+
 function ArtifactModal({
   artifact, onClose,
-}: { artifact: Artifact | null; onClose: () => void }) {
+}: { artifact: Artifact | null; onClose: (scanAgain?: boolean) => void }) {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   const { language: appLanguage } = useLanguage();
 
-  const [playingLang, setPlayingLang] = useState<string | null>(null);
+  const [activeTab, setActiveTab]           = useState<ArtifactDetailTab>('Overview');
+  const [playingLang, setPlayingLang]       = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(appLanguage);
-  const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [audioDuration, setAudioDuration] = useState<number>(60);
-  const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [translations, setTranslations]     = useState<ArtifactTranslation[]>([]);
+  const [isFavorite, setIsFavorite]         = useState(false);
+  const [audioDuration, setAudioDuration]   = useState<number>(60);
+  const [playbackRate, setPlaybackRate]     = useState<number>(1);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
 
-  // Sync selectedLanguage when user changes app-wide language in Settings
-  useEffect(() => {
-    setSelectedLanguage(appLanguage);
-  }, [appLanguage]);
+  const langMeta: Record<string, string> = {
+    en: 'English', fil: 'Filipino', ja: 'Japanese', es: 'Spanish', ko: 'Korean',
+  };
 
-  // ── Current description text for the selected language ──
-  function getDescByLang(lang: string): string {
-    const t = translations.find(t => t.language_code === lang);
-    return t?.description || artifact?.description || 'This sacred artifact is part of the Sacred Heritage Collection, preserved as a testament to centuries of liturgical tradition and craftsmanship.';
+  useEffect(() => { setSelectedLanguage(appLanguage); }, [appLanguage]);
+
+  function getTabContent(tab: ArtifactDetailTab): string {
+    const t = translations.find(t => t.language_code === selectedLanguage);
+    switch (tab) {
+      case 'Overview':     return t?.description || artifact?.description || 'No description available.';
+      case 'History':      return artifact?.Historical_Significance || 'Historical information is not yet available for this artifact.';
+      case 'Significance': return artifact?.Historical_Significance || 'Significance information is not yet available for this artifact.';
+      case 'Fun Facts':    return 'Fun facts are not yet available for this artifact.';
+    }
   }
 
-  const currentDesc = getDescByLang(selectedLanguage);
+  const currentDesc = getTabContent('Overview');
 
-  // ── Word-highlighting hook ──
   const { words, highlightedIndex, currentTime, startHighlight, stopHighlight, resetHighlight } =
     useAudioWordHighlight({ text: currentDesc, durationSeconds: audioDuration });
 
   useEffect(() => {
     if (artifact) {
+      setActiveTab('Overview');
       setupAudioModal();
       checkFavorite();
       fetchTranslations(artifact.id);
@@ -562,9 +574,7 @@ function ArtifactModal({
     }
   }, [artifact]);
 
-  // Reset highlight state when language changes
   useEffect(() => { resetHighlight(); }, [selectedLanguage]);
-
   useEffect(() => { return () => { stopAudio(); }; }, []);
 
   async function setupAudioModal() {
@@ -581,18 +591,12 @@ function ArtifactModal({
         .eq('artifact_id', artifactId);
       if (error) throw error;
       setTranslations(data || []);
-      // Default to the app-wide language if available, then English, then the first available
       if (data && data.length > 0) {
         const hasAppLang = data.find(t => t.language_code === appLanguage);
-        const hasEn = data.find(t => t.language_code === 'en');
-        setSelectedLanguage(
-          hasAppLang ? appLanguage : hasEn ? 'en' : data[0].language_code
-        );
+        const hasEn      = data.find(t => t.language_code === 'en');
+        setSelectedLanguage(hasAppLang ? appLanguage : hasEn ? 'en' : data[0].language_code);
       }
-    } catch (e: any) {
-      console.error('Translations fetch:', e.message);
-      setTranslations([]);
-    }
+    } catch (e: any) { console.error('Translations fetch:', e.message); setTranslations([]); }
   }
 
   async function checkFavorite() {
@@ -614,33 +618,21 @@ function ArtifactModal({
       setPlaybackRate(1);
       const player = createAudioPlayer({ uri: audioUrl }) as any;
       playerRef.current = player;
-
       const sub = player.addListener('playbackStatusUpdate', (status: any) => {
-        // Read duration from player.duration (seconds) — more reliable than durationMillis
         const dur: number =
-          typeof player.duration === 'number' && player.duration > 0
-            ? player.duration
-            : status.durationMillis && status.durationMillis > 0
-              ? status.durationMillis / 1000
-              : 0;
+          typeof player.duration === 'number' && player.duration > 0 ? player.duration
+          : status.durationMillis && status.durationMillis > 0 ? status.durationMillis / 1000
+          : 0;
         if (dur > 0) setAudioDuration(dur);
-
         if (status.didJustFinish) {
-          setPlayingLang(null);
-          stopHighlight();
-          sub.remove();
-          playerRef.current?.remove?.();
-          playerRef.current = null;
+          setPlayingLang(null); stopHighlight();
+          sub.remove(); playerRef.current?.remove?.(); playerRef.current = null;
         }
       });
       playbackSubscriptionRef.current = sub;
       player.play();
       startHighlight(player);
-    } catch (e: any) {
-      console.error('Playback error:', e.message);
-      setPlayingLang(null);
-      resetHighlight();
-    }
+    } catch (e: any) { console.error('Playback error:', e.message); setPlayingLang(null); resetHighlight(); }
   }
 
   async function stopAudio() {
@@ -653,259 +645,234 @@ function ArtifactModal({
         playerRef.current = null;
       }
     } catch (e: any) { console.error('Stop audio:', e.message); }
-    setPlayingLang(null);
-    stopHighlight();
+    setPlayingLang(null); stopHighlight();
   }
 
-  function handleSeek(seconds: number) {
-    if (!playerRef.current) return;
-    try {
-      // seekTo takes seconds (expo-audio AudioPlayer API)
-      playerRef.current.seekTo(seconds);
-    } catch (_) {}
-  }
+  function handleSeek(s: number) { try { playerRef.current?.seekTo(s); } catch (_) {} }
+  function handleRateChange(r: number) { try { playerRef.current?.setPlaybackRate(r); setPlaybackRate(r); } catch (_) {} }
+  function handleSkip(d: number) { handleSeek(Math.max(0, Math.min(currentTime + d, audioDuration - 0.5))); }
 
-  function handleRateChange(rate: number) {
-    if (!playerRef.current) return;
-    try {
-      // setPlaybackRate is the correct expo-audio method
-      playerRef.current.setPlaybackRate(rate);
-      setPlaybackRate(rate);
-    } catch (_) {}
-  }
-
-  function handleSkip(delta: number) {
-    const next = Math.max(0, Math.min(currentTime + delta, audioDuration - 0.5));
-    handleSeek(next);
-  }
-
-  const handleClose = () => {
-    stopAudio();
-    resetHighlight();
+  const dismiss = (scanAgain = false) => {
+    stopAudio(); resetHighlight(); setLangDropdownOpen(false);
     Animated.parallel([
       Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 350, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-    ]).start(() => { setSelectedLanguage(appLanguage); setTranslations([]); onClose(); });
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => { setSelectedLanguage(appLanguage); setTranslations([]); onClose(scanAgain); });
   };
 
   if (!artifact) return null;
 
   const imgUrl = artifact.image_url ?? ARTIFACT_CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
-
-  const langMeta: Record<string, { label: string; icon: string }> = {
-    en:  { label: 'English',  icon: 'language-outline' },
-    fil: { label: 'Filipino', icon: 'language-outline' },
-    ja:  { label: 'Japanese', icon: 'language-outline' },
-    es:  { label: 'Spanish',  icon: 'language-outline' },
-    ko:  { label: 'Korean',   icon: 'language-outline' },
-  };
-
-  const availableLangs = translations.filter(t => t.description || t.audio_url);
-  const currentLangAudio = translations.find(t => t.language_code === selectedLanguage && t.audio_url);
+  const availableLangs     = translations.filter(t => t.description || t.audio_url);
+  const currentLangAudio   = translations.find(t => t.language_code === selectedLanguage && t.audio_url);
   const isCurrentlyPlaying = playingLang === selectedLanguage;
+  const selectedLangLabel  = langMeta[selectedLanguage] ?? selectedLanguage.toUpperCase();
 
   return (
-    <Modal transparent animationType="none" visible={!!artifact} onRequestClose={handleClose} statusBarTranslucent>
+    <Modal transparent animationType="none" visible={!!artifact} onRequestClose={() => dismiss()} statusBarTranslucent>
       {/* Backdrop */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,8,6,0.72)', opacity: fadeAnim }]}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleClose} activeOpacity={1} />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,8,6,0.75)', opacity: fadeAnim }]}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => dismiss()} activeOpacity={1} />
       </Animated.View>
 
-      {/* Bottom Sheet */}
+      {/* Sheet */}
       <Animated.View style={[ams.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        {/* Drag Handle */}
-        <View style={ams.handle} />
+        {/* ── Hero Image ── */}
+        <View style={ams.heroWrap}>
+          <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="cover" />
+          <View style={ams.heroScrim} />
 
-        {/* Close button */}
-        <TouchableOpacity style={ams.closeBtn} onPress={handleClose} activeOpacity={0.7}>
-          <Ionicons name="close" size={18} color={C.inkMid} />
-        </TouchableOpacity>
+          {/* Drag handle */}
+          <View style={ams.handle} />
 
-        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-          {/* ── Hero Image ── */}
-          <View style={ams.heroWrap}>
-            <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="cover" />
-            <View style={ams.heroScrim} />
-            {/* Category pill */}
-            <View style={ams.catPill}>
-              <Text style={ams.catPillText}>{artifact.category.toUpperCase()}</Text>
-            </View>
-            {/* Scan success badge */}
-            <View style={ams.scanBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#2ECC71" />
-              <Text style={ams.scanBadgeText}>SCANNED</Text>
-            </View>
+          {/* Category pill — top left */}
+          <View style={ams.catPill}>
+            <Ionicons name="business-outline" size={11} color={C.gold} />
+            <Text style={ams.catPillText}>{artifact.category}</Text>
           </View>
 
-          {/* ── Content ── */}
-          <View style={ams.body}>
-            {/* Title row */}
-            <View style={ams.titleRow}>
-              <View style={{ flex: 1 }}>
-                <View style={ams.goldBar} />
-                <Text style={ams.name}>{artifact.name}</Text>
-                <Text style={ams.period}>Circa {new Date(artifact.created_at).getFullYear()}</Text>
-              </View>
-              {/* Favorite button */}
-              <TouchableOpacity
-                style={[ams.saveBtn, isFavorite && ams.saveBtnActive]}
-                onPress={toggleFavorite}
-                activeOpacity={0.75}
-                accessibilityRole="button"
-                accessibilityLabel={isFavorite ? 'Remove artifact from favorites' : 'Add artifact to favorites'}
-                accessibilityState={{ selected: isFavorite }}
-              >
-                <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? C.gold : C.inkMid} />
-              </TouchableOpacity>
-            </View>
+          {/* Close X — top right */}
+          <TouchableOpacity style={ams.closeBtn} onPress={() => dismiss()} activeOpacity={0.8}>
+            <Ionicons name="close" size={18} color="#fff" />
+          </TouchableOpacity>
 
-            {/* ── Language Switcher ── */}
-            {availableLangs.length > 0 && (
-              <View style={ams.section}>
-                <View style={ams.sectionHeaderRow}>
-                  <Ionicons name="language-outline" size={14} color={C.gold} />
-                  <Text style={ams.sectionLabel}>LANGUAGE</Text>
+          {/* 1/1 counter — bottom right */}
+          <View style={ams.imgCounter}>
+            <Text style={ams.imgCounterText}>1 / 1</Text>
+          </View>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {/* ── Title + Favorite ── */}
+          <View style={ams.titleSection}>
+            <View style={{ flex: 1 }}>
+              <Text style={ams.name}>{artifact.name}</Text>
+              <Text style={ams.shrine}>National Shrine of Our Lady of Sorrows</Text>
+            </View>
+            <TouchableOpacity
+              style={[ams.iconBtn, isFavorite && ams.iconBtnActive]}
+              onPress={toggleFavorite}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+            >
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? C.gold : C.inkMid} />
+              <Text style={[ams.iconBtnLabel, isFavorite && ams.iconBtnLabelActive]}>Save</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Tab bar ── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ams.tabBar} contentContainerStyle={ams.tabBarContent}>
+            {ARTIFACT_DETAIL_TABS.map(tab => (
+              <TouchableOpacity
+                key={tab}
+                style={[ams.tabChip, activeTab === tab && ams.tabChipActive]}
+                onPress={() => setActiveTab(tab)}
+                activeOpacity={0.75}
+              >
+                <Text style={[ams.tabChipText, activeTab === tab && ams.tabChipTextActive]}>{tab}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={ams.body}>
+            {/* ── Tab content ── */}
+            <Text style={ams.tabContent}>{getTabContent(activeTab)}</Text>
+
+            {/* ── Metadata grid — Overview only ── */}
+            {activeTab === 'Overview' && (
+              <View style={ams.metaGrid}>
+                <View style={ams.metaCell}>
+                  <Ionicons name="calendar-outline" size={18} color={C.inkMid} />
+                  <Text style={ams.metaLabel}>Date</Text>
+                  <Text style={ams.metaValue}>{artifact.date ?? 'Date unknown'}</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-                  <View style={ams.langRow}>
-                    {availableLangs.map(t => {
-                      const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), icon: 'language-outline' };
-                      const isActive = selectedLanguage === t.language_code;
-                      return (
-                        <TouchableOpacity
-                          key={t.language_code}
-                          style={[ams.langChip, isActive && ams.langChipActive]}
-                          onPress={() => { setSelectedLanguage(t.language_code); stopAudio(); }}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="language-outline" size={13} color={isActive ? C.gold : C.inkLight} />
-                          <Text style={[ams.langLabel, isActive && ams.langLabelActive]}>{meta.label}</Text>
-                          {t.audio_url && (
-                            <Ionicons name="volume-medium-outline" size={11} color={isActive ? C.gold : C.inkLight} />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
+                <View style={[ams.metaCell, ams.metaCellRight]}>
+                  <Ionicons name="person-outline" size={18} color={C.inkMid} />
+                  <Text style={ams.metaLabel}>Creator / Artist</Text>
+                  <Text style={ams.metaValue}>{artifact.creator ?? 'Unknown'}</Text>
+                </View>
+                <View style={[ams.metaCell, ams.metaCellBottom]}>
+                  <Ionicons name="layers-outline" size={18} color={C.inkMid} />
+                  <Text style={ams.metaLabel}>Category</Text>
+                  <Text style={ams.metaValue}>{artifact.category}</Text>
+                </View>
+                <View style={[ams.metaCell, ams.metaCellRight, ams.metaCellBottom]}>
+                  <Ionicons name="location-outline" size={18} color={C.inkMid} />
+                  <Text style={ams.metaLabel}>Location</Text>
+                  <Text style={ams.metaValue}>National Shrine of Our Lady of Sorrows</Text>
+                </View>
               </View>
             )}
 
-            {/* ── About this Piece (with word highlighting) ── */}
-            <View style={ams.section}>
-              <View style={ams.sectionHeaderRow}>
-                <Ionicons name="book-outline" size={14} color={C.gold} />
-                <Text style={ams.sectionLabel}>ABOUT THIS PIECE</Text>
-              </View>
-              <View style={ams.descBox}>
-                {isCurrentlyPlaying ? (
-                  // Show word-highlighted text while audio plays
-                  <HighlightedText
-                    words={words}
-                    highlightedIndex={highlightedIndex}
-                    textStyle={ams.descText}
-                    highlightColor="rgba(201,168,76,0.30)"
-                  />
-                ) : (
-                  <Text style={ams.descText}>{currentDesc}</Text>
+            {/* ── Audio Narration ── */}
+            <View style={ams.audioSection}>
+              {/* Header */}
+              <View style={ams.audioHeader}>
+                <View style={ams.audioHeaderLeft}>
+                  <Ionicons name="headset-outline" size={18} color={C.ink} />
+                  <Text style={ams.audioHeaderText}>Audio Narration</Text>
+                  {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
+                </View>
+                {availableLangs.length > 0 && (
+                  <TouchableOpacity
+                    style={ams.langDropdown}
+                    onPress={() => setLangDropdownOpen(v => !v)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="globe-outline" size={14} color={C.inkMid} />
+                    <Text style={ams.langDropdownText}>{selectedLangLabel}</Text>
+                    <Ionicons name={langDropdownOpen ? 'chevron-up' : 'chevron-down'} size={14} color={C.inkMid} />
+                  </TouchableOpacity>
                 )}
               </View>
-            </View>
 
-            {/* ── Audio Guide ── */}
-            <View style={ams.section}>
-              <View style={ams.sectionHeaderRow}>
-                <Ionicons name="headset-outline" size={14} color={C.gold} />
-                <Text style={ams.sectionLabel}>AUDIO GUIDE</Text>
-                {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
-              </View>
+              {/* Language options */}
+              {langDropdownOpen && availableLangs.length > 0 && (
+                <View style={ams.langOptions}>
+                  {availableLangs.map(t => {
+                    const label    = langMeta[t.language_code] ?? t.language_code.toUpperCase();
+                    const isActive = selectedLanguage === t.language_code;
+                    return (
+                      <TouchableOpacity
+                        key={t.language_code}
+                        style={[ams.langOption, isActive && ams.langOptionActive]}
+                        onPress={() => { setSelectedLanguage(t.language_code); stopAudio(); setLangDropdownOpen(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[ams.langOptionText, isActive && ams.langOptionTextActive]}>{label}</Text>
+                        {t.audio_url && <Ionicons name="volume-medium-outline" size={12} color={isActive ? C.gold : C.inkLight} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
 
+              {/* Player */}
               {currentLangAudio ? (
-                <View style={[ams.playerCard, isCurrentlyPlaying && ams.playerCardActive]}>
-                  {/* Top row: play/pause + track info + waveform */}
-                  <View style={ams.playerTopRow}>
-                    <TouchableOpacity
-                      style={[ams.playCircle, isCurrentlyPlaying && ams.playCircleActive]}
-                      onPress={() => isCurrentlyPlaying ? stopAudio() : playAudio(currentLangAudio.audio_url!, selectedLanguage)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name={isCurrentlyPlaying ? 'pause' : 'play'} size={22} color={isCurrentlyPlaying ? C.ink : C.gold} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                      <Text style={ams.playerLabel}>
-                        {isCurrentlyPlaying ? 'Now playing…' : 'Tap to listen'}
-                      </Text>
-                      <Text style={ams.playerSub}>
-                        {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} narration
-                      </Text>
+                <View style={ams.playerRow}>
+                  <TouchableOpacity
+                    style={[ams.playCircle, isCurrentlyPlaying && ams.playCircleActive]}
+                    onPress={() => isCurrentlyPlaying ? stopAudio() : playAudio(currentLangAudio.audio_url!, selectedLanguage)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={isCurrentlyPlaying ? 'pause' : 'play'} size={22} color="#fff" />
+                  </TouchableOpacity>
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <View style={ams.progressTrack}>
+                      <View style={[ams.progressFill, { width: `${audioDuration > 0 ? Math.min((currentTime / audioDuration) * 100, 100) : 0}%` }]} />
                     </View>
-                    {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
+                    <View style={ams.progressTimes}>
+                      <Text style={ams.progressTime}>{formatTime(currentTime)}</Text>
+                      <Text style={ams.progressTime}>-{formatTime(Math.max(0, audioDuration - currentTime))}</Text>
+                    </View>
                   </View>
-
-                  {/* Progress bar + time — only while playing */}
-                  {isCurrentlyPlaying && (
-                    <View style={ams.progressBlock}>
-                      {/* Track */}
-                      <View style={ams.progressTrack}>
-                        <View
-                          style={[
-                            ams.progressFill,
-                            { width: `${audioDuration > 0 ? Math.min((currentTime / audioDuration) * 100, 100) : 0}%` },
-                          ]}
-                        />
-                      </View>
-                      {/* Times */}
-                      <View style={ams.progressTimes}>
-                        <Text style={ams.progressTime}>{formatTime(currentTime)}</Text>
-                        <Text style={ams.progressTime}>{formatTime(audioDuration)}</Text>
-                      </View>
-
-                      {/* Controls row: skip back, speed pills, skip forward */}
-                      <View style={ams.controlsRow}>
-                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(-10)} activeOpacity={0.7}>
-                          <Ionicons name="play-back" size={18} color={C.inkMid} />
-                          <Text style={ams.skipLabel}>10s</Text>
-                        </TouchableOpacity>
-
-                        <View style={ams.rateRow}>
-                          {([0.75, 1, 1.5, 2] as const).map(r => (
-                            <TouchableOpacity
-                              key={r}
-                              style={[ams.rateBtn, playbackRate === r && ams.rateBtnActive]}
-                              onPress={() => handleRateChange(r)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={[ams.rateText, playbackRate === r && ams.rateTextActive]}>
-                                {r === 1 ? '1×' : `${r}×`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-
-                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(10)} activeOpacity={0.7}>
-                          <Ionicons name="play-forward" size={18} color={C.inkMid} />
-                          <Text style={ams.skipLabel}>10s</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
                 </View>
               ) : (
                 <View style={ams.noAudioBox}>
-                  <Ionicons name="volume-mute-outline" size={20} color={C.inkLight} />
+                  <Ionicons name="volume-mute-outline" size={16} color={C.inkLight} />
                   <Text style={ams.noAudioText}>
-                    No audio guide for{' '}
-                    {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} yet.
-                    {availableLangs.some(t => t.audio_url) ? ' Try another language above.' : ''}
+                    No audio for {selectedLangLabel}.{availableLangs.some(t => t.audio_url) ? ' Try another language.' : ''}
                   </Text>
+                </View>
+              )}
+
+              {/* Speed controls — only while playing */}
+              {isCurrentlyPlaying && (
+                <View style={ams.controlsRow}>
+                  <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(-10)} activeOpacity={0.7}>
+                    <Ionicons name="play-back" size={16} color={C.inkMid} />
+                    <Text style={ams.skipLabel}>10s</Text>
+                  </TouchableOpacity>
+                  <View style={ams.rateRow}>
+                    {([0.75, 1, 1.5, 2] as const).map(r => (
+                      <TouchableOpacity
+                        key={r}
+                        style={[ams.rateBtn, playbackRate === r && ams.rateBtnActive]}
+                        onPress={() => handleRateChange(r)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[ams.rateText, playbackRate === r && ams.rateTextActive]}>
+                          {r === 1 ? '1×' : `${r}×`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(10)} activeOpacity={0.7}>
+                    <Ionicons name="play-forward" size={16} color={C.inkMid} />
+                    <Text style={ams.skipLabel}>10s</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
 
-            {/* ── Close Button ── */}
-            <TouchableOpacity style={ams.closeFullBtn} onPress={handleClose} activeOpacity={0.85}>
-              <Text style={ams.closeFullBtnText}>Done</Text>
-            </TouchableOpacity>
+            {/* ── Bottom action button ── */}
+            <View style={ams.bottomBtns}>
+              <TouchableOpacity style={ams.scanAgainBtn} onPress={() => dismiss(true)} activeOpacity={0.85}>
+                <Ionicons name="qr-code-outline" size={18} color="#fff" />
+                <Text style={ams.scanAgainBtnText}>Scan Another Artifact</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </Animated.View>
@@ -914,164 +881,178 @@ function ArtifactModal({
 }
 
 function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
-  // ── Bottom sheet ──
+  // ── Sheet ──
   sheet: {
-    position: 'absolute',
-    left: 0, right: 0, bottom: 0,
+    position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: C.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: SCREEN_HEIGHT * 0.92,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    maxHeight: SCREEN_HEIGHT * 0.93,
     overflow: 'hidden',
-    borderTopWidth: 1,
-    borderColor: C.borderGold,
-    shadowColor: C.ink,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: -6 },
-    shadowRadius: 20,
-    elevation: 24,
-  },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginTop: 12, marginBottom: 4,
-  },
-  closeBtn: {
-    position: 'absolute', top: 14, right: 16, zIndex: 10,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: C.goldLight,
-    borderWidth: 1, borderColor: C.border,
-    justifyContent: 'center', alignItems: 'center',
+    shadowColor: C.ink, shadowOpacity: 0.28,
+    shadowOffset: { width: 0, height: -6 }, shadowRadius: 22, elevation: 26,
   },
 
   // ── Hero ──
-  heroWrap: { width: '100%', height: 240, position: 'relative' },
-  heroImg: { width: '100%', height: '100%' },
-  heroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.28)' },
+  heroWrap: { width: '100%', height: 280, position: 'relative' },
+  heroImg:  { width: '100%', height: '100%' },
+  heroScrim: {
+    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+    backgroundColor: 'rgba(10,8,5,0.32)',
+  },
+  handle: {
+    position: 'absolute', top: 10, alignSelf: 'center', left: '50%',
+    marginLeft: -20,
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
   catPill: {
-    position: 'absolute', bottom: 14, left: 18,
-    backgroundColor: 'rgba(10,8,5,0.82)',
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 50,
+    position: 'absolute', top: 16, left: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(10,8,5,0.72)',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50,
     borderWidth: 1, borderColor: C.borderGold,
   },
-  catPillText: { fontSize: 9, fontWeight: '800', color: C.gold, letterSpacing: 2.5 },
-  scanBadge: {
-    position: 'absolute', top: 14, right: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(10,8,5,0.78)',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
-    borderWidth: 1, borderColor: 'rgba(46,204,113,0.4)',
+  catPillText: { fontSize: 12, fontWeight: '700', color: C.gold },
+  closeBtn: {
+    position: 'absolute', top: 12, right: 14,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(30,27,23,0.65)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  scanBadgeText: { fontSize: 9, fontWeight: '800', color: '#2ECC71', letterSpacing: 1.5 },
-
-  // ── Body ──
-  body: { padding: 22, paddingBottom: 40 },
+  imgCounter: {
+    position: 'absolute', bottom: 14, right: 16,
+    backgroundColor: 'rgba(10,8,5,0.65)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  imgCounterText: { fontSize: 12, color: '#fff', fontWeight: '600' },
 
   // ── Title ──
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 24 },
-  goldBar: { width: 34, height: 3, backgroundColor: C.gold, borderRadius: 2, marginBottom: 10 },
-  name: { fontSize: 26, fontWeight: '900', color: C.ink, letterSpacing: -0.8, lineHeight: 32, marginBottom: 4 },
-  period: { fontSize: 12, color: C.inkLight, fontStyle: 'italic' },
+  titleSection: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 12,
+  },
+  name:   { fontSize: 28, fontWeight: '900', color: C.ink, letterSpacing: -0.8, lineHeight: 34, marginBottom: 4 },
+  shrine: { fontSize: 13, color: C.inkMid },
 
-  saveBtn: {
-    width: 42, height: 42, borderRadius: 21,
+  iconBtn: {
+    alignItems: 'center', gap: 4, marginTop: 4,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.border,
-    justifyContent: 'center', alignItems: 'center', marginTop: 6,
+    justifyContent: 'center',
   },
-  saveBtnActive: { backgroundColor: C.goldSoft, borderColor: C.gold },
+  iconBtnActive:      { backgroundColor: C.goldSoft, borderColor: C.gold },
+  iconBtnLabel:       { fontSize: 10, fontWeight: '700', color: C.inkMid },
+  iconBtnLabelActive: { color: C.gold },
 
-  // ── Section ──
-  section: { marginBottom: 24 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  sectionLabel: { fontSize: 9, fontWeight: '800', color: C.gold, letterSpacing: 3 },
-
-  // ── Language chips ──
-  langRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
-  langChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 50,
-    backgroundColor: C.goldLight, borderWidth: 1.5, borderColor: C.borderGold,
+  // ── Tab bar ──
+  tabBar:        { marginTop: 16, paddingLeft: 20 },
+  tabBarContent: { flexDirection: 'row', gap: 8, paddingRight: 20, paddingBottom: 4 },
+  tabChip: {
+    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 50,
+    backgroundColor: C.goldLight, borderWidth: 1.5, borderColor: C.border,
   },
-  langChipActive: { backgroundColor: C.goldSoft, borderColor: C.gold },
-  langLabel: { fontSize: 12, fontWeight: '700', color: C.inkMid },
-  langLabelActive: { color: C.gold },
+  tabChipActive:    { backgroundColor: C.ink, borderColor: C.ink },
+  tabChipText:      { fontSize: 13, fontWeight: '700', color: C.inkMid },
+  tabChipTextActive:{ color: '#fff' },
 
-  // ── Description box ──
-  descBox: {
-    backgroundColor: C.bg,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginTop: 10,
-  },
-  descText: { fontSize: 14.5, color: C.inkMid, lineHeight: 26 },
+  // ── Body ──
+  body: { paddingHorizontal: 20, paddingTop: 16 },
+  tabContent: { fontSize: 15, color: C.inkMid, lineHeight: 26, marginBottom: 20 },
 
-  // ── Audio player card ──
-  playerCard: {
-    backgroundColor: C.bg,
-    borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 18, padding: 16, marginTop: 10,
-    gap: 0,
+  // ── Metadata grid ──
+  metaGrid: {
+    borderRadius: 16, borderWidth: 1, borderColor: C.border,
+    overflow: 'hidden', marginBottom: 24,
   },
-  playerCardActive: { borderColor: C.borderGold, backgroundColor: C.goldLight },
-  playerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  metaCell: {
+    padding: 14, backgroundColor: C.bg, flex: 1, gap: 4,
+    borderRightWidth: 0, borderBottomWidth: 0,
+  },
+  metaCellRight:  { borderLeftWidth: 1, borderColor: C.border },
+  metaCellBottom: { borderTopWidth: 1,  borderColor: C.border },
+  metaLabel: { fontSize: 10, color: C.inkLight, marginTop: 4 },
+  metaValue: { fontSize: 13, fontWeight: '700', color: C.ink, lineHeight: 18 },
+
+  // ── Audio section ──
+  audioSection: {
+    backgroundColor: C.bg, borderRadius: 16,
+    borderWidth: 1, borderColor: C.border,
+    padding: 16, marginBottom: 24, gap: 12,
+  },
+  audioHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  audioHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  audioHeaderText: { fontSize: 15, fontWeight: '700', color: C.ink },
+
+  // Language dropdown
+  langDropdown: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.borderGold,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50,
+  },
+  langDropdownText: { fontSize: 13, fontWeight: '700', color: C.inkMid },
+  langOptions: {
+    backgroundColor: C.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: C.border, overflow: 'hidden',
+  },
+  langOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 11,
+    borderBottomWidth: 1, borderColor: C.border,
+  },
+  langOptionActive:     { backgroundColor: C.goldSoft },
+  langOptionText:       { fontSize: 13, fontWeight: '600', color: C.inkMid },
+  langOptionTextActive: { color: C.gold, fontWeight: '700' },
+
+  // Player row
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   playCircle: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.borderGold,
+    backgroundColor: C.ink,
     justifyContent: 'center', alignItems: 'center',
   },
-  playCircleActive: { backgroundColor: C.gold, borderColor: C.gold },
-  playerLabel: { fontSize: 14, fontWeight: '700', color: C.ink, marginBottom: 2 },
-  playerSub: { fontSize: 12, color: C.inkLight },
+  playCircleActive: { backgroundColor: C.gold },
 
-  // ── Progress bar ──
-  progressBlock: { marginTop: 14, gap: 6 },
-  progressTrack: {
-    height: 4, backgroundColor: C.border, borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: C.gold, borderRadius: 2 },
+  progressTrack: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
+  progressFill:  { height: '100%', backgroundColor: C.gold, borderRadius: 2 },
   progressTimes: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressTime: { fontSize: 10, color: C.inkLight },
+  progressTime:  { fontSize: 11, color: C.inkLight },
 
-  // ── Controls row ──
   controlsRow: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginTop: 4,
+    justifyContent: 'space-between', paddingTop: 4,
   },
-  skipBtn: { alignItems: 'center', gap: 2, paddingHorizontal: 6 },
-  skipLabel: { fontSize: 9, color: C.inkMid, fontWeight: '600' },
-  rateRow: { flexDirection: 'row', gap: 4 },
+  skipBtn:  { alignItems: 'center', gap: 2, paddingHorizontal: 6 },
+  skipLabel:{ fontSize: 9, color: C.inkMid, fontWeight: '600' },
+  rateRow:  { flexDirection: 'row', gap: 4 },
   rateBtn: {
     paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20,
     backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.borderGold,
   },
-  rateBtnActive: { backgroundColor: C.gold, borderColor: C.gold },
-  rateText: { fontSize: 11, fontWeight: '700', color: C.inkMid },
+  rateBtnActive:  { backgroundColor: C.gold, borderColor: C.gold },
+  rateText:       { fontSize: 11, fontWeight: '700', color: C.inkMid },
   rateTextActive: { color: C.ink },
 
-  // ── No audio ──
   noAudioBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
-    borderRadius: 14, padding: 14, marginTop: 10,
+    paddingVertical: 8,
   },
   noAudioText: { flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 20 },
 
-  // ── Done button ──
-  closeFullBtn: {
+  // ── Bottom buttons ──
+  bottomBtns: { gap: 12, marginTop: 4 },
+  scanAgainBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: C.ink, borderRadius: 50,
-    paddingVertical: 16, alignItems: 'center', marginTop: 8,
-    shadowColor: C.ink, shadowOpacity: 0.15, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 4,
+    paddingVertical: 16,
+    shadowColor: C.ink, shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 5,
   },
-  closeFullBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  scanAgainBtnText: { fontSize: 15, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
 });
 }
 
-// ─── Main QRScanner Component ──────────────────────────────────────────────────
 export default function QRScanner({
   setNavbarVisible,
   isActive = false,
@@ -1252,11 +1233,14 @@ export default function QRScanner({
     }
   };
 
-  const reset = () => {
-    setArtifact(null);   // closing artifact modal
+  // scanAgain=true  → "Scan Another Artifact" button → 1s cooldown
+  // scanAgain=false → X / backdrop dismiss           → 5s cooldown
+  const reset = (scanAgain = false) => {
+    setArtifact(null);
     setScanned(false);
     setScanError(null);
-    // ── 5-second cooldown before camera re-enables ───────────────────────────
+    const delay = scanAgain ? 1000 : 5000;
+    const label = scanAgain ? '1s' : '5s';
     inCooldown.current = true;
     cooldownTimer.current && clearTimeout(cooldownTimer.current);
     cooldownTimer.current = setTimeout(() => {
@@ -1266,8 +1250,8 @@ export default function QRScanner({
         setScanError(null);
         setCameraActive(true);
       }
-    }, 5000);
-    showToast('Camera ready in 5s…');
+    }, delay);
+    showToast(`Camera ready in ${label}…`);
   };
 
   const startScanning = () => {
