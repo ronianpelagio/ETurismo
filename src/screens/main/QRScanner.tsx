@@ -1077,10 +1077,12 @@ export default function QRScanner({
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   // ── Tour-completion state ────────────────────────────────────────────────────
-  const [totalArtifacts, setTotalArtifacts]         = useState(0);
-  const [showFeedback, setShowFeedback]             = useState(false);
-  // Guard: only trigger the feedback modal once per app session
-  const feedbackShownThisSession = useRef(false);
+  const [totalArtifacts, setTotalArtifacts] = useState(0);
+  const [showFeedback, setShowFeedback]     = useState(false);
+  // True once we confirm this user already submitted feedback (checked on mount)
+  const alreadySubmittedFeedback = useRef(false);
+  // True only after a new scan completed the tour in this session
+  const justCompletedTour = useRef(false);
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
@@ -1112,36 +1114,45 @@ export default function QRScanner({
       .catch(() => {});
   }, []);
 
-  // Fetch the total number of artifacts from Supabase (for tour-completion detection)
+  // Fetch total artifact count + check if this user already submitted feedback
   useEffect(() => {
     let mounted = true;
     void (async () => {
+      // Total artifacts count
       const { count } = await supabase
         .from('artifacts')
         .select('id', { count: 'exact', head: true });
       if (mounted && count != null && count > 0) setTotalArtifacts(count);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
-  // Tour-completion: show feedback modal when all artifacts have been scanned
+      // Per-user feedback check — if they already submitted, never show again
+      if (user?.id) {
+        const { data } = await supabase
+          .from('tour_feedback')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (mounted && data) {
+          alreadySubmittedFeedback.current = true;
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  // Tour-completion: only show feedback when the user just scanned the last artifact
+  // (justCompletedTour is set inside handleBarCodeScanned, not on mount)
   useEffect(() => {
     if (
-      totalArtifacts > 0 &&
-      scannedArtifacts.length >= totalArtifacts &&
-      !feedbackShownThisSession.current &&
+      justCompletedTour.current &&
+      !alreadySubmittedFeedback.current &&
       !showFeedback
     ) {
-      // Small delay so the artifact detail modal can close first
-      const t = setTimeout(() => {
-        feedbackShownThisSession.current = true;
-        setShowFeedback(true);
-      }, 800);
+      justCompletedTour.current = false;
+      // Small delay so the artifact detail modal can animate in first
+      const t = setTimeout(() => setShowFeedback(true), 900);
       return () => clearTimeout(t);
     }
-  }, [scannedArtifacts.length, totalArtifacts]);
+  }, [scannedArtifacts.length]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1214,11 +1225,15 @@ export default function QRScanner({
       setCameraActive(false);
       setArtifact(result); // ← modal opens immediately
 
-      // Persist to scan history
+      // Persist to scan history and check for tour completion
       setScannedArtifacts(prev => {
         if (prev.find(a => a.id === result.id)) return prev;
         const updated = [...prev, result];
         AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
+        // Mark tour as just completed if this was the last artifact
+        if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
+          justCompletedTour.current = true;
+        }
         return updated;
       });
     } catch (e: any) {
@@ -1540,7 +1555,10 @@ export default function QRScanner({
         visible={showFeedback}
         totalArtifacts={totalArtifacts}
         userId={user?.id}
-        onClose={() => setShowFeedback(false)}
+        onClose={() => {
+          alreadySubmittedFeedback.current = true;
+          setShowFeedback(false);
+        }}
       />
     </View>
   );
