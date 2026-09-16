@@ -518,8 +518,8 @@ function formatTime(s: number): string {
 
 
 // ─── Artifact Detail Tabs ────────────────────────────────────────────────────
-type ArtifactDetailTab = 'Overview' | 'History' | 'Significance' | 'Fun Facts';
-const ARTIFACT_DETAIL_TABS: ArtifactDetailTab[] = ['Overview', 'History', 'Significance', 'Fun Facts'];
+type ArtifactDetailTab = 'Details';
+const ARTIFACT_DETAIL_TABS: ArtifactDetailTab[] = ['Details'];
 
 function ArtifactModal({
   artifact, onClose,
@@ -529,7 +529,7 @@ function ArtifactModal({
 
   const { language: appLanguage } = useLanguage();
 
-  const [activeTab, setActiveTab]           = useState<ArtifactDetailTab>('Overview');
+  const [activeTab, setActiveTab]           = useState<ArtifactDetailTab>('Details');
   const [playingLang, setPlayingLang]       = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(appLanguage);
   const [translations, setTranslations]     = useState<ArtifactTranslation[]>([]);
@@ -549,21 +549,18 @@ function ArtifactModal({
   function getTabContent(tab: ArtifactDetailTab): string {
     const t = translations.find(t => t.language_code === selectedLanguage);
     switch (tab) {
-      case 'Overview':     return t?.description || artifact?.description || 'No description available.';
-      case 'History':      return artifact?.Historical_Significance || 'Historical information is not yet available for this artifact.';
-      case 'Significance': return artifact?.Historical_Significance || 'Significance information is not yet available for this artifact.';
-      case 'Fun Facts':    return 'Fun facts are not yet available for this artifact.';
+      case 'Details': return t?.description || artifact?.description || 'No description available.';
     }
   }
 
-  const currentDesc = getTabContent('Overview');
+  const currentDesc = getTabContent('Details');
 
   const { words, highlightedIndex, currentTime, startHighlight, stopHighlight, resetHighlight } =
     useAudioWordHighlight({ text: currentDesc, durationSeconds: audioDuration });
 
   useEffect(() => {
     if (artifact) {
-      setActiveTab('Overview');
+      setActiveTab('Details');
       setupAudioModal();
       checkFavorite();
       fetchTranslations(artifact.id);
@@ -679,7 +676,7 @@ function ArtifactModal({
       <Animated.View style={[ams.sheet, { transform: [{ translateY: slideAnim }] }]}>
         {/* ── Hero Image ── */}
         <View style={ams.heroWrap}>
-          <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="cover" />
+          <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="contain" />
           <View style={ams.heroScrim} />
 
           {/* Drag handle */}
@@ -739,8 +736,8 @@ function ArtifactModal({
             {/* ── Tab content ── */}
             <Text style={ams.tabContent}>{getTabContent(activeTab)}</Text>
 
-            {/* ── Metadata grid — Overview only ── */}
-            {activeTab === 'Overview' && (
+            {/* ── Metadata grid ── */}
+            {activeTab === 'Details' && (
               <View style={ams.metaGrid}>
                 <View style={ams.metaCell}>
                   <Ionicons name="calendar-outline" size={18} color={C.inkMid} />
@@ -893,7 +890,7 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
 
   // ── Hero ──
-  heroWrap: { width: '100%', height: 280, position: 'relative' },
+  heroWrap: { width: '100%', height: 320, position: 'relative', backgroundColor: '#0E0C09' },
   heroImg:  { width: '100%', height: '100%' },
   heroScrim: {
     position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,

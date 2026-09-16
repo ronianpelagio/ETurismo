@@ -61,17 +61,48 @@ export default function AuthNavigator() {
       if (event === 'SIGNED_IN' && !session?.user?.email_confirmed_at) return;
 
       if (session?.user) {
-        // Finish the verified user's profile (including the authenticated avatar
-        // upload) before leaving the auth flow.
+        const user = session.user;
+
+        // Finish the verified user's profile (email/password signup flow).
+        // For Google OAuth this is a no-op because there is no pending profile.
         try {
-          await finalizePendingProfile(session.user.email ?? '', session.user.id);
+          await finalizePendingProfile(user.email ?? '', user.id);
         } catch (error) {
           console.warn('Profile setup could not be completed:', error);
-          return;
+          // Don't return — still try to navigate for OAuth users
         }
 
+        // ── Ensure a users row exists (handles Google OAuth & trigger failures) ──
+        // If the trigger ran correctly the upsert is a no-op. If it didn't fire
+        // (e.g. the trigger was not yet deployed), we create the row here.
+        try {
+          const meta = user.user_metadata ?? {};
+          const fullName: string = meta.full_name ?? meta.name ?? '';
+          const firstName = meta.first_name || fullName.split(' ')[0] || '';
+          const lastName  = meta.last_name  || fullName.split(' ').slice(1).join(' ') || '';
+          const avatarUrl = meta.avatar_url ?? meta.picture ?? null;
+
+          await supabase.from('users').upsert({
+            id:              user.id,
+            email:           user.email ?? '',
+            first_name:      firstName,
+            last_name:       lastName,
+            profile_picture: avatarUrl,
+            status:          'active',
+            role:            'user',
+          }, {
+            onConflict:        'id',
+            ignoreDuplicates:  false,
+          });
+        } catch (upsertErr) {
+          // Non-fatal — the row may already exist with richer data
+          console.warn('User row upsert skipped:', upsertErr);
+        }
+
+        if (!isMounted) return;
+
         // Stamp last_seen
-        touchLastSeen(session.user.id).catch(() => {});
+        touchLastSeen(user.id).catch(() => {});
 
         // Check if this install has already seen GetStarted
         const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);

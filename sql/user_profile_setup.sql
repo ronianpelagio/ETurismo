@@ -14,7 +14,47 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_first_name  text;
+  v_last_name   text;
+  v_full_name   text;
+  v_avatar_url  text;
 begin
+  -- Email/password signup stores first_name / last_name directly.
+  -- Google OAuth stores full_name (and sometimes name) with no split.
+  -- We handle both so the row is never null regardless of provider.
+  v_first_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'first_name', ''),
+    split_part(coalesce(
+      nullif(new.raw_user_meta_data ->> 'full_name', ''),
+      nullif(new.raw_user_meta_data ->> 'name', ''),
+      ''
+    ), ' ', 1),
+    ''
+  );
+
+  v_full_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'full_name', ''),
+    nullif(new.raw_user_meta_data ->> 'name', ''),
+    ''
+  );
+  v_last_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'last_name', ''),
+    -- Everything after the first word in full_name
+    case
+      when length(v_full_name) > length(split_part(v_full_name, ' ', 1)) + 1
+        then substring(v_full_name from length(split_part(v_full_name, ' ', 1)) + 2)
+      else ''
+    end,
+    ''
+  );
+
+  -- Google provides an avatar via avatar_url / picture
+  v_avatar_url := coalesce(
+    nullif(new.raw_user_meta_data ->> 'avatar_url', ''),
+    nullif(new.raw_user_meta_data ->> 'picture', '')
+  );
+
   insert into public.users (
     id,
     email,
@@ -24,6 +64,7 @@ begin
     age,
     status,
     role,
+    profile_picture,
     "Address",
     country,
     province,
@@ -33,8 +74,8 @@ begin
   values (
     new.id,
     coalesce(new.email, ''),
-    coalesce(new.raw_user_meta_data ->> 'first_name', ''),
-    coalesce(new.raw_user_meta_data ->> 'last_name', ''),
+    v_first_name,
+    v_last_name,
     case
       when new.raw_user_meta_data ->> 'gender' in ('Male', 'Female', 'Other')
         then new.raw_user_meta_data ->> 'gender'
@@ -47,6 +88,7 @@ begin
     end,
     'active',
     'user',
+    v_avatar_url,
     nullif(new.raw_user_meta_data ->> 'Address', ''),
     nullif(new.raw_user_meta_data ->> 'country', ''),
     nullif(new.raw_user_meta_data ->> 'province', ''),
@@ -54,16 +96,15 @@ begin
     nullif(new.raw_user_meta_data ->> 'barangay', '')
   )
   on conflict (id) do update set
-    email = excluded.email,
-    first_name = excluded.first_name,
-    last_name = excluded.last_name,
-    gender = excluded.gender,
-    age = excluded.age,
-    "Address" = excluded."Address",
-    country = excluded.country,
-    province = excluded.province,
-    city = excluded.city,
-    barangay = excluded.barangay;
+    email        = excluded.email,
+    first_name   = case when excluded.first_name <> '' then excluded.first_name else public.users.first_name end,
+    last_name    = case when excluded.last_name  <> '' then excluded.last_name  else public.users.last_name  end,
+    profile_picture = coalesce(excluded.profile_picture, public.users.profile_picture),
+    "Address"    = excluded."Address",
+    country      = excluded.country,
+    province     = excluded.province,
+    city         = excluded.city,
+    barangay     = excluded.barangay;
 
   return new;
 end;
