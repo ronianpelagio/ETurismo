@@ -503,10 +503,10 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     modalSheet: {
       backgroundColor: C.deep,
       borderTopLeftRadius: 28, borderTopRightRadius: 28,
-      overflow: 'hidden', maxHeight: SCREEN_HEIGHT * 0.93,
+      maxHeight: SCREEN_HEIGHT * 0.93,
       borderTopWidth: 1, borderColor: C.border,
     },
-    modalHero: { width: '100%', height: 260, position: 'relative' },
+    modalHero: { width: '100%', height: SCREEN_HEIGHT * 0.28, position: 'relative', backgroundColor: '#000' },
     modalHeroImg: { width: '100%', height: '100%' },
     modalHeroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,7,6,0.3)' },
     modalHeroCatPill: {
@@ -566,19 +566,6 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     audioLangChipActive: { borderColor: C.borderGold, backgroundColor: C.goldSoft },
     audioLangLabel: { fontSize: 11, fontWeight: '700' as const, color: C.inkDim },
     audioLangLabelActive: { color: C.gold },
-    audioPlayer: {
-      backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
-      borderRadius: 16, padding: 16, marginTop: 10,
-    },
-    audioPlayerActive: { borderColor: C.borderGold, backgroundColor: C.goldSoft },
-    audioPlayIcon: {
-      width: 44, height: 44, borderRadius: 22, backgroundColor: C.overlay,
-      justifyContent: 'center' as const, alignItems: 'center' as const,
-      borderWidth: 1, borderColor: C.border,
-    },
-    audioPlayIconActive: { backgroundColor: C.gold, borderColor: C.gold },
-    audioPlayerLabel: { fontSize: 14, fontWeight: '700' as const, color: C.ink, marginBottom: 2 },
-    audioPlayerSub: { fontSize: 11.5, color: C.inkDim },
 
     // ═══════════════════════════════════════════════════════════
     // FEED MODAL

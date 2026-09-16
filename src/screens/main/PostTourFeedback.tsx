@@ -196,9 +196,10 @@ interface Props {
   totalArtifacts: number;
   userId?: string;
   onClose: () => void;
+  onSubmitSuccess?: () => void;
 }
 
-export default function PostTourFeedback({ visible, totalArtifacts, userId, onClose }: Props) {
+export default function PostTourFeedback({ visible, totalArtifacts, userId, onClose, onSubmitSuccess }: Props) {
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const C = buildC(theme);
@@ -276,6 +277,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
           setError('You have already submitted feedback. Thank you!');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           setSubmitting(false);
+          onSubmitSuccess?.(); // treat as submitted — stop modal from re-appearing
           return;
         }
       }
@@ -315,13 +317,17 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
           setError('You have already submitted feedback. Thank you!');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           setSubmitting(false);
+          onSubmitSuccess?.(); // already in DB — stop modal from re-appearing
           return;
         }
-        // Other errors — local save already succeeded, still show success
+        // Other errors — local save already succeeded, still proceed to success
         console.warn('Supabase insert error:', insertError.message);
       }
+
+      // Mark as submitted so the modal never pops up again
+      onSubmitSuccess?.();
     } catch (_) {
-      // Local save may have succeeded; proceed to success
+      // Local save may have succeeded; proceed to success screen anyway
     } finally {
       setSubmitting(false);
     }

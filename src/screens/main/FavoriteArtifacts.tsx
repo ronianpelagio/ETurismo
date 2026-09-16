@@ -157,7 +157,6 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.8,
     backgroundColor: C.surface,
     borderRadius: 24,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 12 },
@@ -185,8 +184,12 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
   imageSection: {
     width: '100%',
-    height: 240,
+    height: SCREEN_HEIGHT * 0.28,
     position: 'relative',
+    backgroundColor: '#000',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
@@ -383,7 +386,7 @@ function ArtifactDetailModal({
           </TouchableOpacity>
 
           <View style={styles.imageSection}>
-            <Image source={{ uri: imgUrl }} style={styles.image} />
+            <Image source={{ uri: imgUrl }} style={styles.image} resizeMode="contain" />
             <View style={styles.categoryPill}>
               <Text style={styles.categoryPillText}>{artifact.category}</Text>
             </View>

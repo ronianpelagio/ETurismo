@@ -19,8 +19,8 @@ import { useAppContext } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
-import HighlightedText from '../../components/HighlightedText';
 import ArtifactComments from './ArtifactComments';
+import ArtifactAudioPlayer from '../../components/ArtifactAudioPlayer';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -758,8 +758,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     return t?.description || selectedArtifact.description || '';
   })();
   const {
-    words: audioWords,
-    highlightedIndex,
     currentTime: audioCurrentTime,
     startHighlight,
     stopHighlight,
@@ -1687,7 +1685,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
               {selectedArtifact.image_url && (
                 <View style={styles.modalHero}>
-                  <SmartImage uri={selectedArtifact.image_url} style={styles.modalHeroImg} resizeMode="cover" />
+                  <SmartImage uri={selectedArtifact.image_url} style={styles.modalHeroImg} resizeMode="contain" />
                   <View style={styles.modalHeroScrim} />
                   <View style={styles.modalHeroCatPill}>
                     <Text style={styles.modalHeroCatText}>{selectedArtifact.category.toUpperCase()}</Text>
@@ -1759,23 +1757,12 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                       const fullDesc = t?.description || selectedArtifact.description || selectedArtifact.translations?.find(tr => tr.language_code === 'en')?.description || '';
                       const LIMIT = 280;
                       const needsTrunc = fullDesc.length > LIMIT;
-                      const isCurrentlyPlaying = !!playingLang;
                       return (
                         <>
-                          {isCurrentlyPlaying ? (
-                            // Word-highlighted text while audio plays
-                            <HighlightedText
-                              words={audioWords}
-                              highlightedIndex={highlightedIndex}
-                              textStyle={styles.modalDesc}
-                              highlightColor="rgba(201,168,76,0.28)"
-                            />
-                          ) : (
-                            <Text style={styles.modalDesc}>
-                              {needsTrunc && !descExpanded ? fullDesc.slice(0, LIMIT).trimEnd() + '…' : fullDesc}
-                            </Text>
-                          )}
-                          {needsTrunc && !isCurrentlyPlaying && (
+                          <Text style={styles.modalDesc}>
+                            {needsTrunc && !descExpanded ? fullDesc.slice(0, LIMIT).trimEnd() + '…' : fullDesc}
+                          </Text>
+                          {needsTrunc && (
                             <TouchableOpacity
                               onPress={() => setDescExpanded(v => !v)}
                               activeOpacity={0.7}
@@ -1786,18 +1773,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                               </Text>
                               <Ionicons name={descExpanded ? 'chevron-up' : 'chevron-down'} size={13} color={C.gold} />
                             </TouchableOpacity>
-                          )}
-                          {isCurrentlyPlaying && (
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 6,
-                              marginTop: 10, backgroundColor: C.goldSoft,
-                              borderRadius: 10, padding: 10, borderWidth: 1, borderColor: C.borderGold,
-                            }}>
-                              <Ionicons name="information-circle-outline" size={14} color={C.gold} />
-                              <Text style={{ flex: 1, fontSize: 11, color: C.inkMid, lineHeight: 16 }}>
-                                Words are highlighted as the audio guide speaks.
-                              </Text>
-                            </View>
                           )}
                         </>
                       );
@@ -1880,82 +1855,21 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
                       {/* ── Audio player card ── */}
                       {cur && cur.audio_url ? (
-                        <View style={[styles.audioPlayer, isPlaying && styles.audioPlayerActive]}>
-                          {/* Top row */}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                            <TouchableOpacity
-                              style={[styles.audioPlayIcon, isPlaying && styles.audioPlayIconActive]}
-                              onPress={() => {
-                                if (isPlaying) cleanupAudio();
-                                else playAudio(cur.audio_url!, cur.language_code);
-                              }}
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={isPlaying ? C.void : C.ink} />
-                            </TouchableOpacity>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.audioPlayerLabel}>{isPlaying ? 'Now playing…' : 'Tap to listen'}</Text>
-                              <Text style={styles.audioPlayerSub}>
-                                {(langMeta[cur.language_code] || { name: cur.language_code }).name} narration
-                              </Text>
-                            </View>
-                          </View>
-
-                          {/* Progress + controls — only when playing */}
-                          {isPlaying && (
-                            <View style={{ marginTop: 14, gap: 6 }}>
-                              {/* Progress track */}
-                              <View style={{ height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' }}>
-                                <View style={{
-                                  height: '100%', backgroundColor: C.gold, borderRadius: 2,
-                                  width: `${audioDuration > 0 ? Math.min((audioCurrentTime / audioDuration) * 100, 100) : 0}%`,
-                                }} />
-                              </View>
-                              {/* Times */}
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <Text style={{ fontSize: 10, color: C.inkDim }}>{formatAudioTime(audioCurrentTime)}</Text>
-                                <Text style={{ fontSize: 10, color: C.inkDim }}>{formatAudioTime(audioDuration)}</Text>
-                              </View>
-                              {/* Controls */}
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                                <TouchableOpacity
-                                  style={{ alignItems: 'center', gap: 2, paddingHorizontal: 6 }}
-                                  onPress={() => handleAudioSkip(-10)} activeOpacity={0.7}
-                                >
-                                  <Ionicons name="play-back" size={18} color={C.inkMid} />
-                                  <Text style={{ fontSize: 9, color: C.inkMid, fontWeight: '600' }}>10s</Text>
-                                </TouchableOpacity>
-
-                                <View style={{ flexDirection: 'row', gap: 4 }}>
-                                  {([0.75, 1, 1.5, 2] as const).map(r => (
-                                    <TouchableOpacity
-                                      key={r}
-                                      style={{
-                                        paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20,
-                                        backgroundColor: playbackRate === r ? C.gold : C.goldSoft,
-                                        borderWidth: 1,
-                                        borderColor: playbackRate === r ? C.gold : C.borderGold,
-                                      }}
-                                      onPress={() => handleAudioRate(r)} activeOpacity={0.7}
-                                    >
-                                      <Text style={{ fontSize: 11, fontWeight: '700', color: playbackRate === r ? C.ink : C.inkMid }}>
-                                        {r === 1 ? '1×' : `${r}×`}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  ))}
-                                </View>
-
-                                <TouchableOpacity
-                                  style={{ alignItems: 'center', gap: 2, paddingHorizontal: 6 }}
-                                  onPress={() => handleAudioSkip(10)} activeOpacity={0.7}
-                                >
-                                  <Ionicons name="play-forward" size={18} color={C.inkMid} />
-                                  <Text style={{ fontSize: 9, color: C.inkMid, fontWeight: '600' }}>10s</Text>
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          )}
-                        </View>
+                        <ArtifactAudioPlayer
+                          audioUrl={cur.audio_url}
+                          imageUrl={selectedArtifact.image_url}
+                          trackLabel={`${(langMeta[cur.language_code] || { name: cur.language_code }).name} narration`}
+                          isPlaying={isPlaying}
+                          currentTime={audioCurrentTime}
+                          duration={audioDuration}
+                          playbackRate={playbackRate}
+                          onPlay={() => playAudio(cur.audio_url!, cur.language_code)}
+                          onPause={cleanupAudio}
+                          onSeek={handleAudioSeek}
+                          onSkip={handleAudioSkip}
+                          onRateChange={handleAudioRate}
+                          C={C}
+                        />
                       ) : (
                         <View style={{
                           flexDirection: 'row', alignItems: 'center', gap: 10,

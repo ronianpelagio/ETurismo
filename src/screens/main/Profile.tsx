@@ -233,8 +233,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     heroBadgeTxt:{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: C.gold },
     heroName:    { fontSize: 32, fontWeight: '900', color: '#FFFCF8', letterSpacing: -0.5, lineHeight: 36, textAlign: 'center' },
     heroSub:     { fontSize: 12, color: 'rgba(255,252,248,0.45)', marginTop: 4 },
-    editHeroBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-    editHeroBtnTxt: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
 
     // Settings shortcut
     settingsBtn: { position: 'absolute', top: 16, right: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
@@ -374,14 +372,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
               {firstName || user?.first_name} {lastName || user?.last_name}
             </Text>
             <Text style={s.heroSub}>{user?.email}</Text>
-
-            {/* Edit profile inline button */}
-            {!editing && (
-              <TouchableOpacity style={s.editHeroBtn} onPress={startEditing} activeOpacity={0.8}>
-                <Ionicons name="pencil-outline" size={13} color="rgba(255,255,255,0.75)" />
-                <Text style={s.editHeroBtnTxt}>Edit Profile</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Settings shortcut */}

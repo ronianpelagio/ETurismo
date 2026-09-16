@@ -23,6 +23,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 
 import { supabase } from '../../services/supabase';
+import DeactivatedModal from '../../components/DeactivatedModal';
 
 // Required for expo-auth-session to complete the auth flow on Android
 WebBrowser.maybeCompleteAuthSession();
@@ -289,6 +290,9 @@ export default function SignIn({
   const [authError, setAuthError] =
     useState('');
 
+  const [showDeactivated, setShowDeactivated] =
+    useState(false);
+
   /* ==========================================================================
      VALIDATION
   ========================================================================== */
@@ -379,9 +383,9 @@ export default function SignIn({
         profile.status &&
         profile.status !== 'active'
       ) {
-        setAuthError(
-          'Your account is currently inactive.'
-        );
+        // Sign out immediately so onAuthStateChange doesn't navigate into the app
+        await supabase.auth.signOut();
+        setShowDeactivated(true);
         return;
       }
 
@@ -914,10 +918,15 @@ export default function SignIn({
             >
               DISCOVER • EXPERIENCE • PRESERVE
             </Text>
-
           </ScrollView>
         </KeyboardAvoidingView>
       </ImageBackground>
+
+    {/* ── Deactivated account notice ───────────────────────────────── */}
+    <DeactivatedModal
+      visible={showDeactivated}
+      onDismiss={() => setShowDeactivated(false)}
+    />
     </View>
   );
 }

@@ -22,6 +22,7 @@ export default function AppIntro({ onDone }: any) {
 
   useEffect(() => {
     let exitTimer: ReturnType<typeof setTimeout>;
+    let isMounted = true;
 
     Animated.parallel([
       Animated.timing(logoOpacity, {
@@ -68,13 +69,15 @@ export default function AppIntro({ onDone }: any) {
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-      ]).start(({ finished }) => {
-        if (!finished) return;
-        if (onDone) onDone();
+      ]).start(() => {
+        if (isMounted && onDone) onDone();
       });
     }, 2300);
 
-    return () => clearTimeout(exitTimer);
+    return () => {
+      isMounted = false;
+      clearTimeout(exitTimer);
+    };
   }, [onDone]);
 
   return (
@@ -148,8 +151,8 @@ const styles = StyleSheet.create({
   },
 
   logoContainer: {
-    width: Math.min(width * 0.78, 330),
-    height: Math.min(width * 0.78, 330),
+    width: Math.min(width * 0.92, 420),
+    height: Math.min(width * 0.92, 420),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -161,9 +164,9 @@ const styles = StyleSheet.create({
 
   halo: {
     position: 'absolute',
-    width: 235,
-    height: 235,
-    borderRadius: 118,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
     backgroundColor: 'rgba(201, 168, 76, 0.08)',
     shadowColor: '#C9A84C',
     shadowOffset: { width: 0, height: 0 },

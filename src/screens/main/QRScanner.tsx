@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated, Modal, ScrollView, Image,
@@ -20,7 +20,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import PostTourFeedback from './PostTourFeedback';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
-import HighlightedText from '../../components/HighlightedText';
+import ArtifactAudioPlayer from '../../components/ArtifactAudioPlayer';
 import type { Artifact, ArtifactTranslation } from '../../features/artifacts/types';
 import { ARTIFACT_CATEGORY_IMAGES } from '../../features/artifacts/constants';
 
@@ -546,8 +546,8 @@ function ArtifactModal({
 
   const currentDesc = getDescByLang(selectedLanguage);
 
-  // ── Word-highlighting hook ──
-  const { words, highlightedIndex, currentTime, startHighlight, stopHighlight, resetHighlight } =
+  // ── Audio progress tracking (currentTime drives the seek bar) ──
+  const { currentTime, startHighlight, stopHighlight, resetHighlight } =
     useAudioWordHighlight({ text: currentDesc, durationSeconds: audioDuration });
 
   useEffect(() => {
@@ -561,9 +561,6 @@ function ArtifactModal({
       ]).start();
     }
   }, [artifact]);
-
-  // Reset highlight state when language changes
-  useEffect(() => { resetHighlight(); }, [selectedLanguage]);
 
   useEffect(() => { return () => { stopAudio(); }; }, []);
 
@@ -724,7 +721,7 @@ function ArtifactModal({
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
           {/* ── Hero Image ── */}
           <View style={ams.heroWrap}>
-            <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="cover" />
+            <Image source={{ uri: imgUrl }} style={ams.heroImg} resizeMode="contain" />
             <View style={ams.heroScrim} />
             {/* Category pill */}
             <View style={ams.catPill}>
@@ -798,17 +795,7 @@ function ArtifactModal({
                 <Text style={ams.sectionLabel}>ABOUT THIS PIECE</Text>
               </View>
               <View style={ams.descBox}>
-                {isCurrentlyPlaying ? (
-                  // Show word-highlighted text while audio plays
-                  <HighlightedText
-                    words={words}
-                    highlightedIndex={highlightedIndex}
-                    textStyle={ams.descText}
-                    highlightColor="rgba(201,168,76,0.30)"
-                  />
-                ) : (
-                  <Text style={ams.descText}>{currentDesc}</Text>
-                )}
+                <Text style={ams.descText}>{currentDesc}</Text>
               </View>
             </View>
 
@@ -821,75 +808,21 @@ function ArtifactModal({
               </View>
 
               {currentLangAudio ? (
-                <View style={[ams.playerCard, isCurrentlyPlaying && ams.playerCardActive]}>
-                  {/* Top row: play/pause + track info + waveform */}
-                  <View style={ams.playerTopRow}>
-                    <TouchableOpacity
-                      style={[ams.playCircle, isCurrentlyPlaying && ams.playCircleActive]}
-                      onPress={() => isCurrentlyPlaying ? stopAudio() : playAudio(currentLangAudio.audio_url!, selectedLanguage)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name={isCurrentlyPlaying ? 'pause' : 'play'} size={22} color={isCurrentlyPlaying ? C.ink : C.gold} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                      <Text style={ams.playerLabel}>
-                        {isCurrentlyPlaying ? 'Now playing…' : 'Tap to listen'}
-                      </Text>
-                      <Text style={ams.playerSub}>
-                        {(langMeta[selectedLanguage] || { label: selectedLanguage }).label} narration
-                      </Text>
-                    </View>
-                    {isCurrentlyPlaying && <AudioWaveform isPlaying color={C.gold} />}
-                  </View>
-
-                  {/* Progress bar + time — only while playing */}
-                  {isCurrentlyPlaying && (
-                    <View style={ams.progressBlock}>
-                      {/* Track */}
-                      <View style={ams.progressTrack}>
-                        <View
-                          style={[
-                            ams.progressFill,
-                            { width: `${audioDuration > 0 ? Math.min((currentTime / audioDuration) * 100, 100) : 0}%` },
-                          ]}
-                        />
-                      </View>
-                      {/* Times */}
-                      <View style={ams.progressTimes}>
-                        <Text style={ams.progressTime}>{formatTime(currentTime)}</Text>
-                        <Text style={ams.progressTime}>{formatTime(audioDuration)}</Text>
-                      </View>
-
-                      {/* Controls row: skip back, speed pills, skip forward */}
-                      <View style={ams.controlsRow}>
-                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(-10)} activeOpacity={0.7}>
-                          <Ionicons name="play-back" size={18} color={C.inkMid} />
-                          <Text style={ams.skipLabel}>10s</Text>
-                        </TouchableOpacity>
-
-                        <View style={ams.rateRow}>
-                          {([0.75, 1, 1.5, 2] as const).map(r => (
-                            <TouchableOpacity
-                              key={r}
-                              style={[ams.rateBtn, playbackRate === r && ams.rateBtnActive]}
-                              onPress={() => handleRateChange(r)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={[ams.rateText, playbackRate === r && ams.rateTextActive]}>
-                                {r === 1 ? '1×' : `${r}×`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-
-                        <TouchableOpacity style={ams.skipBtn} onPress={() => handleSkip(10)} activeOpacity={0.7}>
-                          <Ionicons name="play-forward" size={18} color={C.inkMid} />
-                          <Text style={ams.skipLabel}>10s</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                </View>
+                <ArtifactAudioPlayer
+                  audioUrl={currentLangAudio.audio_url!}
+                  imageUrl={imgUrl}
+                  trackLabel={`${(langMeta[selectedLanguage] || { label: selectedLanguage }).label} narration`}
+                  isPlaying={isCurrentlyPlaying}
+                  currentTime={currentTime}
+                  duration={audioDuration}
+                  playbackRate={playbackRate}
+                  onPlay={() => playAudio(currentLangAudio.audio_url!, selectedLanguage)}
+                  onPause={stopAudio}
+                  onSeek={handleSeek}
+                  onSkip={handleSkip}
+                  onRateChange={handleRateChange}
+                  C={C}
+                />
               ) : (
                 <View style={ams.noAudioBox}>
                   <Ionicons name="volume-mute-outline" size={20} color={C.inkLight} />
@@ -922,7 +855,6 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: SCREEN_HEIGHT * 0.92,
-    overflow: 'hidden',
     borderTopWidth: 1,
     borderColor: C.borderGold,
     shadowColor: C.ink,
@@ -946,7 +878,7 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
 
   // ── Hero ──
-  heroWrap: { width: '100%', height: 240, position: 'relative' },
+  heroWrap: { width: '100%', height: SCREEN_HEIGHT * 0.28, position: 'relative', backgroundColor: '#000' },
   heroImg: { width: '100%', height: '100%' },
   heroScrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.28)' },
   catPill: {
@@ -1008,51 +940,6 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
   descText: { fontSize: 14.5, color: C.inkMid, lineHeight: 26 },
 
-  // ── Audio player card ──
-  playerCard: {
-    backgroundColor: C.bg,
-    borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 18, padding: 16, marginTop: 10,
-    gap: 0,
-  },
-  playerCardActive: { borderColor: C.borderGold, backgroundColor: C.goldLight },
-  playerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  playCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.borderGold,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  playCircleActive: { backgroundColor: C.gold, borderColor: C.gold },
-  playerLabel: { fontSize: 14, fontWeight: '700', color: C.ink, marginBottom: 2 },
-  playerSub: { fontSize: 12, color: C.inkLight },
-
-  // ── Progress bar ──
-  progressBlock: { marginTop: 14, gap: 6 },
-  progressTrack: {
-    height: 4, backgroundColor: C.border, borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: C.gold, borderRadius: 2 },
-  progressTimes: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressTime: { fontSize: 10, color: C.inkLight },
-
-  // ── Controls row ──
-  controlsRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginTop: 4,
-  },
-  skipBtn: { alignItems: 'center', gap: 2, paddingHorizontal: 6 },
-  skipLabel: { fontSize: 9, color: C.inkMid, fontWeight: '600' },
-  rateRow: { flexDirection: 'row', gap: 4 },
-  rateBtn: {
-    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20,
-    backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.borderGold,
-  },
-  rateBtnActive: { backgroundColor: C.gold, borderColor: C.gold },
-  rateText: { fontSize: 11, fontWeight: '700', color: C.inkMid },
-  rateTextActive: { color: C.ink },
-
   // ── No audio ──
   noAudioBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1080,7 +967,7 @@ export default function QRScanner({
   isActive?: boolean;
 }) {
   const { theme } = useAppTheme(); C = buildC(theme); sf = getSfStyles(C); ams = getAmsStyles(C); styles = getStyles(C);
-  const { user } = useAuthStore();
+  const { session } = useAuthStore();
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
   const [torchOn, setTorchOn]           = useState(false);
@@ -1101,8 +988,16 @@ export default function QRScanner({
   // ── Tour-completion state ────────────────────────────────────────────────────
   const [totalArtifacts, setTotalArtifacts]         = useState(0);
   const [showFeedback, setShowFeedback]             = useState(false);
-  // Guard: only trigger the feedback modal once per app session
+  // Guard: prevent re-showing once feedback was submitted (persists across sessions)
   const feedbackShownThisSession = useRef(false);
+  const [feedbackAlreadySubmitted, setFeedbackAlreadySubmitted] = useState(false);
+
+  // Load persisted "feedback submitted" flag on mount
+  useEffect(() => {
+    AsyncStorage.getItem('tourFeedbackSubmitted')
+      .then(val => { if (val === 'true') setFeedbackAlreadySubmitted(true); })
+      .catch(() => {});
+  }, []);
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
@@ -1154,6 +1049,7 @@ export default function QRScanner({
       totalArtifacts > 0 &&
       scannedArtifacts.length >= totalArtifacts &&
       !feedbackShownThisSession.current &&
+      !feedbackAlreadySubmitted &&
       !showFeedback
     ) {
       // Small delay so the artifact detail modal can close first
@@ -1163,7 +1059,7 @@ export default function QRScanner({
       }, 800);
       return () => clearTimeout(t);
     }
-  }, [scannedArtifacts.length, totalArtifacts]);
+  }, [scannedArtifacts.length, totalArtifacts, feedbackAlreadySubmitted]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1558,8 +1454,12 @@ export default function QRScanner({
       <PostTourFeedback
         visible={showFeedback}
         totalArtifacts={totalArtifacts}
-        userId={user?.id}
+        userId={session?.user?.id}
         onClose={() => setShowFeedback(false)}
+        onSubmitSuccess={() => {
+          AsyncStorage.setItem('tourFeedbackSubmitted', 'true').catch(() => {});
+          setFeedbackAlreadySubmitted(true);
+        }}
       />
     </View>
   );

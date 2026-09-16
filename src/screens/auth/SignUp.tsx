@@ -31,61 +31,47 @@ import {
 import { savePendingProfile } from '../../features/auth/services/pendingProfile';
 
 /* ============================================================================
-   ETURISMO THEME
+   THEME
 ============================================================================ */
 
 const C = {
   background: '#F6F2EA',
-  card: '#FFFFFF',
-
-  ink: '#191611',
-  inkSoft: '#302A22',
-  inkMid: '#6E665B',
-  inkLight: '#A59C90',
-
-  gold: '#B99345',
-  goldLight: '#D8BD7A',
-  goldSoft: '#F5ECD9',
-
-  border: '#E5DED2',
+  card:        '#FFFFFF',
+  ink:         '#191611',
+  inkSoft:     '#302A22',
+  inkMid:      '#6E665B',
+  inkLight:    '#A59C90',
+  gold:        '#B99345',
+  goldLight:   '#D8BD7A',
+  goldSoft:    '#F5ECD9',
+  border:      '#E5DED2',
   borderFocus: '#B99345',
-
-  error: '#B63B32',
-  errorLight: '#FFF1EF',
-
-  white: '#FFFFFF',
+  error:       '#B63B32',
+  errorLight:  '#FFF1EF',
+  white:       '#FFFFFF',
 };
 
-const { width: SCREEN_WIDTH } =
-  Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /* ============================================================================
    TYPES
 ============================================================================ */
 
-type Gender =
-  | 'Male'
-  | 'Female'
-  | 'Other';
+type Gender = 'Male' | 'Female' | 'Other';
 
 /* ============================================================================
-   INPUT FIELD
+   STEP CONFIG
 ============================================================================ */
 
-interface FieldProps {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder: string;
+const STEPS = [
+  { label: 'Profile',   icon: 'person-outline'   },
+  { label: 'Location',  icon: 'navigate-outline' },
+  { label: 'Account',   icon: 'lock-closed-outline' },
+] as const;
 
-  keyboardType?: any;
-  autoCapitalize?: any;
-
-  secure?: boolean;
-  showToggle?: boolean;
-
-  error?: string;
-}
+/* ============================================================================
+   FIELD
+============================================================================ */
 
 function Field({
   label,
@@ -97,53 +83,31 @@ function Field({
   secure = false,
   showToggle = false,
   error,
-}: FieldProps) {
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const animation =
-    useRef(new Animated.Value(0)).current;
-
-  const animateBorder = (
-    value: number
-  ) => {
-    Animated.timing(animation, {
-      toValue: value,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const borderColor =
-    animation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [
-        error ? C.error : C.border,
-        error ? C.error : C.borderFocus,
-      ],
-    });
-
+}: {
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder: string;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  secure?: boolean;
+  showToggle?: boolean;
+  error?: string;
+}) {
+  const [show, setShow] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
+  const fade = (v: number) =>
+    Animated.timing(anim, { toValue: v, duration: 180, useNativeDriver: false }).start();
+  const borderColor = anim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [error ? C.error : C.border, error ? C.error : C.borderFocus],
+  });
   return (
-    <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>
-        {label}
-      </Text>
-
-      <Animated.View
-        style={[
-          styles.inputContainer,
-          {
-            borderColor,
-          },
-        ]}
-      >
+    <View style={s.fieldWrap}>
+      <Text style={s.label}>{label}</Text>
+      <Animated.View style={[s.inputBox, { borderColor }]}>
         <TextInput
-          style={[
-            styles.input,
-            showToggle && {
-              paddingRight: 50,
-            },
-          ]}
+          style={[s.input, showToggle && { paddingRight: 48 }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -151,53 +115,17 @@ function Field({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
-          secureTextEntry={
-            secure && !showPassword
-          }
-          onFocus={() =>
-            animateBorder(1)
-          }
-          onBlur={() =>
-            animateBorder(0)
-          }
+          secureTextEntry={secure && !show}
+          onFocus={() => fade(1)}
+          onBlur={() => fade(0)}
         />
-
         {showToggle && (
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() =>
-              setShowPassword(
-                value => !value
-              )
-            }
-            activeOpacity={0.7}
-          >
-            <Icon
-              name={
-                showPassword
-                  ? 'eye-outline'
-                  : 'eye-off-outline'
-              }
-              size={19}
-              color={C.inkLight}
-            />
+          <TouchableOpacity style={s.eye} onPress={() => setShow(v => !v)} activeOpacity={0.7}>
+            <Icon name={show ? 'eye-outline' : 'eye-off-outline'} size={19} color={C.inkLight} />
           </TouchableOpacity>
         )}
       </Animated.View>
-
-      {error && (
-        <View style={styles.errorRow}>
-          <Icon
-            name="alert-circle-outline"
-            size={13}
-            color={C.error}
-          />
-
-          <Text style={styles.errorText}>
-            {error}
-          </Text>
-        </View>
-      )}
+      {error ? <View style={s.errRow}><Icon name="alert-circle-outline" size={13} color={C.error} /><Text style={s.errTxt}>{error}</Text></View> : null}
     </View>
   );
 }
@@ -212,74 +140,30 @@ function GenderSelector({
   error,
 }: {
   selected: Gender | '';
-  onSelect: (gender: Gender) => void;
+  onSelect: (g: Gender) => void;
   error?: string;
 }) {
-  const options: Gender[] = [
-    'Male',
-    'Female',
-    'Other',
-  ];
-
+  const opts: Gender[] = ['Male', 'Female', 'Other'];
   return (
-    <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>
-        GENDER
-      </Text>
-
-      <View style={styles.genderRow}>
-        {options.map(option => {
-          const active =
-            selected === option;
-
+    <View style={s.fieldWrap}>
+      <Text style={s.label}>GENDER</Text>
+      <View style={s.genderRow}>
+        {opts.map(o => {
+          const active = selected === o;
           return (
             <TouchableOpacity
-              key={option}
-              style={[
-                styles.genderButton,
-                active &&
-                  styles.genderButtonActive,
-              ]}
-              onPress={() =>
-                onSelect(option)
-              }
+              key={o}
+              style={[s.genderBtn, active && s.genderBtnActive]}
+              onPress={() => onSelect(o)}
               activeOpacity={0.8}
             >
-              {active && (
-                <Icon
-                  name="checkmark"
-                  size={14}
-                  color={C.white}
-                />
-              )}
-
-              <Text
-                style={[
-                  styles.genderText,
-                  active &&
-                    styles.genderTextActive,
-                ]}
-              >
-                {option}
-              </Text>
+              {active && <Icon name="checkmark" size={13} color={C.white} />}
+              <Text style={[s.genderTxt, active && s.genderTxtActive]}>{o}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
-
-      {error && (
-        <View style={styles.errorRow}>
-          <Icon
-            name="alert-circle-outline"
-            size={13}
-            color={C.error}
-          />
-
-          <Text style={styles.errorText}>
-            {error}
-          </Text>
-        </View>
-      )}
+      {error ? <View style={s.errRow}><Icon name="alert-circle-outline" size={13} color={C.error} /><Text style={s.errTxt}>{error}</Text></View> : null}
     </View>
   );
 }
@@ -288,107 +172,50 @@ function GenderSelector({
    PROFILE PHOTO
 ============================================================================ */
 
-interface ProfilePhotoProps {
-  uri: string | null;
-  onPick: () => void;
-  onRemove: () => void;
-}
-
 function ProfilePhoto({
   uri,
   onPick,
   onRemove,
-}: ProfilePhotoProps) {
+}: {
+  uri: string | null;
+  onPick: () => void;
+  onRemove: () => void;
+}) {
   return (
-    <View style={styles.profileSection}>
-      <Text style={styles.fieldLabel}>
-        PROFILE PHOTO
-      </Text>
-
-      <View style={styles.profileContent}>
-        <View style={styles.avatarWrapper}>
-          {uri ? (
-            <Image
-              source={{ uri }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Icon
-                name="person-outline"
-                size={34}
-                color={C.inkLight}
-              />
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.cameraButton}
-            onPress={onPick}
-            activeOpacity={0.8}
-          >
-            <Icon
-              name={
-                uri
-                  ? 'create-outline'
-                  : 'camera-outline'
-              }
-              size={16}
-              color={C.white}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileTitle}>
-            {uri
-              ? 'Profile photo selected'
-              : 'Add a profile photo'}
-          </Text>
-
-          <Text style={styles.profileDescription}>
-            {uri
-              ? 'Ready to upload securely after email verification.'
-              : 'Optional · JPG or PNG · You can add one later.'}
-          </Text>
-
-          <View style={styles.profileActions}>
-            <TouchableOpacity
-              style={styles.photoButton}
-              onPress={onPick}
-              activeOpacity={0.8}
-            >
-              <Icon
-                name="image-outline"
-                size={15}
-                color={C.ink}
-              />
-
-              <Text style={styles.photoButtonText}>
-                {uri
-                  ? 'Change'
-                  : 'Choose Photo'}
-              </Text>
-            </TouchableOpacity>
-
-            {uri && (
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={onRemove}
-                activeOpacity={0.8}
-              >
-                <Icon
-                  name="trash-outline"
-                  size={15}
-                  color={C.error}
-                />
-
-                <Text style={styles.removePhotoText}>
-                  Remove
-                </Text>
-              </TouchableOpacity>
-            )}
+    <View style={s.photoSection}>
+      {/* Avatar */}
+      <View style={s.avatarWrap}>
+        {uri ? (
+          <Image source={{ uri }} style={s.avatar} />
+        ) : (
+          <View style={s.avatarFallback}>
+            <Icon name="person-outline" size={36} color={C.inkLight} />
           </View>
+        )}
+        <TouchableOpacity style={s.cameraBtn} onPress={onPick} activeOpacity={0.8}>
+          <Icon name={uri ? 'create-outline' : 'camera-outline'} size={15} color={C.white} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Info */}
+      <View style={{ flex: 1 }}>
+        <Text style={s.photoTitle}>{uri ? 'Photo selected' : 'Add profile photo'}</Text>
+        <Text style={s.photoDesc}>
+          {uri
+            ? 'Uploaded securely after email verification.'
+            : 'Optional · JPG or PNG · You can add one later.'}
+        </Text>
+        <View style={s.photoActions}>
+          <TouchableOpacity style={s.photoBtn} onPress={onPick} activeOpacity={0.8}>
+            <Icon name="image-outline" size={14} color={C.ink} />
+            <Text style={s.photoBtnTxt}>{uri ? 'Change' : 'Choose Photo'}</Text>
+          </TouchableOpacity>
+          {uri && (
+            <TouchableOpacity style={s.removeBtn} onPress={onRemove} activeOpacity={0.8}>
+              <Icon name="trash-outline" size={14} color={C.error} />
+              <Text style={s.removeBtnTxt}>Remove</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -399,7 +226,7 @@ function ProfilePhoto({
    TERMS CHECKBOX
 ============================================================================ */
 
-function TermsCheckbox({
+function TermsBox({
   checked,
   onToggle,
   error,
@@ -409,774 +236,335 @@ function TermsCheckbox({
   error?: string;
 }) {
   return (
-    <View style={styles.termsContainer}>
-      <TouchableOpacity
-        style={styles.termsRow}
-        onPress={onToggle}
-        activeOpacity={0.7}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            checked &&
-              styles.checkboxChecked,
-            error &&
-              styles.checkboxError,
-          ]}
-        >
-          {checked && (
-            <Icon
-              name="checkmark"
-              size={13}
-              color={C.white}
-            />
-          )}
+    <View style={{ marginBottom: 8 }}>
+      <TouchableOpacity style={s.termsRow} onPress={onToggle} activeOpacity={0.7}>
+        <View style={[s.checkbox, checked && s.checkboxOn, error && s.checkboxErr]}>
+          {checked && <Icon name="checkmark" size={12} color={C.white} />}
         </View>
-
-        <Text style={styles.termsText}>
+        <Text style={s.termsTxt}>
           I agree to the{' '}
-          <Text style={styles.termsLink}>
-            Terms & Privacy
-          </Text>
+          <Text style={s.termsLink}>Terms & Privacy</Text>
         </Text>
       </TouchableOpacity>
-
-      {error && (
-        <View style={styles.errorRow}>
-          <Icon
-            name="alert-circle-outline"
-            size={13}
-            color={C.error}
-          />
-
-          <Text style={styles.errorText}>
-            {error}
-          </Text>
-        </View>
-      )}
+      {error ? <View style={s.errRow}><Icon name="alert-circle-outline" size={13} color={C.error} /><Text style={s.errTxt}>{error}</Text></View> : null}
     </View>
   );
 }
 
 /* ============================================================================
-   MAIN SIGN UP SCREEN
+   STEP INDICATOR
 ============================================================================ */
 
-export default function SignUp({
-  navigation,
-}: any) {
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <View style={s.stepRow}>
+      {STEPS.map((step, i) => {
+        const done    = i < current;
+        const active  = i === current;
+        const pending = i > current;
+        return (
+          <React.Fragment key={i}>
+            <View style={s.stepItem}>
+              <View style={[
+                s.stepCircle,
+                active  && s.stepCircleActive,
+                done    && s.stepCircleDone,
+              ]}>
+                {done
+                  ? <Icon name="checkmark" size={12} color={C.white} />
+                  : <Text style={[s.stepNum, (active || done) && s.stepNumOn]}>{i + 1}</Text>
+                }
+              </View>
+              <Text style={[s.stepLbl, active && s.stepLblActive, done && s.stepLblDone]}>
+                {step.label}
+              </Text>
+            </View>
+            {i < STEPS.length - 1 && (
+              <View style={[s.stepLine, (i < current) && s.stepLineDone]} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ============================================================================
+   MAIN SCREEN
+============================================================================ */
+
+export default function SignUp({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const [step, setStep] =
-    useState(1);
+  const scrollRef = useRef<ScrollView>(null);
+  const [step, setStep] = useState(0); // 0 = Profile, 1 = Location, 2 = Account
 
-  /* --------------------------------------------------------------------------
-     PERSONAL DETAILS
-  -------------------------------------------------------------------------- */
+  /* ── State ──────────────────────────────────────────────────────────────── */
 
-  const [firstName, setFirstName] =
-    useState('');
+  // Step 0 — Profile
+  const [firstName,     setFirstName]     = useState('');
+  const [lastName,      setLastName]      = useState('');
+  const [gender,        setGender]        = useState<Gender | ''>('');
+  const [age,           setAge]           = useState('');
+  const [profilePicUri, setProfilePicUri] = useState<string | null>(null);
 
-  const [lastName, setLastName] =
-    useState('');
-
-  const [gender, setGender] =
-    useState<Gender | ''>('');
-
-  const [age, setAge] =
-    useState('');
-
+  // Step 1 — Location
   const [location, setLocation] = useState<LocationValue>({
-    countryMode: '',
-    country: '',
-    province: null,
-    city: null,
-    barangay: null,
+    countryCode: '',
+    country:     '',
+    province:    null,
+    city:        null,
+    barangay:    null,
     addressLine: '',
+    stateRegion: '',
+    cityText:    '',
+    addressText: '',
   });
 
-  const [profilePicUri, setProfilePicUri] =
-    useState<string | null>(null);
+  // Step 2 — Account
+  const [email,         setEmail]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  /* --------------------------------------------------------------------------
-     ACCOUNT DETAILS
-  -------------------------------------------------------------------------- */
+  // General
+  const [loading, setLoading] = useState(false);
+  const [errors,  setErrors]  = useState<Record<string, string>>({});
 
-  const [email, setEmail] =
-    useState('');
+  /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-  const [password, setPassword] =
-    useState('');
+  const clearErr = (k: string) => setErrors(p => ({ ...p, [k]: '' }));
 
-  const [termsAccepted, setTermsAccepted] =
-    useState(false);
+  const scrollTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
 
-  /* --------------------------------------------------------------------------
-     GENERAL
-  -------------------------------------------------------------------------- */
+  /* ── Photo ───────────────────────────────────────────────────────────────── */
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [errors, setErrors] =
-    useState<
-      Record<string, string>
-    >({});
-
-  /* ==========================================================================
-     PICK PROFILE PHOTO
-  ========================================================================== */
-
-  const pickProfilePhoto = () => {
-    Alert.alert(
-      'Profile Photo',
-      'Choose how you want to add your profile photo.',
-      [
-        {
-          text: 'Camera',
-          onPress: openCamera,
-        },
-        {
-          text: 'Photo Library',
-          onPress: openGallery,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+  const pickPhoto = () => {
+    Alert.alert('Profile Photo', 'Choose a source', [
+      { text: 'Camera',        onPress: takePhoto    },
+      { text: 'Photo Library', onPress: chooseFromGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
-  /* ==========================================================================
-     CAMERA
-  ========================================================================== */
-
-  const openCamera = async () => {
-    const { status } =
-      await ImagePicker.requestCameraPermissionsAsync();
-
-    if (status !== 'granted') {
-      Alert.alert(
-        'Camera Permission',
-        'Please allow camera access to take a profile photo.'
-      );
-      return;
-    }
-
-    const result =
-      await ImagePicker.launchCameraAsync({
-        mediaTypes:
-          ImagePicker.MediaTypeOptions.Images,
-
-        allowsEditing: true,
-
-        aspect: [1, 1],
-
-        quality: 0.85,
-      });
-
-    if (
-      !result.canceled &&
-      result.assets?.length
-    ) {
-      setProfilePicUri(
-        result.assets[0].uri
-      );
-    }
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Allow camera access to take a photo.'); return; }
+    const r = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (!r.canceled && r.assets?.length) setProfilePicUri(r.assets[0].uri);
   };
 
-  /* ==========================================================================
-     GALLERY
-  ========================================================================== */
-
-  const openGallery = async () => {
-    const { status } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Needed',
-        'Please allow photo library access to choose a profile photo.'
-      );
-      return;
-    }
-
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes:
-          ImagePicker.MediaTypeOptions.Images,
-
-        allowsEditing: true,
-
-        aspect: [1, 1],
-
-        quality: 0.85,
-      });
-
-    if (
-      !result.canceled &&
-      result.assets?.length
-    ) {
-      setProfilePicUri(
-        result.assets[0].uri
-      );
-    }
+  const chooseFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Allow photo library access.'); return; }
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (!r.canceled && r.assets?.length) setProfilePicUri(r.assets[0].uri);
   };
 
-  /* ==========================================================================
-     REMOVE PHOTO
-  ========================================================================== */
-
-  const removeProfilePhoto = () => {
-    Alert.alert(
-      'Remove Profile Photo',
-      'Are you sure you want to remove your profile photo?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () =>
-            setProfilePicUri(null),
-        },
-      ]
-    );
+  const removePhoto = () => {
+    Alert.alert('Remove Photo', 'Remove your profile photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => setProfilePicUri(null) },
+    ]);
   };
 
-  /* ==========================================================================
-     VALIDATE STEP 1
-  ========================================================================== */
+  /* ── Validation ──────────────────────────────────────────────────────────── */
+
+  const validateStep0 = () => {
+    const e: Record<string, string> = {};
+    if (!firstName.trim()) e.firstName = 'First name is required';
+    if (!lastName.trim())  e.lastName  = 'Last name is required';
+    if (!gender)           e.gender    = 'Please select your gender';
+    if (!age.trim()) {
+      e.age = 'Age is required';
+    } else {
+      const n = parseInt(age, 10);
+      if (isNaN(n) || n < 1 || n > 120) e.age = 'Enter a valid age';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const validateStep1 = () => {
-    const newErrors: Record<
-      string,
-      string
-    > = {};
-
-    if (!firstName.trim()) {
-      newErrors.firstName =
-        'First name is required';
+    const e: Record<string, string> = {};
+    if (!location.countryCode) {
+      e.location = 'Select your country';
+    } else if (location.countryCode === 'PH' && (!location.province || !location.city || !location.barangay)) {
+      e.location = 'Select your province, city, and barangay';
+    } else if (location.countryCode !== 'PH' && !location.stateRegion.trim() && !location.cityText.trim()) {
+      e.location = 'Enter your state / region and city';
     }
-
-    if (!lastName.trim()) {
-      newErrors.lastName =
-        'Last name is required';
-    }
-
-    if (!gender) {
-      newErrors.gender =
-        'Please select your gender';
-    }
-
-    if (!age.trim()) {
-      newErrors.age =
-        'Age is required';
-    } else {
-      const parsedAge =
-        parseInt(age, 10);
-
-      if (
-        isNaN(parsedAge) ||
-        parsedAge < 1 ||
-        parsedAge > 120
-      ) {
-        newErrors.age =
-          'Enter a valid age';
-      }
-    }
-
-    if (!location.countryMode) {
-      newErrors.location = 'Select your country';
-    } else if (
-      location.countryMode === 'PH' &&
-      (!location.province || !location.city || !location.barangay)
-    ) {
-      newErrors.location = 'Select your province, city or municipality, and barangay';
-    } else if (
-      location.countryMode === 'OTHER' &&
-      (!location.country.trim() || !location.addressLine.trim())
-    ) {
-      newErrors.location = 'Enter your country and full address';
-    }
-
-    setErrors(newErrors);
-
-    return (
-      Object.keys(newErrors)
-        .length === 0
-    );
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
-
-  /* ==========================================================================
-     VALIDATE STEP 2
-  ========================================================================== */
 
   const validateStep2 = () => {
-    const newErrors: Record<
-      string,
-      string
-    > = {};
-
-    if (!email.trim()) {
-      newErrors.email =
-        'Email is required';
-    } else if (
-      !/\S+@\S+\.\S+/.test(
-        email
-      )
-    ) {
-      newErrors.email =
-        'Enter a valid email address';
-    }
-
-    if (!password) {
-      newErrors.password =
-        'Password is required';
-    } else if (
-      password.length < 8
-    ) {
-      newErrors.password =
-        'Password must be at least 8 characters';
-    }
-
-    if (!termsAccepted) {
-      newErrors.terms =
-        'You must accept the Terms & Privacy';
-    }
-
-    setErrors(newErrors);
-
-    return (
-      Object.keys(newErrors)
-        .length === 0
-    );
+    const e: Record<string, string> = {};
+    if (!email.trim())                   e.email    = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email)) e.email   = 'Enter a valid email address';
+    if (!password)                        e.password = 'Password is required';
+    else if (password.length < 8)         e.password = 'Password must be at least 8 characters';
+    if (!termsAccepted)                   e.terms    = 'You must accept the Terms & Privacy';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  /* ==========================================================================
-     CLEAR ERROR
-  ========================================================================== */
+  /* ── Navigation ──────────────────────────────────────────────────────────── */
 
-  const clearError = (
-    field: string
-  ) => {
-    setErrors(previous => ({
-      ...previous,
-      [field]: '',
-    }));
-  };
-
-  /* ==========================================================================
-     NEXT STEP
-  ========================================================================== */
-
-  const goToStep2 = () => {
-    if (!validateStep1()) {
-      return;
-    }
-
+  const goNext = () => {
+    const valid = step === 0 ? validateStep0() : step === 1 ? validateStep1() : false;
+    if (!valid) return;
     setErrors({});
-    setStep(2);
+    setStep(s => s + 1);
+    scrollTop();
   };
 
-  /* ==========================================================================
-     GO BACK
-  ========================================================================== */
-
-  const goBackToStep1 = () => {
+  const goBack = () => {
     setErrors({});
-    setStep(1);
+    setStep(s => s - 1);
+    scrollTop();
   };
 
-  /* ==========================================================================
-     RESIZE PROFILE PHOTO
-  ========================================================================== */
-
-  const getResizedProfileUri =
-    async (): Promise<
-      string | null
-    > => {
-      if (!profilePicUri) {
-        return null;
-      }
-
-      const result =
-        await ImageManipulator.manipulateAsync(
-          profilePicUri,
-          [
-            {
-              resize: {
-                width: 400,
-                height: 400,
-              },
-            },
-          ],
-          {
-            compress: 0.82,
-            format:
-              ImageManipulator.SaveFormat
-                .JPEG,
-          }
-        );
-
-      return result.uri;
-    };
-
-  /* ==========================================================================
-     SIGN UP
-  ========================================================================== */
+  /* ── Submit ──────────────────────────────────────────────────────────────── */
 
   const handleSignUp = async () => {
-    if (!validateStep2()) {
-      return;
-    }
-
+    if (!validateStep2()) return;
     setLoading(true);
-
     try {
-      const normalizedEmail =
-        email
-          .toLowerCase()
-          .trim();
+      const normalizedEmail = email.toLowerCase().trim();
 
-      const address = [
-        location.addressLine.trim(),
-        location.barangay?.name,
-        location.city?.name,
-        location.province?.name,
-        location.country,
-      ].filter(Boolean).join(', ');
-      const resizedProfileUri = await getResizedProfileUri();
+      const address = location.countryCode === 'PH'
+        ? [location.addressLine.trim(), location.barangay?.name, location.city?.name, location.province?.name, location.country].filter(Boolean).join(', ')
+        : [location.addressText.trim(), location.cityText.trim(), location.stateRegion.trim(), location.country].filter(Boolean).join(', ');
 
-      /* ----------------------------------------------------------------------
-         CREATE SUPABASE ACCOUNT
-      ---------------------------------------------------------------------- */
-
-      const { error } =
-        await supabase.auth.signUp({
-          email:
-            normalizedEmail,
-
-          password,
-
-          options: {
-            data: {
-              first_name:
-                firstName.trim(),
-
-              last_name:
-                lastName.trim(),
-
-              gender,
-
-              age:
-                parseInt(
-                  age,
-                  10
-                ),
-
-              Address:
-                address,
-
-              country: location.country,
-              province: location.province?.name ?? null,
-              city: location.city?.name ?? null,
-              barangay: location.barangay?.name ?? null,
-            },
-          },
-        });
-
-      if (error) {
-        throw error;
+      // Resize photo
+      let resizedUri: string | null = null;
+      if (profilePicUri) {
+        const r = await ImageManipulator.manipulateAsync(
+          profilePicUri,
+          [{ resize: { width: 400, height: 400 } }],
+          { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        resizedUri = r.uri;
       }
 
-      await savePendingProfile({
+      const { error } = await supabase.auth.signUp({
         email: normalizedEmail,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        gender: gender as Gender,
-        age: parseInt(age, 10),
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name:  lastName.trim(),
+            gender,
+            age:        parseInt(age, 10),
+            Address:    address,
+            country:    location.country,
+            province:   location.countryCode === 'PH' ? (location.province?.name ?? null) : (location.stateRegion.trim() || null),
+            city:       location.countryCode === 'PH' ? (location.city?.name     ?? null) : (location.cityText.trim()    || null),
+            barangay:   location.countryCode === 'PH' ? (location.barangay?.name ?? null) : null,
+          },
+        },
+      });
+      if (error) throw error;
+
+      await savePendingProfile({
+        email:         normalizedEmail,
+        firstName:     firstName.trim(),
+        lastName:      lastName.trim(),
+        gender:        gender as Gender,
+        age:           parseInt(age, 10),
         address,
-        country: location.country,
-        province: location.province?.name ?? null,
-        city: location.city?.name ?? null,
-        barangay: location.barangay?.name ?? null,
-        profilePicUri: resizedProfileUri,
+        country:       location.country,
+        province:      location.countryCode === 'PH' ? (location.province?.name ?? null) : (location.stateRegion.trim() || null),
+        city:          location.countryCode === 'PH' ? (location.city?.name     ?? null) : (location.cityText.trim()    || null),
+        barangay:      location.countryCode === 'PH' ? (location.barangay?.name ?? null) : null,
+        profilePicUri: resizedUri,
       });
 
-      // Save OTP send timestamp so the countdown persists if the app is closed
-      await AsyncStorage.setItem(
-        `otp_sent_at_${normalizedEmail}`,
-        Date.now().toString()
-      );
-
+      await AsyncStorage.setItem(`otp_sent_at_${normalizedEmail}`, Date.now().toString());
       navigation.navigate('VerifyOTP', { email: normalizedEmail });
 
-    } catch (error: any) {
-      Alert.alert(
-        'Unable to Create Account',
-        error?.message ||
-          'Something went wrong. Please try again.'
-      );
+    } catch (err: any) {
+      Alert.alert('Unable to Create Account', err?.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  /* ==========================================================================
-     UI
-  ========================================================================== */
+  /* ── Step meta ───────────────────────────────────────────────────────────── */
+
+  const stepTitles = [
+    'Tell us about yourself',
+    'Where are you from?',
+    'Secure your account',
+  ];
+  const stepDescs = [
+    'Set up your profile so we can personalize your heritage journey.',
+    'We use your location to personalise nearby sites and experiences.',
+    'Create your login credentials and accept our terms.',
+  ];
+
+  /* ── Render ──────────────────────────────────────────────────────────────── */
 
   return (
-    <View style={styles.screen}>
+    <View style={s.screen}>
       <StatusBar style="light" />
 
-      {/* ----------------------------------------------------------------------
-          BACKGROUND
-      ---------------------------------------------------------------------- */}
+      {/* Background */}
+      <Image source={require('../../assets/Signin.jpg')} style={s.bg} />
+      <View style={s.overlay} />
 
-      <Image
-        source={require('../../assets/Signin.jpg')}
-        style={styles.backgroundImage}
-      />
-
-      <View
-        style={styles.backgroundOverlay}
-      />
-
-      {/* ----------------------------------------------------------------------
-          MAIN
-      ---------------------------------------------------------------------- */}
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : 'height'
-        }
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: insets.top + 24,
-              paddingBottom: insets.bottom + 24,
-            },
-          ]}
-          showsVerticalScrollIndicator={
-            false
-          }
+          ref={scrollRef}
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }]}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={s.card}>
 
-          {/* ==================================================================
-              LOGIN STYLE CARD
-          ================================================================== */}
-
-          <View style={styles.card}>
-
-            {/* --------------------------------------------------------------
-                BRAND
-            -------------------------------------------------------------- */}
-
-            <View style={styles.brandArea}>
-
-              <View
-                style={
-                  styles.logoCircle
-                }
-              >
-                <Icon
-                  name="map-outline"
-                  size={22}
-                  color={C.gold}
-                />
+            {/* ── Brand ── */}
+            <View style={s.brand}>
+              <View style={s.logoCircle}>
+                <Icon name="map-outline" size={21} color={C.gold} />
               </View>
-
-              <Text style={styles.brandName}>
-                ETURISMO
-              </Text>
-
-              <Text
-                style={
-                  styles.brandSubtitle
-                }
-              >
-                HERITAGE • CULTURE • JOURNEY
-              </Text>
-
+              <Text style={s.brandName}>ETURISMO</Text>
+              <Text style={s.brandSub}>HERITAGE • CULTURE • JOURNEY</Text>
             </View>
 
-            {/* --------------------------------------------------------------
-                DIVIDER
-            -------------------------------------------------------------- */}
+            {/* ── Gold divider ── */}
+            <View style={s.divider} />
 
-            <View
-              style={
-                styles.goldDivider
-              }
-            />
+            {/* ── Step indicator ── */}
+            <StepIndicator current={step} />
 
-            {/* --------------------------------------------------------------
-                TITLE
-            -------------------------------------------------------------- */}
+            {/* ── Title ── */}
+            <Text style={s.title}>{stepTitles[step]}</Text>
+            <Text style={s.desc}>{stepDescs[step]}</Text>
 
-            <Text
-              style={styles.title}
-            >
-              {step === 1
-                ? 'Create your account'
-                : 'Secure your account'}
-            </Text>
-
-            <Text
-              style={
-                styles.description
-              }
-            >
-              {step === 1
-                ? 'Join ETURISMO and discover places, culture, and heritage.'
-                : 'Set up your email and password to complete registration.'}
-            </Text>
-
-            {/* --------------------------------------------------------------
-                STEP INDICATOR
-            -------------------------------------------------------------- */}
-
-            <View
-              style={
-                styles.stepIndicator
-              }
-            >
-
-              <View
-                style={
-                  styles.stepItem
-                }
-              >
-
-                <View
-                  style={[
-                    styles.stepCircle,
-                    step >= 1 &&
-                      styles.stepCircleActive,
-                  ]}
-                >
-                  {step > 1 ? (
-                    <Icon
-                      name="checkmark"
-                      size={13}
-                      color={C.white}
-                    />
-                  ) : (
-                    <Text
-                      style={
-                        styles.stepNumber
-                      }
-                    >
-                      1
-                    </Text>
-                  )}
-                </View>
-
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    step === 1 &&
-                      styles.stepLabelActive,
-                  ]}
-                >
-                  Personal
-                </Text>
-
-              </View>
-
-              <View
-                style={
-                  styles.stepLine
-                }
-              />
-
-              <View
-                style={
-                  styles.stepItem
-                }
-              >
-
-                <View
-                  style={[
-                    styles.stepCircle,
-                    step === 2 &&
-                      styles.stepCircleActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.stepNumber,
-                      step === 2 &&
-                        styles.stepNumberActive,
-                    ]}
-                  >
-                    2
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    step === 2 &&
-                      styles.stepLabelActive,
-                  ]}
-                >
-                  Account
-                </Text>
-
-              </View>
-
-            </View>
-
-            {/* ===============================================================
-                STEP 1
+            {/* ================================================================
+                STEP 0 — Profile
             ================================================================ */}
-
-            {step === 1 && (
+            {step === 0 && (
               <View>
+                {/* Photo */}
+                <ProfilePhoto uri={profilePicUri} onPick={pickPhoto} onRemove={removePhoto} />
 
-                {/* PROFILE PHOTO */}
-
-                <ProfilePhoto
-                  uri={
-                    profilePicUri
-                  }
-                  onPick={
-                    pickProfilePhoto
-                  }
-                  onRemove={
-                    removeProfilePhoto
-                  }
-                />
-
-                {/* FIRST / LAST NAME */}
-
-                <View style={styles.nameRow}>
-                  <View style={styles.nameColumn}>
+                {/* Name row */}
+                <View style={s.row}>
+                  <View style={{ flex: 1 }}>
                     <Field
-                      label="First Name"
+                      label="FIRST NAME"
                       value={firstName}
-                      onChangeText={text => { setFirstName(text); clearError('firstName'); }}
+                      onChangeText={t => { setFirstName(t); clearErr('firstName'); }}
                       placeholder="First name"
                       autoCapitalize="words"
                       error={errors.firstName}
                     />
                   </View>
-                  <View style={styles.nameColumn}>
+                  <View style={{ flex: 1 }}>
                     <Field
-                      label="Last Name"
+                      label="LAST NAME"
                       value={lastName}
-                      onChangeText={text => { setLastName(text); clearError('lastName'); }}
+                      onChangeText={t => { setLastName(t); clearErr('lastName'); }}
                       placeholder="Last name"
                       autoCapitalize="words"
                       error={errors.lastName}
@@ -1184,21 +572,20 @@ export default function SignUp({
                   </View>
                 </View>
 
-                {/* GENDER + AGE — compact row */}
-
-                <View style={styles.nameRow}>
+                {/* Gender + Age row */}
+                <View style={s.row}>
                   <View style={{ flex: 2 }}>
                     <GenderSelector
                       selected={gender}
-                      onSelect={value => { setGender(value); clearError('gender'); }}
+                      onSelect={v => { setGender(v); clearErr('gender'); }}
                       error={errors.gender}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Field
-                      label="Age"
+                      label="AGE"
                       value={age}
-                      onChangeText={text => { setAge(text.replace(/[^0-9]/g, '')); clearError('age'); }}
+                      onChangeText={t => { setAge(t.replace(/[^0-9]/g, '')); clearErr('age'); }}
                       placeholder="Age"
                       keyboardType="numeric"
                       error={errors.age}
@@ -1206,249 +593,102 @@ export default function SignUp({
                   </View>
                 </View>
 
+                <TouchableOpacity style={s.primaryBtn} onPress={goNext} activeOpacity={0.85}>
+                  <Text style={s.primaryBtnTxt}>Continue</Text>
+                  <Icon name="arrow-forward" size={17} color={C.white} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ================================================================
+                STEP 1 — Location
+            ================================================================ */}
+            {step === 1 && (
+              <View>
                 <LocationFields
                   value={location}
-                  onChange={value => {
-                    setLocation(value);
-                    clearError('location');
-                  }}
+                  onChange={v => { setLocation(v); clearErr('location'); }}
                   error={errors.location}
                 />
 
-                {/* CONTINUE */}
-
-                <TouchableOpacity
-                  style={
-                    styles.mainButton
-                  }
-                  onPress={
-                    goToStep2
-                  }
-                  activeOpacity={0.85}
-                >
-                  <Text
-                    style={
-                      styles.mainButtonText
-                    }
-                  >
-                    Continue
-                  </Text>
-
-                  <Icon
-                    name="arrow-forward"
-                    size={18}
-                    color={C.white}
-                  />
+                <TouchableOpacity style={s.primaryBtn} onPress={goNext} activeOpacity={0.85}>
+                  <Text style={s.primaryBtnTxt}>Continue</Text>
+                  <Icon name="arrow-forward" size={17} color={C.white} />
                 </TouchableOpacity>
 
+                <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.7}>
+                  <Icon name="arrow-back" size={15} color={C.inkMid} />
+                  <Text style={s.backBtnTxt}>Back</Text>
+                </TouchableOpacity>
               </View>
             )}
 
-            {/* ===============================================================
-                STEP 2
+            {/* ================================================================
+                STEP 2 — Account
             ================================================================ */}
-
             {step === 2 && (
               <View>
-
-                {/* EMAIL */}
-
                 <Field
-                  label="Email Address"
+                  label="EMAIL ADDRESS"
                   value={email}
-                  onChangeText={text => {
-                    setEmail(
-                      text
-                    );
-                    clearError(
-                      'email'
-                    );
-                  }}
+                  onChangeText={t => { setEmail(t); clearErr('email'); }}
                   placeholder="you@example.com"
                   keyboardType="email-address"
-                  error={
-                    errors.email
-                  }
+                  error={errors.email}
                 />
-
-                {/* PASSWORD */}
-
                 <Field
-                  label="Password"
-                  value={
-                    password
-                  }
-                  onChangeText={text => {
-                    setPassword(
-                      text
-                    );
-                    clearError(
-                      'password'
-                    );
-                  }}
+                  label="PASSWORD"
+                  value={password}
+                  onChangeText={t => { setPassword(t); clearErr('password'); }}
                   placeholder="At least 8 characters"
                   secure
                   showToggle
-                  error={
-                    errors.password
-                  }
+                  error={errors.password}
                 />
 
-                {/* TERMS */}
-
-                <TermsCheckbox
-                  checked={
-                    termsAccepted
-                  }
-                  onToggle={() => {
-                    setTermsAccepted(
-                      value => !value
-                    );
-                    clearError(
-                      'terms'
-                    );
-                  }}
-                  error={
-                    errors.terms
-                  }
+                <TermsBox
+                  checked={termsAccepted}
+                  onToggle={() => { setTermsAccepted(v => !v); clearErr('terms'); }}
+                  error={errors.terms}
                 />
-
-                {/* CREATE ACCOUNT */}
 
                 <TouchableOpacity
-                  style={[
-                    styles.mainButton,
-                    loading &&
-                      styles.mainButtonDisabled,
-                  ]}
-                  onPress={
-                    handleSignUp
-                  }
-                  disabled={
-                    loading
-                  }
+                  style={[s.primaryBtn, loading && s.primaryBtnDisabled]}
+                  onPress={handleSignUp}
+                  disabled={loading}
                   activeOpacity={0.85}
                 >
-                  {loading ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={
-                        C.white
-                      }
-                    />
-                  ) : (
-                    <>
-                      <Text
-                        style={
-                          styles.mainButtonText
-                        }
-                      >
-                        Create Account
-                      </Text>
-
-                      <Icon
-                        name="checkmark-circle-outline"
-                        size={19}
-                        color={
-                          C.white
-                        }
-                      />
-                    </>
-                  )}
+                  {loading
+                    ? <ActivityIndicator size="small" color={C.white} />
+                    : <>
+                        <Text style={s.primaryBtnTxt}>Create Account</Text>
+                        <Icon name="checkmark-circle-outline" size={18} color={C.white} />
+                      </>
+                  }
                 </TouchableOpacity>
 
-                {/* BACK */}
-
-                <TouchableOpacity
-                  style={
-                    styles.backButton
-                  }
-                  onPress={
-                    goBackToStep1
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Icon
-                    name="arrow-back"
-                    size={15}
-                    color={
-                      C.inkMid
-                    }
-                  />
-
-                  <Text
-                    style={
-                      styles.backButtonText
-                    }
-                  >
-                    Back to personal details
-                  </Text>
+                <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.7}>
+                  <Icon name="arrow-back" size={15} color={C.inkMid} />
+                  <Text style={s.backBtnTxt}>Back</Text>
                 </TouchableOpacity>
-
               </View>
             )}
 
-            {/* --------------------------------------------------------------
-                SIGN IN FOOTER
-            -------------------------------------------------------------- */}
-
-            <View
-              style={
-                styles.footer
-              }
-            >
-              <Text
-                style={
-                  styles.footerText
-                }
-              >
-                Already have an account?
-              </Text>
-
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate(
-                    'SignIn'
-                  )
-                }
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={
-                    styles.footerLink
-                  }
-                >
-                  Sign In
-                </Text>
+            {/* ── Footer ── */}
+            <View style={s.footer}>
+              <Text style={s.footerTxt}>Already have an account?</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SignIn')} activeOpacity={0.7}>
+                <Text style={s.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
 
-            {/* --------------------------------------------------------------
-                SECURITY
-            -------------------------------------------------------------- */}
-
-            <View
-              style={
-                styles.security
-              }
-            >
-              <Icon
-                name="shield-checkmark-outline"
-                size={14}
-                color={C.gold}
-              />
-
-              <Text
-                style={
-                  styles.securityText
-                }
-              >
-                Your information is securely protected
-              </Text>
+            {/* ── Security badge ── */}
+            <View style={s.security}>
+              <Icon name="shield-checkmark-outline" size={13} color={C.gold} />
+              <Text style={s.securityTxt}>Your information is securely protected</Text>
             </View>
 
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -1459,891 +699,139 @@ export default function SignUp({
    STYLES
 ============================================================================ */
 
-const styles =
-  StyleSheet.create({
-
-    /* ========================================================================
-       SCREEN
-    ======================================================================== */
-
-    screen: {
-      flex: 1,
-      backgroundColor:
-        C.background,
-    },
-
-    flex: {
-      flex: 1,
-    },
-
-    backgroundImage: {
-      position: 'absolute',
-
-      width: '100%',
-      height: '100%',
-
-      resizeMode: 'cover',
-    },
-
-    backgroundOverlay: {
-      position: 'absolute',
-
-      width: '100%',
-      height: '100%',
-
-      backgroundColor:
-        'rgba(20, 17, 12, 0.63)',
-    },
-
-    scrollContent: {
-      flexGrow: 1,
-
-      minHeight:
-        Dimensions.get('window').height,
-
-      justifyContent:
-        'center',
-
-      alignItems:
-        'center',
-
-      paddingVertical: 35,
-      paddingHorizontal: 18,
-    },
-
-    /* ========================================================================
-       CARD
-    ======================================================================== */
-
-    card: {
-      width:
-        SCREEN_WIDTH > 600
-          ? 430
-          : '100%',
-
-      backgroundColor:
-        C.card,
-
-      borderRadius: 22,
-
-      paddingHorizontal:
-        SCREEN_WIDTH > 600
-          ? 35
-          : 23,
-
-      paddingTop: 27,
-
-      paddingBottom: 24,
-
-      shadowColor:
-        '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 12,
-      },
-
-      shadowOpacity: 0.23,
-
-      shadowRadius: 25,
-
-      elevation: 12,
-    },
-
-    /* ========================================================================
-       BRAND
-    ======================================================================== */
-
-    brandArea: {
-      alignItems:
-        'center',
-    },
-
-    logoCircle: {
-      width: 47,
-      height: 47,
-
-      borderRadius: 24,
-
-      backgroundColor:
-        C.goldSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        '#E3D3B1',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginBottom: 9,
-    },
-
-    brandName: {
-      color:
-        C.ink,
-
-      fontSize: 21,
-
-      fontWeight: '900',
-
-      letterSpacing: 3.5,
-    },
-
-    brandSubtitle: {
-      color:
-        C.gold,
-
-      fontSize: 7,
-
-      fontWeight: '800',
-
-      letterSpacing: 1.5,
-
-      marginTop: 4,
-    },
-
-    goldDivider: {
-      width: 32,
-      height: 3,
-
-      borderRadius: 2,
-
-      backgroundColor:
-        C.gold,
-
-      alignSelf:
-        'center',
-
-      marginTop: 15,
-      marginBottom: 15,
-    },
-
-    /* ========================================================================
-       TITLE
-    ======================================================================== */
-
-    title: {
-      color:
-        C.ink,
-
-      fontSize: 24,
-
-      fontWeight: '800',
-
-      textAlign:
-        'center',
-
-      letterSpacing: -0.5,
-    },
-
-    description: {
-      color:
-        C.inkMid,
-
-      fontSize: 11.5,
-
-      lineHeight: 17,
-
-      textAlign:
-        'center',
-
-      marginTop: 6,
-
-      marginHorizontal: 10,
-
-      marginBottom: 17,
-    },
-
-    /* ========================================================================
-       STEP INDICATOR
-    ======================================================================== */
-
-    stepIndicator: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginBottom: 21,
-    },
-
-    stepItem: {
-      alignItems:
-        'center',
-    },
-
-    stepCircle: {
-      width: 27,
-      height: 27,
-
-      borderRadius: 14,
-
-      borderWidth: 1.5,
-
-      borderColor:
-        C.border,
-
-      backgroundColor:
-        C.card,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    stepCircleActive: {
-      backgroundColor:
-        C.ink,
-
-      borderColor:
-        C.ink,
-    },
-
-    stepNumber: {
-      color:
-        C.inkLight,
-
-      fontSize: 10,
-
-      fontWeight: '800',
-    },
-
-    stepNumberActive: {
-      color:
-        C.white,
-    },
-
-    stepLabel: {
-      color:
-        C.inkLight,
-
-      fontSize: 8.5,
-
-      fontWeight: '700',
-
-      marginTop: 4,
-    },
-
-    stepLabelActive: {
-      color:
-        C.gold,
-    },
-
-    stepLine: {
-      width: 60,
-      height: 1,
-
-      backgroundColor:
-        C.border,
-
-      marginHorizontal: 10,
-
-      marginBottom: 16,
-    },
-
-    /* ========================================================================
-       INPUTS
-    ======================================================================== */
-
-    fieldContainer: {
-      marginBottom: 10,
-    },
-
-    fieldLabel: {
-      color:
-        C.inkMid,
-
-      fontSize: 9,
-
-      fontWeight: '800',
-
-      letterSpacing: 1.25,
-
-      marginBottom: 6,
-    },
-
-    inputContainer: {
-      minHeight: 47,
-
-      backgroundColor:
-        C.card,
-
-      borderWidth: 1.3,
-
-      borderColor:
-        C.border,
-
-      borderRadius: 10,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      overflow: 'hidden',
-    },
-
-    input: {
-      flex: 1,
-
-      color:
-        C.ink,
-
-      fontSize: 13.5,
-
-      paddingHorizontal: 14,
-
-      paddingVertical:
-        Platform.OS === 'ios'
-          ? 13
-          : 9,
-    },
-
-    eyeButton: {
-      position: 'absolute',
-
-      right: 10,
-
-      padding: 6,
-    },
-
-    errorRow: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 4,
-
-      marginTop: 4,
-    },
-
-    errorText: {
-      color:
-        C.error,
-
-      fontSize: 10,
-    },
-
-    /* ========================================================================
-       NAME ROW
-    ======================================================================== */
-
-    nameRow: {
-      flexDirection:
-        'row',
-
-      gap: 10,
-    },
-
-    nameColumn: {
-      flex: 1,
-    },
-
-    /* ========================================================================
-       GENDER
-    ======================================================================== */
-
-    genderRow: {
-      flexDirection:
-        'row',
-
-      gap: 7,
-    },
-
-    genderButton: {
-      flex: 1,
-
-      height: 43,
-
-      borderWidth: 1.3,
-
-      borderColor:
-        C.border,
-
-      borderRadius: 9,
-
-      backgroundColor:
-        C.card,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      gap: 4,
-    },
-
-    genderButtonActive: {
-      backgroundColor:
-        C.ink,
-
-      borderColor:
-        C.ink,
-    },
-
-    genderText: {
-      color:
-        C.inkMid,
-
-      fontSize: 11.5,
-
-      fontWeight: '700',
-    },
-
-    genderTextActive: {
-      color:
-        C.white,
-    },
-
-    /* ========================================================================
-       PROFILE PHOTO
-    ======================================================================== */
-
-    profileSection: {
-      marginTop: 1,
-
-      marginBottom: 12,
-
-      padding: 10,
-
-      borderWidth: 1,
-
-      borderColor:
-        C.border,
-
-      borderRadius: 12,
-
-      backgroundColor:
-        '#FCFAF6',
-    },
-
-    profileContent: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-    },
-
-    avatarWrapper: {
-      width: 76,
-      height: 76,
-
-      position: 'relative',
-
-      marginRight: 14,
-    },
-
-    avatar: {
-      width: 76,
-      height: 76,
-
-      borderRadius: 38,
-
-      borderWidth: 2,
-
-      borderColor:
-        C.gold,
-
-      backgroundColor:
-        C.goldSoft,
-    },
-
-    avatarPlaceholder: {
-      width: 76,
-      height: 76,
-
-      borderRadius: 38,
-
-      backgroundColor:
-        C.goldSoft,
-
-      borderWidth: 1.5,
-
-      borderColor:
-        C.border,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    cameraButton: {
-      position: 'absolute',
-
-      right: -3,
-
-      bottom: -2,
-
-      width: 29,
-      height: 29,
-
-      borderRadius: 15,
-
-      backgroundColor:
-        C.ink,
-
-      borderWidth: 2,
-
-      borderColor:
-        C.card,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    profileInfo: {
-      flex: 1,
-    },
-
-    profileTitle: {
-      color:
-        C.ink,
-
-      fontSize: 12,
-
-      fontWeight: '800',
-
-      marginBottom: 3,
-    },
-
-    profileDescription: {
-      color:
-        C.inkLight,
-
-      fontSize: 9.5,
-
-      lineHeight: 14,
-
-      marginBottom: 7,
-    },
-
-    profileActions: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 6,
-    },
-
-    photoButton: {
-      height: 31,
-
-      paddingHorizontal: 10,
-
-      borderRadius: 7,
-
-      borderWidth: 1,
-
-      borderColor:
-        C.border,
-
-      backgroundColor:
-        C.card,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      gap: 5,
-    },
-
-    photoButtonText: {
-      color:
-        C.ink,
-
-      fontSize: 9.5,
-
-      fontWeight: '800',
-    },
-
-    removePhotoButton: {
-      height: 31,
-
-      paddingHorizontal: 9,
-
-      borderRadius: 7,
-
-      backgroundColor:
-        C.errorLight,
-
-      borderWidth: 1,
-
-      borderColor:
-        '#F0D4D0',
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      gap: 4,
-    },
-
-    removePhotoText: {
-      color:
-        C.error,
-
-      fontSize: 9.5,
-
-      fontWeight: '800',
-    },
-
-    /* ========================================================================
-       TERMS
-    ======================================================================== */
-
-    termsContainer: {
-      marginTop: 2,
-
-      marginBottom: 8,
-    },
-
-    termsRow: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-    },
-
-    checkbox: {
-      width: 20,
-      height: 20,
-
-      borderRadius: 5,
-
-      borderWidth: 1.5,
-
-      borderColor:
-        C.border,
-
-      backgroundColor:
-        C.card,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginRight: 9,
-    },
-
-    checkboxChecked: {
-      backgroundColor:
-        C.gold,
-
-      borderColor:
-        C.gold,
-    },
-
-    checkboxError: {
-      borderColor:
-        C.error,
-    },
-
-    termsText: {
-      color:
-        C.inkMid,
-
-      fontSize: 10.5,
-
-      flexShrink: 1,
-    },
-
-    termsLink: {
-      color:
-        C.gold,
-
-      fontWeight:
-        '800',
-
-      textDecorationLine:
-        'underline',
-    },
-
-    /* ========================================================================
-       MAIN BUTTON
-    ======================================================================== */
-
-    mainButton: {
-      height: 49,
-
-      borderRadius: 10,
-
-      backgroundColor:
-        C.ink,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      gap: 8,
-
-      marginTop: 6,
-
-      shadowColor:
-        '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-
-      shadowOpacity: 0.18,
-
-      shadowRadius: 8,
-
-      elevation: 4,
-    },
-
-    mainButtonDisabled: {
-      opacity: 0.55,
-    },
-
-    mainButtonText: {
-      color:
-        C.white,
-
-      fontSize: 13,
-
-      fontWeight: '800',
-
-      letterSpacing: 0.2,
-    },
-
-    /* ========================================================================
-       BACK BUTTON
-    ======================================================================== */
-
-    backButton: {
-      height: 42,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      gap: 5,
-    },
-
-    backButtonText: {
-      color:
-        C.inkMid,
-
-      fontSize: 10.5,
-
-      fontWeight: '700',
-    },
-
-    /* ========================================================================
-       FOOTER
-    ======================================================================== */
-
-    footer: {
-      flexDirection:
-        'row',
-
-      justifyContent:
-        'center',
-
-      alignItems:
-        'center',
-
-      borderTopWidth: 1,
-
-      borderTopColor:
-        C.border,
-
-      marginTop: 17,
-
-      paddingTop: 15,
-    },
-
-    footerText: {
-      color:
-        C.inkMid,
-
-      fontSize: 10.5,
-    },
-
-    footerLink: {
-      color:
-        C.gold,
-
-      fontSize: 10.5,
-
-      fontWeight: '900',
-
-      marginLeft: 5,
-    },
-
-    /* ========================================================================
-       SECURITY
-    ======================================================================== */
-
-    security: {
-      flexDirection:
-        'row',
-
-      justifyContent:
-        'center',
-
-      alignItems:
-        'center',
-
-      gap: 5,
-
-      marginTop: 13,
-    },
-
-    securityText: {
-      color:
-        C.inkLight,
-
-      fontSize: 8.5,
-    },
-  });
+const s = StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: C.background },
+  bg:      { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover' },
+  overlay: { position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(20,17,12,0.63)' },
+
+  scroll: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 30,
+  },
+
+  /* Card */
+  card: {
+    width:           SCREEN_WIDTH > 600 ? 430 : '100%',
+    backgroundColor: C.card,
+    borderRadius:    22,
+    paddingHorizontal: SCREEN_WIDTH > 600 ? 35 : 22,
+    paddingTop:      26,
+    paddingBottom:   22,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: 12 },
+    shadowOpacity:   0.22,
+    shadowRadius:    24,
+    elevation:       12,
+  },
+
+  /* Brand */
+  brand:      { alignItems: 'center' },
+  logoCircle: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: C.goldSoft, borderWidth: 1, borderColor: '#E3D3B1',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
+  brandName: { color: C.ink, fontSize: 20, fontWeight: '900', letterSpacing: 3.5 },
+  brandSub:  { color: C.gold, fontSize: 7, fontWeight: '800', letterSpacing: 1.5, marginTop: 3 },
+
+  divider: {
+    width: 30, height: 3, borderRadius: 2,
+    backgroundColor: C.gold, alignSelf: 'center',
+    marginTop: 14, marginBottom: 16,
+  },
+
+  /* Step indicator */
+  stepRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  stepItem: { alignItems: 'center' },
+  stepCircle: {
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepCircleActive: { backgroundColor: C.gold,    borderColor: C.gold },
+  stepCircleDone:   { backgroundColor: C.ink,     borderColor: C.ink  },
+  stepNum:    { color: C.inkLight,  fontSize: 10, fontWeight: '800' },
+  stepNumOn:  { color: C.white },
+  stepLbl:    { color: C.inkLight, fontSize: 8, fontWeight: '700', marginTop: 4 },
+  stepLblActive: { color: C.gold },
+  stepLblDone:   { color: C.inkMid },
+  stepLine:     { width: 44, height: 1.5, backgroundColor: C.border,    marginHorizontal: 8, marginBottom: 16 },
+  stepLineDone: { backgroundColor: C.ink },
+
+  /* Titles */
+  title: { color: C.ink, fontSize: 22, fontWeight: '800', textAlign: 'center', letterSpacing: -0.4, marginBottom: 6 },
+  desc:  { color: C.inkMid, fontSize: 11, lineHeight: 16, textAlign: 'center', marginBottom: 18, marginHorizontal: 8 },
+
+  /* Field */
+  fieldWrap: { marginBottom: 10 },
+  label:     { color: C.inkMid, fontSize: 9, fontWeight: '800', letterSpacing: 1.2, marginBottom: 5 },
+  inputBox: {
+    minHeight: 47, backgroundColor: C.card, borderWidth: 1.3, borderColor: C.border,
+    borderRadius: 10, flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
+  },
+  input: {
+    flex: 1, color: C.ink, fontSize: 13.5,
+    paddingHorizontal: 13, paddingVertical: Platform.OS === 'ios' ? 13 : 9,
+  },
+  eye:    { position: 'absolute', right: 10, padding: 6 },
+  errRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  errTxt: { color: C.error, fontSize: 10 },
+
+  row: { flexDirection: 'row', gap: 10 },
+
+  /* Gender */
+  genderRow:       { flexDirection: 'row', gap: 7 },
+  genderBtn:       { flex: 1, height: 43, borderWidth: 1.3, borderColor: C.border, borderRadius: 9, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  genderBtnActive: { backgroundColor: C.ink, borderColor: C.ink },
+  genderTxt:       { color: C.inkMid, fontSize: 11.5, fontWeight: '700' },
+  genderTxtActive: { color: C.white },
+
+  /* Profile photo */
+  photoSection: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 10, borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, backgroundColor: '#FCFAF6', marginBottom: 14,
+  },
+  avatarWrap:    { width: 74, height: 74, position: 'relative', marginRight: 13 },
+  avatar:        { width: 74, height: 74, borderRadius: 37, borderWidth: 2, borderColor: C.gold, backgroundColor: C.goldSoft },
+  avatarFallback:{ width: 74, height: 74, borderRadius: 37, backgroundColor: C.goldSoft, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  cameraBtn:     { position: 'absolute', right: -3, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: C.ink, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  photoTitle:    { color: C.ink, fontSize: 12, fontWeight: '800', marginBottom: 3 },
+  photoDesc:     { color: C.inkLight, fontSize: 9.5, lineHeight: 14, marginBottom: 7 },
+  photoActions:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  photoBtn:      { height: 30, paddingHorizontal: 10, borderRadius: 7, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  photoBtnTxt:   { color: C.ink, fontSize: 9.5, fontWeight: '800' },
+  removeBtn:     { height: 30, paddingHorizontal: 9, borderRadius: 7, backgroundColor: C.errorLight, borderWidth: 1, borderColor: '#F0D4D0', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  removeBtnTxt:  { color: C.error, fontSize: 9.5, fontWeight: '800' },
+
+  /* Terms */
+  termsRow:    { flexDirection: 'row', alignItems: 'center' },
+  checkbox:    { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
+  checkboxOn:  { backgroundColor: C.gold, borderColor: C.gold },
+  checkboxErr: { borderColor: C.error },
+  termsTxt:    { color: C.inkMid, fontSize: 10.5, flexShrink: 1 },
+  termsLink:   { color: C.gold, fontWeight: '800', textDecorationLine: 'underline' },
+
+  /* Buttons */
+  primaryBtn: {
+    height: 49, borderRadius: 10, backgroundColor: C.ink,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.17, shadowRadius: 8, elevation: 4,
+  },
+  primaryBtnDisabled: { opacity: 0.55 },
+  primaryBtnTxt:      { color: C.white, fontSize: 13, fontWeight: '800', letterSpacing: 0.2 },
+  backBtn:     { height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 2 },
+  backBtnTxt:  { color: C.inkMid, fontSize: 10.5, fontWeight: '700' },
+
+  /* Footer */
+  footer:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderTopWidth: 1, borderTopColor: C.border, marginTop: 16, paddingTop: 14 },
+  footerTxt:  { color: C.inkMid, fontSize: 10.5 },
+  footerLink: { color: C.gold, fontSize: 10.5, fontWeight: '900', marginLeft: 5 },
+
+  /* Security */
+  security:    { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 12 },
+  securityTxt: { color: C.inkLight, fontSize: 8.5 },
+});

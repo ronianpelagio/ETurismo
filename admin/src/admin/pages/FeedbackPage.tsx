@@ -186,7 +186,18 @@ export default function FeedbackPage() {
       if (filter.visitType) query = query.eq("visit_type", filter.visitType);
 
       const { data, error: qErr } = await query;
-      if (qErr) throw qErr;
+      if (qErr) {
+        // Surface the full Supabase error so RLS rejections are immediately visible
+        const detail = [
+          qErr.message,
+          qErr.code ? `code: ${qErr.code}` : null,
+          (qErr as any).hint ? `hint: ${(qErr as any).hint}` : null,
+          (qErr as any).details ? `details: ${(qErr as any).details}` : null,
+        ]
+          .filter(Boolean)
+          .join(' — ');
+        throw new Error(detail);
+      }
 
       const allRows = (data ?? []) as TourFeedbackRow[];
 
@@ -205,7 +216,8 @@ export default function FeedbackPage() {
       setSummary({ total, avgRating, recommendPct, last7d });
       setRows(allRows);
     } catch (err: any) {
-      setError(err?.message || "Unable to load feedback.");
+      console.error('[FeedbackPage] fetch error:', err);
+      setError(err?.message || "Unable to load feedback. Check the browser console for details.");
     } finally {
       setLoading(false);
     }
