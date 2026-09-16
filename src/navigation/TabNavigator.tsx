@@ -9,11 +9,11 @@ import {
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../context/ThemeContext';
 import { AppTheme } from '../constants/themes';
+import AdaptiveGlassView from '../components/AdaptiveGlassView';
 
 // Screens
 import Home from '../screens/main/Home';
@@ -75,27 +75,18 @@ export default function TabNavigator() {
   const effectiveNavbarVisible = navbarVisible;
 
   const navbarTranslate = useRef(new Animated.Value(0)).current;
-  const navbarOpacity = useRef(new Animated.Value(1)).current;
 
   // ─────────────────────────────
   // NAVBAR ANIMATION
   // ─────────────────────────────
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(navbarTranslate, {
-        toValue: effectiveNavbarVisible ? 0 : 120,
-        duration: 320,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(navbarOpacity, {
-        toValue: effectiveNavbarVisible ? 1 : 0,
-        duration: 220,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [effectiveNavbarVisible]);
+    Animated.timing(navbarTranslate, {
+      toValue: effectiveNavbarVisible ? 0 : 120,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [effectiveNavbarVisible, navbarTranslate]);
 
   // ─────────────────────────────
   // NAVIGATION
@@ -126,18 +117,18 @@ export default function TabNavigator() {
               styles.navWrapper,
               {
                 bottom: insets.bottom > 0 ? insets.bottom + 8 : 18,
-                opacity: navbarOpacity,
                 transform: [{ translateY: navbarTranslate }],
               },
             ]}
           >
-            <BlurView
-              intensity={35}
-              tint="light"
+            <AdaptiveGlassView
+              colorScheme="light"
+              tintColor={colors.goldSoft}
+              interactive
+              fallbackIntensity={60}
               style={[
                 styles.navbar,
                 {
-                  backgroundColor: colors.surface,
                   borderColor: colors.border,
                   shadowColor: colors.shadow,
                 },
@@ -146,7 +137,7 @@ export default function TabNavigator() {
               <TabItem colors={colors} label={TABS[0].label} activeIcon={TABS[0].activeIcon} inactiveIcon={TABS[0].inactiveIcon} focused={index === 0} onPress={() => goToPage(0)} />
               <View style={{ width: 80 }} />
               <TabItem colors={colors} label={TABS[1].label} activeIcon={TABS[1].activeIcon} inactiveIcon={TABS[1].inactiveIcon} focused={index === 2} onPress={() => goToPage(2)} />
-            </BlurView>
+            </AdaptiveGlassView>
             <TouchableOpacity
               activeOpacity={0.9}
               style={[

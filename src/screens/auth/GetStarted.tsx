@@ -32,7 +32,8 @@ const PAGES = [
     eyebrow: 'Sacred Spaces',
     title: 'Explore\nSacred Places',
     sub: 'Discover churches, artifacts, and heritage sites from anywhere in the world.',
-    image: require('../../assets/1.jpeg'),
+    image: require('../../assets/onboarding-sacred-places.jpg'),
+    imageAlt: 'A traveler approaching a historic Philippine stone church at sunrise',
     icon: 'compass' as const,
     accent: '#C9A84C',
   },
@@ -40,7 +41,8 @@ const PAGES = [
     eyebrow: 'Living History',
     title: 'Journey\nThrough Time',
     sub: 'Walk through centuries of culture, tradition, and spirituality preserved for you.',
-    image: require('../../assets/Signin.jpg'),
+    image: require('../../assets/onboarding-living-history.jpg'),
+    imageAlt: 'A visitor studying preserved artifacts inside a Philippine heritage museum',
     icon: 'clock' as const,
     accent: '#A07840',
   },
@@ -48,7 +50,8 @@ const PAGES = [
     eyebrow: 'Digital Artifacts',
     title: 'Experience\nDigital Museum',
     sub: 'View artifacts up close with detailed descriptions and immersive audio guides.',
-    image: require('../../assets/Etorismo.png'),
+    image: require('../../assets/onboarding-digital-museum.jpg'),
+    imageAlt: 'A visitor using a phone and audio guide to explore a museum artifact',
     icon: 'cpu' as const,
     accent: '#C9A84C',
   },
@@ -233,7 +236,7 @@ export default function GetStarted({ onOnboardingComplete }: any) {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
 
       <LinearGradient
         colors={[C.bg, C.surface]}
@@ -298,6 +301,8 @@ export default function GetStarted({ onOnboardingComplete }: any) {
                     source={p.image}
                     style={[styles.image, { transform: [{ translateX }] }]}
                     resizeMode="cover"
+                    accessible
+                    accessibilityLabel={p.imageAlt}
                   />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.25)', p.accent + 'CC']}
@@ -478,7 +483,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.13, shadowRadius: 28, elevation: 12,
   },
   image:        { width: '110%', height: '100%', marginLeft: '-5%' as any },
-  imageOverlay: { ...StyleSheet.absoluteFillObject },
+  imageOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   imageFrame: {
     position: 'absolute', top: 12, left: 12, right: 12, bottom: 12,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 20,

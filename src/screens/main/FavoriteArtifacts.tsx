@@ -374,7 +374,7 @@ function ArtifactDetailModal({
   return (
     <Modal visible={!!artifact} transparent animationType="none">
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleClose} />
         <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
           <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
             <View style={styles.closeBtnCircle}>
@@ -513,8 +513,8 @@ export default function FavoriteArtifacts({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>

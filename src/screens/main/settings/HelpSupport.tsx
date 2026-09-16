@@ -6,8 +6,7 @@ import SettingsPageShell, { settingsPalette } from '../../../features/settings/c
 import { SectionLabel } from '../../../features/settings/components/PreferenceCard';
 
 const FAQS = [
-  { question: 'How do I save artifacts?', answer: 'Open an artifact and tap the bookmark icon. You can find it again from your profile collection.' },
-  { question: 'How do I mark favorites?', answer: 'Tap the heart icon on an artifact. Favorites stay separate from your general saved collection.' },
+  { question: 'How do I favorite artifacts?', answer: 'Open an artifact and tap the heart icon. You can find it again under Favorite Artifacts on your profile.' },
   { question: 'Can I listen in different languages?', answer: 'Yes. Available artifact guides can be played in English, Filipino, Japanese, Spanish, and Korean.' },
   { question: 'How do I scan a QR code?', answer: 'Tap the raised Scan button in the main navigation, allow camera access, and place the museum QR code inside the frame.' },
 ];

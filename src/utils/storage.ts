@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const LEGACY_SAVED_ARTIFACTS_KEY = 'savedArtifacts';
+
 export const STORAGE_KEYS = {
-  savedArtifacts:    'savedArtifacts',
   favoriteArtifacts: 'favoriteArtifacts',
   interestedEvents:  'interestedEvents',
   cachedArtifacts:   'cachedArtifacts',
   visitHistory:      'visitHistory',
-  artifactRatings:   'artifactRatings',
   artifactComments:  'artifactComments',
   tourFeedback:      'tourFeedback',
 } as const;
@@ -38,21 +38,6 @@ export async function clearVisitHistory(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.visitHistory);
 }
 
-// ── Ratings ───────────────────────────────────────────────────────────────────
-export type RatingsMap = Record<string, number>; // artifactId -> 1..5
-
-export async function getRatings(): Promise<RatingsMap> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.artifactRatings);
-  return (safeParseJson<RatingsMap>(raw)) || {};
-}
-
-export async function setRating(artifactId: string, stars: number): Promise<RatingsMap> {
-  const map = await getRatings();
-  map[artifactId] = stars;
-  await AsyncStorage.setItem(STORAGE_KEYS.artifactRatings, JSON.stringify(map));
-  return map;
-}
-
 // ── Comments ──────────────────────────────────────────────────────────────────
 export type CommentsMap = Record<string, string>; // artifactId -> comment text
 
@@ -82,7 +67,20 @@ function safeParseJson<T>(value: string | null): T | null {
 export async function getStringArray(key: string): Promise<string[]> {
   const stored = await AsyncStorage.getItem(key);
   const parsed = safeParseJson<string[]>(stored);
-  return Array.isArray(parsed) ? parsed : [];
+  const current = Array.isArray(parsed) ? parsed : [];
+
+  if (key === STORAGE_KEYS.favoriteArtifacts) {
+    const legacyStored = await AsyncStorage.getItem(LEGACY_SAVED_ARTIFACTS_KEY);
+    const legacy = safeParseJson<string[]>(legacyStored);
+    if (Array.isArray(legacy)) {
+      const merged = Array.from(new Set([...current, ...legacy]));
+      await AsyncStorage.setItem(STORAGE_KEYS.favoriteArtifacts, JSON.stringify(merged));
+      await AsyncStorage.removeItem(LEGACY_SAVED_ARTIFACTS_KEY);
+      return merged;
+    }
+  }
+
+  return current;
 }
 
 export async function setStringArray(key: string, value: string[]): Promise<void> {
@@ -103,7 +101,7 @@ export type VisitType = 'solo' | 'couple' | 'family' | 'group' | 'school';
 export type TourFeedback = {
   id: string;                   // uuid generated client-side
   userId?: string;              // Supabase auth uid (optional – anonymous allowed)
-  overallRating: number;        // 1–5 stars
+  overallRating: number;        // 1–5 stars for the completed tour
   visitType: VisitType;
   heardFrom: string[];          // multi-select: 'social_media','friend','flyer','hotel','other'
   highlights: string;           // free-text: favourite part of the tour
@@ -123,4 +121,3 @@ export async function getTourFeedbackList(): Promise<TourFeedback[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.tourFeedback);
   return safeParseJson<TourFeedback[]>(raw) ?? [];
 }
-

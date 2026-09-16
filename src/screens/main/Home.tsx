@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { supabase } from '../../services/supabase';
-import { STORAGE_KEYS, toggleInStringArray, getStringArray, logVisit, getRatings, setRating, RatingsMap } from '../../utils/storage';
+import { STORAGE_KEYS, toggleInStringArray, getStringArray, logVisit } from '../../utils/storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useAppContext } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -160,7 +160,7 @@ function WelcomeModal({ name, onClose }: { name: string; onClose: () => void }) 
           {/* Feature highlights */}
           {[
             { icon: 'scan-outline',     text: 'Scan QR codes on artifacts to learn their story' },
-            { icon: 'bookmark-outline', text: 'Save your favourite artifacts for later' },
+            { icon: 'heart-outline',    text: 'Keep your favourite artifacts close at hand' },
             { icon: 'headset-outline',  text: 'Listen to multilingual audio guides' },
           ].map((f, i) => (
             <View key={i} style={{
@@ -245,8 +245,8 @@ function CountBadge({ count }: { count: number }) {
 }
 
 // ─── Artifact Card ───────────────────────────────────────────────────────────────
-function ArtifactCard({ item, width, onPress, isSaved, index }: {
-  item: Artifact; width: number; onPress: () => void; isSaved?: boolean; index: number;
+function ArtifactCard({ item, width, onPress, isFavorite, index }: {
+  item: Artifact; width: number; onPress: () => void; isFavorite?: boolean; index: number;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -264,7 +264,7 @@ function ArtifactCard({ item, width, onPress, isSaved, index }: {
         style={styles.card} onPress={onPress} activeOpacity={1}
         accessible
         accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.category}${isSaved ? ', saved' : ''}`}
+        accessibilityLabel={`${item.name}, ${item.category}${isFavorite ? ', favorite' : ''}`}
         accessibilityHint="Opens artifact details"
         onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, tension: 300, friction: 12 }).start()}
         onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 12 }).start()}
@@ -282,9 +282,9 @@ function ArtifactCard({ item, width, onPress, isSaved, index }: {
             {item.is_exhibition && (
               <View style={styles.cardLivePill}><View style={styles.cardLiveDot} /></View>
             )}
-            {isSaved && (
+            {isFavorite && (
               <View style={[styles.cardMicroBadge, { backgroundColor: 'rgba(201,168,76,0.9)' }]}>
-                <Ionicons name="bookmark" size={9} color="#fff" />
+                <Ionicons name="heart" size={9} color="#fff" />
               </View>
             )}
           </View>
@@ -697,8 +697,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     setSelectedLanguage(appLanguage);
   }, [appLanguage]);
   const [audioDuration, setAudioDuration] = useState<number>(60);
-  const [savedArtifactIds, setSavedArtifactIds] = useState<string[]>([]);
-  const [modalIsSaved, setModalIsSaved] = useState(false);
+  const [favoriteArtifactIds, setFavoriteArtifactIds] = useState<string[]>([]);
+  const [modalIsFavorite, setModalIsFavorite] = useState(false);
   const [interestedIds, setInterestedIds] = useState<string[]>([]);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [hasUnreadFeed, setHasUnreadFeed] = useState(false);
@@ -710,10 +710,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [spotlightIndex, setSpotlightIndex] = useState(0);
   const spotlightFade = useRef(new Animated.Value(1)).current;
 
-  // ── Offline / ratings / comments state ──
+  // ── Offline state ──
   const [isOffline, setIsOffline] = useState(false);
-  const [ratingsMap, setRatingsMap] = useState<RatingsMap>({});
-  const [ratingDraft, setRatingDraft] = useState(0);
 
   // ── Map state ──
   const MUSEUM_LOCATION = { latitude: 14.016902, longitude: 121.402152 };
@@ -831,14 +829,12 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
   useEffect(() => {
     if (selectedArtifact) {
-      setModalIsSaved(savedArtifactIds.includes(selectedArtifact.id));
+      setModalIsFavorite(favoriteArtifactIds.includes(selectedArtifact.id));
       setSelectedLanguage(appLanguage);
       setDescExpanded(false);
       setLangRowOpen(false);
       setPlaybackRate(1);
       resetHighlight();
-      // Seed draft from saved values
-      setRatingDraft(ratingsMap[selectedArtifact.id] || 0);
       // Log visit
       logVisit({
         artifactId:   selectedArtifact.id,
@@ -860,12 +856,10 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
   // ── Storage ──
   async function loadStorage() {
-    const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
+    const favorites = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
     const interested = await getStringArray(STORAGE_KEYS.interestedEvents);
-    setSavedArtifactIds(saved);
+    setFavoriteArtifactIds(favorites);
     setInterestedIds(interested);
-    const [rm] = await Promise.all([getRatings()]);
-    setRatingsMap(rm);
     try {
       const rs = await AsyncStorage.getItem('recentSearches');
       if (rs) setRecentSearches(JSON.parse(rs));
@@ -1056,11 +1050,11 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     ]).start(() => setShowProfileSheet(false));
   }
 
-  async function toggleModalSave() {
+  async function toggleModalFavorite() {
     if (!selectedArtifact) return;
-    const updated = await toggleInStringArray(STORAGE_KEYS.savedArtifacts, selectedArtifact.id);
-    setSavedArtifactIds(updated);
-    setModalIsSaved(updated.includes(selectedArtifact.id));
+    const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, selectedArtifact.id);
+    setFavoriteArtifactIds(updated);
+    setModalIsFavorite(updated.includes(selectedArtifact.id));
   }
 
   // ── Share artifact with image + link ─────────────────────────────────────────
@@ -1302,7 +1296,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, styles.centerScreen]} edges={['top']}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <StatusBar style="dark" />
           <View style={styles.loadingOrb}>
             <Ionicons name="sparkles" size={28} color={C.gold} />
           </View>
@@ -1321,7 +1315,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   if (error) {
     return (
       <SafeAreaView style={[styles.safe, styles.centerScreen]} edges={['top']}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <StatusBar style="dark" />
         <View style={styles.errorInner}>
           <View style={styles.loadingOrb}>
             <Ionicons name="cloud-offline-outline" size={28} color={C.gold} />
@@ -1340,7 +1334,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   // ─── Main render ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" />
 
       {showToast && (
         <View style={styles.toastWrapper} pointerEvents="none">
@@ -1357,7 +1351,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 90 }}
+        contentContainerStyle={{ paddingBottom: 90 + insets.bottom }}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
@@ -1419,7 +1413,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
         <HomeSummary
           artifactCount={artifacts.length}
-          savedCount={savedArtifactIds.length}
+          favoriteCount={favoriteArtifactIds.length}
           eventCount={events.length}
           colors={C}
         />
@@ -1558,7 +1552,7 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               <ArtifactCard
                 item={item} width={CARD_WIDTH}
                 onPress={() => setSelectedArtifact(item)}
-                isSaved={savedArtifactIds.includes(item.id)}
+                isFavorite={favoriteArtifactIds.includes(item.id)}
                 index={index}
               />
             )}
@@ -1727,15 +1721,15 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                 </View>
                 <View style={styles.modalActions}>
                   <TouchableOpacity
-                    style={[styles.modalActionBtn, modalIsSaved && styles.modalActionBtnGold]}
-                    onPress={toggleModalSave} activeOpacity={0.75}
+                    style={[styles.modalActionBtn, modalIsFavorite && styles.modalActionBtnGold]}
+                    onPress={toggleModalFavorite} activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel={modalIsSaved ? 'Remove artifact from saved items' : 'Save artifact'}
-                    accessibilityState={{ selected: modalIsSaved }}
+                    accessibilityLabel={modalIsFavorite ? 'Remove artifact from favorites' : 'Add artifact to favorites'}
+                    accessibilityState={{ selected: modalIsFavorite }}
                   >
-                    <Ionicons name={modalIsSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={modalIsSaved ? C.void : C.inkMid} />
-                    <Text style={[styles.modalActionText, modalIsSaved && styles.modalActionTextDark]}>
-                      {modalIsSaved ? 'Saved' : 'Save'}
+                    <Ionicons name={modalIsFavorite ? 'heart' : 'heart-outline'} size={18} color={modalIsFavorite ? C.void : C.inkMid} />
+                    <Text style={[styles.modalActionText, modalIsFavorite && styles.modalActionTextDark]}>
+                      {modalIsFavorite ? 'Favorite' : 'Add favorite'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1973,45 +1967,11 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                   );
                 })()}
               </View>
-              {/* ── Ratings & Comments ── */}
+              {/* ── Community comments ── */}
               <View style={[styles.modalBody, { paddingTop: 0 }]}>
                 <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionLabel}>YOUR RATING</Text>
+                  <Text style={styles.modalSectionLabel}>COMMUNITY NOTES</Text>
                   <View style={styles.modalSectionUnderline} />
-                  {/* Star row */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <TouchableOpacity
-                        key={star}
-                        onPress={async () => {
-                          const newVal = ratingDraft === star ? 0 : star;
-                          setRatingDraft(newVal);
-                          const updated = await setRating(selectedArtifact.id, newVal);
-                          setRatingsMap(updated);
-                        }}
-                        activeOpacity={0.7}
-                        style={{ padding: 4 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${star} star${star === 1 ? '' : 's'}`}
-                        accessibilityState={{ selected: ratingDraft === star }}
-                      >
-                        <Ionicons
-                          name={star <= ratingDraft ? 'star' : 'star-outline'}
-                          size={28}
-                          color={star <= ratingDraft ? C.gold : C.inkDim}
-                        />
-                      </TouchableOpacity>
-                    ))}
-                    {ratingDraft > 0 && (
-                      <View style={{ justifyContent: 'center', marginLeft: 4 }}>
-                        <Text style={{ fontSize: 12, color: C.gold, fontWeight: '700' }}>
-                          {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][ratingDraft]}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Community comments */}
                   <ArtifactComments
                     artifactId={selectedArtifact.id}
                     currentUserId={user?.id ?? null}
@@ -2100,8 +2060,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               <Text style={styles.profileSheetEmail}>{user?.email}</Text>
               <View style={styles.profileSheetStats}>
                 <View style={styles.profileSheetStat}>
-                  <Text style={styles.profileSheetStatVal}>{savedArtifactIds.length}</Text>
-                  <Text style={styles.profileSheetStatLbl}>Saved</Text>
+                  <Text style={styles.profileSheetStatVal}>{favoriteArtifactIds.length}</Text>
+                  <Text style={styles.profileSheetStatLbl}>Favorites</Text>
                 </View>
                 <View style={styles.profileSheetStatDiv} />
                 <View style={styles.profileSheetStat}>
@@ -2407,7 +2367,11 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               <Ionicons name="close" size={18} color={C.inkMid} />
             </TouchableOpacity>
 
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+            >
               {/* ── Header ── */}
               <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24 }}>
                 <Text style={{ fontSize: 9, letterSpacing: 3, color: C.gold, fontWeight: '800', marginBottom: 6 }}>
