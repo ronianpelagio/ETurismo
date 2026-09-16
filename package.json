@@ -82,6 +82,11 @@
         "react-native-reanimated",
         "react-native-worklets"
       ]
+    },
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": true
+      }
     }
   }
 }

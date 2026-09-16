@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "eTURISMO",
+    "name": "ETurismo",
     "slug": "eTURISMO",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./src/assets/app-icon.png",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./src/assets/icon.png",
+      "image": "./src/assets/app-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFDF8"
     },
     "ios": {
       "supportsTablet": true,

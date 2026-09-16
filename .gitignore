@@ -5,9 +5,11 @@ node_modules/
 # Expo local state (machine-specific, should not be committed)
 .expo/
 
+# Expo Prebuild generates native projects for local and EAS builds.
+/android/
+/ios/
+
 # Build outputs
-android/build/
-ios/build/
 dist/
 
 # Environment variables
