@@ -1,4 +1,4 @@
-import './global.css'; // Required by NativeWind v4 — must be the first import
+import './global.css'; 
 
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
