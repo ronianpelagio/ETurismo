@@ -89,8 +89,8 @@ export default function SettingsPageShell({
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation?.goBack()}

@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming,
@@ -134,7 +133,6 @@ function ExpiredScreen({ onResend, onChangeEmail }: {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function VerifyOTP({ route, navigation }: any) {
-  const insets = useSafeAreaInsets();
   const { email } = route.params as { email: string };
 
   const [code, setCode]         = useState('');
@@ -287,7 +285,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {status === 'success' && (
         // AuthNavigator's onAuthStateChange handles navigation automatically
@@ -305,14 +303,11 @@ export default function VerifyOTP({ route, navigation }: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <TouchableOpacity
-          style={[styles.back, { paddingTop: insets.top + 16 }]}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={22} color={C.ink} />
         </TouchableOpacity>
 
-        <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+        <View style={styles.content}>
           <Animated.View entering={ZoomIn.springify()} style={styles.iconWrap}>
             <Icon name="mail-outline" size={32} color={C.gold} />
           </Animated.View>
@@ -512,7 +507,7 @@ const styles = StyleSheet.create({
   resendDisabled: { color: C.inkLight },
 
   overlay: {
-    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(26,22,18,0.55)',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 99, padding: 28,

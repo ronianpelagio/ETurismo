@@ -14,6 +14,7 @@ import HelpSupport from '../screens/main/settings/HelpSupport';
 import Terms from '../screens/main/settings/Terms';
 import Privacy from '../screens/main/settings/Privacy';
 import VisitInfo from '../screens/main/settings/VisitInfo';
+import SavedArtifacts from '../screens/main/SavedArtifacts';
 import FavoriteArtifacts from '../screens/main/FavoriteArtifacts';
 import CollectionPage from '../screens/main/CollectionPage';
 import VisitHistory from '../screens/main/VisitHistory';
@@ -51,6 +52,16 @@ export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?:
       <Stack.Screen name="VisitInfo" component={VisitInfo} />
 
       <Stack.Screen name="VisitHistory" component={VisitHistory} />
+
+      <Stack.Screen
+        name="SavedArtifacts"
+        children={(props) => (
+          <SavedArtifacts
+            {...props}
+            onBack={() => props.navigation.goBack()}
+          />
+        )}
+      />
 
       <Stack.Screen
         name="FavoriteArtifacts"

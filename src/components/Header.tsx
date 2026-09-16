@@ -213,7 +213,7 @@ export default function Header({
   if (variant === 'transparent') {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style="light" translucent backgroundColor="transparent" />
         <HeaderContent />
       </>
     );

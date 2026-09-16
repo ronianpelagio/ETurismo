@@ -137,7 +137,7 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     opacity: 0.5,
   },
   lockOverlay: {
-    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(26,22,18,0.3)',
@@ -873,7 +873,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>

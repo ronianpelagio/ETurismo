@@ -6,7 +6,7 @@ ETurismo is a museum guide platform composed of an Expo/React Native visitor app
 
 - Artifact browsing and QR-code scanning
 - Multilingual descriptions and audio guides
-- Favourites, visit history, rated tour feedback, and community comments
+- Saved items, favourites, visit history, ratings, and comments
 - Museum announcements, events, visitor feedback, and analytics
 - Responsive administration dashboard
 

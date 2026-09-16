@@ -6,6 +6,12 @@
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./src/assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -28,28 +34,13 @@
         "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "package": "com.ronian.eturismo",
+      "edgeToEdgeEnabled": true,
       "config": {}
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-splash-screen",
-        {
-          "image": "./src/assets/icon.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-navigation-bar",
-        {
-          "enforceContrast": true,
-          "hidden": false,
-          "style": "light"
-        }
-      ],
       "expo-secure-store",
       "expo-font",
       "expo-web-browser",

@@ -4,7 +4,7 @@ import {
   TextInput, Image, Alert, ActivityIndicator, Animated, Keyboard,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,7 +36,6 @@ type UserProfile = {
 };
 
 export default function Profile({ navigation, setNavbarVisible }: any) {
-  const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const C = buildC(theme);
   const { fontScale } = useAppContext();
@@ -44,7 +43,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
   const [user, setUser]           = useState<UserProfile | null>(null);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
-  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
 
   // Editable fields
   const [firstName, setFirstName] = useState('');
@@ -87,8 +86,8 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
 
   async function fetchCounts() {
     try {
-      const favorites = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
-      setFavoriteCount(favorites.length);
+      const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
+      setSavedCount(saved.length);
     } catch {}
   }
 
@@ -223,7 +222,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       borderWidth: 2.5, borderColor: '#1E1B17',
     },
     avatarUploadOverlay: {
-      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 52,
+      ...StyleSheet.absoluteFillObject as any, borderRadius: 52,
       backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center',
     },
 
@@ -301,7 +300,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar style="light" />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {/* ── Save feedback toast ── */}
       <Animated.View style={[s.feedbackToast, { opacity: feedbackAnim }]} pointerEvents="none">
@@ -317,7 +316,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: 90 + insets.bottom }]}
+        contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
       >
         {/* ══════════════════════════════
@@ -327,7 +326,7 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
           <LinearGradient
             colors={['#1E1B17', '#2C2720', '#3A3228']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
+            style={StyleSheet.absoluteFillObject}
           />
           <View style={s.heroOrb1} />
           <View style={s.heroOrb2} />
@@ -400,10 +399,10 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
         <View style={s.statsRow}>
           <View style={s.statCell}>
             <View style={s.statIconBox}>
-              <Ionicons name="heart-outline" size={16} color={C.gold} />
+              <Ionicons name="bookmark-outline" size={16} color={C.gold} />
             </View>
-            <Text style={s.statNum}>{favoriteCount}</Text>
-            <Text style={s.statLbl}>FAVORITES</Text>
+            <Text style={s.statNum}>{savedCount}</Text>
+            <Text style={s.statLbl}>SAVED</Text>
           </View>
           <View style={s.statDivider} />
           <View style={s.statCell}>
@@ -514,9 +513,15 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
           </View>
           <View style={s.menuCard}>
             <MenuRow
+              icon="bookmark" label="Saved Artifacts"
+              sub={savedCount > 0 ? `${savedCount} artifact${savedCount !== 1 ? 's' : ''} bookmarked` : 'Nothing saved yet'}
+              badge={savedCount || undefined}
+              onPress={() => navigation?.navigate?.('SavedArtifacts')}
+              C={C}
+            />
+            <MenuRow
               icon="heart" label="Favorite Artifacts"
-              sub={favoriteCount > 0 ? `${favoriteCount} favorite artifact${favoriteCount !== 1 ? 's' : ''}` : 'No favorites yet'}
-              badge={favoriteCount || undefined}
+              sub="Artifacts you've marked as favorite"
               onPress={() => navigation?.navigate?.('FavoriteArtifacts')}
               C={C}
             />

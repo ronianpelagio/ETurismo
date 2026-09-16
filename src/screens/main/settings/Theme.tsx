@@ -67,8 +67,8 @@ export default function Theme({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: currentPreview.bg }]} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.safe, { backgroundColor: currentPreview.bg }]} edges={['top']}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView 
           showsVerticalScrollIndicator={false} 
