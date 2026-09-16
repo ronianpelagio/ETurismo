@@ -1,12 +1,9 @@
 export const ARTIFACT_CATEGORIES = [
   "Sacred Vessels",
-  "Liturgical Books",
   "Vestments",
   "Altar Furnishings",
   "Devotional Objects",
   "Sacramentals",
-  "Musical Instruments",
-  "Architectural and Decorative Elements",
 ] as const;
 
 export const ARTIFACT_LANGUAGES = [
