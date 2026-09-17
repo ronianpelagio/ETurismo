@@ -13,6 +13,7 @@
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "scheme": "com.ronian.eturismo",
     "ios": {
       "supportsTablet": true,

@@ -23,14 +23,9 @@ test('injects the Google Maps key only when configured', () => {
   }
 });
 
-test('passes the Google Maps key into committed Android sources', () => {
-  const manifest = fs.readFileSync(
-    'android/app/src/main/AndroidManifest.xml',
-    'utf8',
-  );
-  const gradle = fs.readFileSync('android/app/build.gradle', 'utf8');
+test('keeps generated native projects out of source control', () => {
+  const gitignore = fs.readFileSync('.gitignore', 'utf8');
 
-  assert.match(manifest, /com\.google\.android\.geo\.API_KEY/);
-  assert.match(manifest, /\$\{googleMapsApiKey\}/);
-  assert.match(gradle, /System\.getenv\("GOOGLE_MAPS_API_KEY"\)/);
+  assert.match(gitignore, /^\/android\/$/m);
+  assert.match(gitignore, /^\/ios\/$/m);
 });
