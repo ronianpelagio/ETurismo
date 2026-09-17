@@ -1,11 +1,19 @@
 {
   "expo": {
-    "name": "eTURISMO",
+    "name": "ETurismo",
     "slug": "eTURISMO",
     "version": "1.0.0",
+    "owner": "ronian2119",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "com.ronian.eturismo",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -16,7 +24,6 @@
         "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to access your location to show directions to the museum."
       }
     },
-    "scheme": "com.ronian.eturismo",
     "android": {
       "permissions": [
         "android.permission.CAMERA",
@@ -83,7 +90,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "d9335acf-6474-4569-b09c-21086e2062bc"
+        "projectId": "d2f73ae5-fb9c-4126-aef3-2bc1ee39f35a"
       }
     }
   }
