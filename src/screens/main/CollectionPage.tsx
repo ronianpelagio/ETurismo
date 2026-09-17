@@ -272,8 +272,8 @@ const CATEGORY_IMAGES: Record<string, string> = {
 
 // ─── Artifact Detail Modal ─────────────────────────────────────────────────────
 function ArtifactModal({
-  artifact, onClose,
-}: { artifact: Artifact | null; onClose: () => void }) {
+  artifact, onClose, onNext,
+}: { artifact: Artifact | null; onClose: () => void; onNext?: () => void }) {
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const [audioGuides, setAudioGuides] = useState<AudioGuide[]>([]);
@@ -512,6 +512,16 @@ function ArtifactModal({
               <TouchableOpacity style={ams.doneBtn} onPress={handleClose} activeOpacity={0.85}>
                 <Text style={ams.doneBtnText}>Close</Text>
               </TouchableOpacity>
+              {onNext && (
+                <TouchableOpacity
+                  onPress={() => { stopAudio(); onNext(); }}
+                  activeOpacity={0.85}
+                  style={[ams.doneBtn, { marginTop: 10, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: C.border }]}
+                >
+                  <Ionicons name="arrow-forward" size={16} color={C.gold} />
+                  <Text style={[ams.doneBtnText, { color: C.gold }]}>Next Artifact</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
         </Animated.View>
@@ -723,6 +733,9 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: C.ink,
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },
@@ -741,78 +754,69 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 // ─── Main Collection Page Component ─────────────────────────────────────────────
 export default function CollectionPage({ onBack }: { onBack: () => void }) {
   const { theme } = useAppTheme(); C = buildC(theme); ams = getAmsStyles(C); styles = getStyles(C);
-  const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
+
+  const [allArtifacts, setAllArtifacts]       = useState<Artifact[]>([]);
   const [scannedArtifactIds, setScannedArtifactIds] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]                 = useState(true);
+  const [fetchError, setFetchError]           = useState<string | null>(null);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
 
-  const allCategories = [
-    'Sacred Vessels',
-    'Vestments',
-    'Altar Furnishings',
-    'Devotional Objects',
-    'Sacramentals',
-  ];
+  const allCategories = ['Sacred Vessels', 'Vestments', 'Altar Furnishings', 'Devotional Objects', 'Sacramentals'];
 
-  // Fetch all artifacts and scanned artifact IDs
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch all artifacts from Supabase
-        const { data: artifacts, error: artifactsError } = await supabase
-          .from('artifacts')
-          .select('*')
-          .order('category', { ascending: true });
+  const fetchData = async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const [artifactsResult, storedRaw] = await Promise.all([
+        supabase.from('artifacts').select('*').order('category', { ascending: true }),
+        AsyncStorage.getItem('scannedArtifacts').catch(() => null),
+      ]);
 
-        if (artifactsError) throw artifactsError;
-        setAllArtifacts(artifacts || []);
+      if (artifactsResult.error) throw artifactsResult.error;
+      setAllArtifacts(artifactsResult.data || []);
 
-        // Load scanned artifact IDs from AsyncStorage
-        const stored = await AsyncStorage.getItem('scannedArtifacts');
-        if (stored) {
-          const scannedArtifacts = JSON.parse(stored);
-          setScannedArtifactIds(scannedArtifacts.map((a: Artifact) => a.id));
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+      if (storedRaw) {
+        try { setScannedArtifactIds(JSON.parse(storedRaw).map((a: Artifact) => a.id)); } catch (_) {}
       }
-    };
+    } catch (error: any) {
+      console.error('CollectionPage fetch error:', error);
+      setFetchError(error?.message ?? 'Failed to load artifacts. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // Filter artifacts by selected category
   const filteredArtifacts = selectedCategory
     ? allArtifacts.filter(a => a.category === selectedCategory)
     : allArtifacts;
 
-  // Check if artifact is scanned
-  const isScanned = (artifactId: string) => scannedArtifactIds.includes(artifactId);
+  const isScanned = (id: string) => scannedArtifactIds.includes(id);
 
-  // Render locked artifact (unscanned)
+  // Navigate to the next artifact in the filtered list
+  const goToNextArtifact = () => {
+    if (!selectedArtifact) return;
+    const idx = filteredArtifacts.findIndex(a => a.id === selectedArtifact.id);
+    const next = filteredArtifacts[idx + 1];
+    if (next) setSelectedArtifact(next);
+  };
+
+  const hasNext = selectedArtifact
+    ? filteredArtifacts.findIndex(a => a.id === selectedArtifact.id) < filteredArtifacts.length - 1
+    : false;
+
   const renderLockedArtifact = (artifact: Artifact) => {
-    const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category]
-      ?? 'https://via.placeholder.com/100?text=Artifact';
-
+    const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/100?text=Artifact';
     return (
       <View style={styles.artifactCardLocked}>
-        {/* Grayscale Image Container */}
         <View style={styles.lockedImageWrapper}>
-          <Image
-            source={{ uri: imgUrl }}
-            style={[styles.artifactImage, styles.grayscaleImage]}
-            resizeMode="cover"
-          />
-          {/* Lock Icon Overlay */}
+          <Image source={{ uri: imgUrl }} style={[styles.artifactImage, styles.grayscaleImage]} resizeMode="cover" />
           <View style={styles.lockOverlay}>
             <Ionicons name="lock-closed" size={24} color={C.surface} />
           </View>
         </View>
-
-        {/* Info Section */}
         <View style={styles.artifactInfoLocked}>
           <Text style={styles.artifactNameLocked} numberOfLines={2}>{artifact.name}</Text>
           <Text style={styles.artifactCategoryLocked}>{artifact.category}</Text>
@@ -822,27 +826,13 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
     );
   };
 
-  // Render unlocked artifact (scanned)
   const renderUnlockedArtifact = (artifact: Artifact) => {
-    const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category]
-      ?? 'https://via.placeholder.com/100?text=Artifact';
-
+    const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/100?text=Artifact';
     return (
-      <TouchableOpacity
-        style={styles.artifactCardUnlocked}
-        onPress={() => setSelectedArtifact(artifact)}
-        activeOpacity={0.7}
-      >
-        {/* Image Container */}
+      <TouchableOpacity style={styles.artifactCardUnlocked} onPress={() => setSelectedArtifact(artifact)} activeOpacity={0.7}>
         <View style={styles.unlockedImageWrapper}>
-          <Image
-            source={{ uri: imgUrl }}
-            style={styles.artifactImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: imgUrl }} style={styles.artifactImage} resizeMode="cover" />
         </View>
-
-        {/* Info Section */}
         <View style={styles.artifactInfoUnlocked}>
           <Text style={styles.artifactNameUnlocked} numberOfLines={2}>{artifact.name}</Text>
           <Text style={styles.artifactCategoryUnlocked}>{artifact.category}</Text>
@@ -865,9 +855,38 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
     );
   }
 
+  if (fetchError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={24} color={C.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.eyebrow}>— Collection</Text>
+            <Text style={styles.title}>My Artifacts</Text>
+            <View style={styles.goldLine} />
+          </View>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color={C.inkLight} />
+          <Text style={styles.emptyText}>{fetchError}</Text>
+          <TouchableOpacity
+            onPress={fetchData}
+            activeOpacity={0.8}
+            style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: C.ink, borderRadius: 50 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
@@ -878,61 +897,35 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
           <Text style={styles.title}>My Artifacts</Text>
           <View style={styles.goldLine} />
         </View>
+        <Text style={{ fontSize: 12, color: C.inkLight, marginLeft: 8 }}>
+          {scannedArtifactIds.length}/{allArtifacts.length}
+        </Text>
       </View>
 
-      {/* Category Filter (Horizontal Scroll) */}
+      {/* Category Filter */}
       <View style={styles.categorySection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryList}
-          scrollEventThrottle={16}
-        >
-          {/* All Categories Button */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
           <TouchableOpacity
-            style={[
-              styles.categoryPill,
-              selectedCategory === null && styles.categoryPillActive,
-            ]}
-            onPress={() => setSelectedCategory(null)}
-            activeOpacity={0.7}
+            style={[styles.categoryPill, selectedCategory === null && styles.categoryPillActive]}
+            onPress={() => setSelectedCategory(null)} activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.categoryPillText,
-                selectedCategory === null && styles.categoryPillTextActive,
-              ]}
-            >
-              All
-            </Text>
+            <Text style={[styles.categoryPillText, selectedCategory === null && styles.categoryPillTextActive]}>All</Text>
           </TouchableOpacity>
-
-          {/* Individual Category Pills */}
-          {allCategories.map((category) => (
+          {allCategories.map(cat => (
             <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryPill,
-                selectedCategory === category && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory(category)}
-              activeOpacity={0.7}
+              key={cat}
+              style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
+              onPress={() => setSelectedCategory(cat)} activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === category && styles.categoryPillTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {category}
+              <Text style={[styles.categoryPillText, selectedCategory === cat && styles.categoryPillTextActive]} numberOfLines={1}>
+                {cat}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* Artifacts Grid/List (Mixed Layout) */}
+      {/* List */}
       {filteredArtifacts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="library-outline" size={48} color={C.inkLight} />
@@ -941,22 +934,40 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       ) : (
         <FlatList
           data={filteredArtifacts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.artifactsList}
-          renderItem={({ item }) =>
-            isScanned(item.id)
-              ? renderUnlockedArtifact(item)
-              : renderLockedArtifact(item)
-          }
+          renderItem={({ item }) => isScanned(item.id) ? renderUnlockedArtifact(item) : renderLockedArtifact(item)}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
         />
+      )}
+
+      {/* Next button bar — same position as QRScanner photo fallback button */}
+      {filteredArtifacts.some(a => isScanned(a.id)) && (
+        <View style={{ paddingHorizontal: 24, paddingBottom: 16, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.border }}>
+          <TouchableOpacity
+            onPress={() => {
+              const nextUnlocked = filteredArtifacts.find(a => isScanned(a.id));
+              if (nextUnlocked) setSelectedArtifact(nextUnlocked);
+            }}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+              borderWidth: 1.5, borderColor: C.border, borderRadius: 50, paddingVertical: 13,
+              backgroundColor: C.surface,
+            }}
+          >
+            <Ionicons name="arrow-forward-circle-outline" size={18} color={C.gold} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: C.gold }}>View Next Artifact</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Artifact Detail Modal */}
       <ArtifactModal
         artifact={selectedArtifact}
         onClose={() => setSelectedArtifact(null)}
+        onNext={hasNext ? goToNextArtifact : undefined}
       />
     </SafeAreaView>
   );
