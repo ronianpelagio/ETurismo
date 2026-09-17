@@ -632,7 +632,7 @@ export default function SignIn({
               </Text>
 
               <Text style={styles.title}>
-                Welcome back
+                
               </Text>
 
               <Text

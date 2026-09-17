@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "9bd86ad3-a4c0-4ec3-86d8-b9903df23d7f"
+      }
+    },
+    "android": {
+      "package": "com.ronian2119.tanstack_start_ts"
+    }
+  }
+}

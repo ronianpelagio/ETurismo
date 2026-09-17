@@ -222,7 +222,7 @@ function WelcomeToast({ name }: { name: string }) {
   return (
     <Animated.View style={[styles.toast, { opacity, transform: [{ scale }, { translateY }] }]}>
       <View style={styles.toastDot} />
-      <Text style={styles.toastText}>Welcome back, <Text style={styles.toastName}>{name}</Text></Text>
+      <Text style={styles.toastText}>Welcome, <Text style={styles.toastName}>{name}</Text></Text>
     </Animated.View>
   );
 }

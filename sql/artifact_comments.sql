@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_comments (
   created_at    timestamptz   NOT NULL DEFAULT now(),
   updated_at    timestamptz   NOT NULL DEFAULT now()
 );
-
+ kiro-cli --resume-id sess_79220cc6-85b3-4a61-98ed-4a87317c95cb
 -- 2. Indexes
 CREATE INDEX IF NOT EXISTS idx_artifact_comments_artifact_id
   ON public.artifact_comments (artifact_id, created_at DESC);
