@@ -3,121 +3,93 @@ import { AppState, AppStateStatus } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import AppIntro   from '../screens/auth/AppIntro';
+import AppIntro from '../screens/auth/AppIntro';
 import GetStarted from '../screens/auth/GetStarted';
-import SignIn     from '../screens/auth/SignIn';
-import SignUp     from '../screens/auth/SignUp';
-import VerifyOTP  from '../screens/auth/VerifyOTP';
+import SignIn from '../screens/auth/SignIn';
+import SignUp from '../screens/auth/SignUp';
+import VerifyOTP from '../screens/auth/VerifyOTP';
 import TabNavigator from './TabNavigator';
-
-import { supabase }       from '../services/supabase';
-import { touchLastSeen }  from '../services/authService';
+import { supabase } from '../services/supabase';
+import { touchLastSeen } from '../services/authService';
 import { finalizePendingProfile } from '../features/auth/services/pendingProfile';
 
-// ─── Storage key ─────────────────────────────────────────────────────────────
-// Stored per-install (AsyncStorage is wiped on uninstall).
-// Once the user completes GetStarted on this install we set this to 'true'
-// and never show it again — regardless of which account is logged in.
 const GET_STARTED_SEEN_KEY = 'get_started_seen';
-
-// ─── Navigator types ──────────────────────────────────────────────────────────
-type Phase =
-  | 'splash'       // AppIntro is playing
-  | 'auth'         // Not logged in → SignIn / SignUp / VerifyOTP
-  | 'getstarted'   // Logged in, first install → GetStarted
-  | 'main';        // Logged in, GetStarted done → TabNavigator
-
+type Phase = 'splash' | 'auth' | 'getstarted' | 'main';
 const Stack = createNativeStackNavigator();
 
 export default function AuthNavigator() {
   const [phase, setPhase] = useState<Phase>('splash');
-
-  // Keep a ref so async callbacks always read the latest value
   const phaseRef = useRef<Phase>('splash');
+  const processingUserRef = useRef<string | null>(null);
+
   function transitionTo(next: Phase) {
     phaseRef.current = next;
     setPhase(next);
   }
 
-  // ── On mount: clean up legacy onboarded_ keys & attach auth listener ────────
-  useEffect(() => {
-    let isMounted = true;
+  async function finishSignedInUser(user: any) {
+    if (!user?.id || processingUserRef.current === user.id) return;
+    processingUserRef.current = user.id;
+    try {
+      try {
+        await finalizePendingProfile(user.email ?? '', user.id);
+      } catch (error) {
+        console.warn('Profile setup could not be completed:', error);
+      }
 
-    // Remove any legacy per-user onboarding flags from previous app versions
-    // so existing users are treated the same as fresh installs (requirement #3).
+      try {
+        const meta = user.user_metadata ?? {};
+        const fullName: string = meta.full_name ?? meta.name ?? '';
+        const firstName = meta.first_name || fullName.split(' ')[0] || '';
+        const lastName = meta.last_name || fullName.split(' ').slice(1).join(' ') || '';
+        const avatarUrl = meta.avatar_url ?? meta.picture ?? null;
+        await supabase.from('users').upsert({
+          id: user.id,
+          email: user.email ?? '',
+          first_name: firstName,
+          last_name: lastName,
+          profile_picture: avatarUrl,
+          status: 'active',
+          role: 'user',
+        }, { onConflict: 'id', ignoreDuplicates: false });
+      } catch (error) {
+        console.warn('User row upsert skipped:', error);
+      }
+
+      touchLastSeen(user.id).catch(() => {});
+      const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
+      transitionTo(seen === 'true' ? 'main' : 'getstarted');
+    } finally {
+      processingUserRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
     AsyncStorage.getAllKeys().then(keys => {
       const legacy = keys.filter(k => k.startsWith('onboarded_'));
       if (legacy.length) AsyncStorage.multiRemove(legacy).catch(() => {});
     }).catch(() => {});
-
-    // Also remove the old device-level flag if it exists
     AsyncStorage.removeItem('device_onboarded').catch(() => {});
 
-    // Auth state listener — fires on sign-in / sign-out
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-
-      // Ignore unconfirmed sessions created right after signUp()
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
       if (event === 'SIGNED_IN' && !session?.user?.email_confirmed_at) return;
 
       if (session?.user) {
+        // Important: never await Supabase queries inside onAuthStateChange.
+        // setSession() waits for this callback to finish, so awaiting another
+        // Supabase request here can leave Google OAuth stuck on its spinner.
         const user = session.user;
-
-        // Finish the verified user's profile (email/password signup flow).
-        // For Google OAuth this is a no-op because there is no pending profile.
-        try {
-          await finalizePendingProfile(user.email ?? '', user.id);
-        } catch (error) {
-          console.warn('Profile setup could not be completed:', error);
-          // Don't return — still try to navigate for OAuth users
-        }
-
-        // ── Ensure a users row exists (handles Google OAuth & trigger failures) ──
-        // If the trigger ran correctly the upsert is a no-op. If it didn't fire
-        // (e.g. the trigger was not yet deployed), we create the row here.
-        try {
-          const meta = user.user_metadata ?? {};
-          const fullName: string = meta.full_name ?? meta.name ?? '';
-          const firstName = meta.first_name || fullName.split(' ')[0] || '';
-          const lastName  = meta.last_name  || fullName.split(' ').slice(1).join(' ') || '';
-          const avatarUrl = meta.avatar_url ?? meta.picture ?? null;
-
-          await supabase.from('users').upsert({
-            id:              user.id,
-            email:           user.email ?? '',
-            first_name:      firstName,
-            last_name:       lastName,
-            profile_picture: avatarUrl,
-            status:          'active',
-            role:            'user',
-          }, {
-            onConflict:        'id',
-            ignoreDuplicates:  false,
-          });
-        } catch (upsertErr) {
-          // Non-fatal — the row may already exist with richer data
-          console.warn('User row upsert skipped:', upsertErr);
-        }
-
-        if (!isMounted) return;
-
-        // Stamp last_seen
-        touchLastSeen(user.id).catch(() => {});
-
-        // Check if this install has already seen GetStarted
-        const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
-
-        if (!isMounted) return;
-        transitionTo(seen === 'true' ? 'main' : 'getstarted');
-      } else {
-        // Signed out — go back to auth screens (splash already played)
-        if (phaseRef.current !== 'splash') {
-          transitionTo('auth');
-        }
+        setTimeout(() => {
+          if (mounted) finishSignedInUser(user).catch(error => console.warn('Post-login setup failed:', error));
+        }, 0);
+      } else if (phaseRef.current !== 'splash') {
+        transitionTo('auth');
       }
     });
 
-    // Stamp last_seen when app comes back to foreground
     const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') {
         supabase.auth.getSession().then(({ data }) => {
@@ -128,19 +100,16 @@ export default function AuthNavigator() {
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
       authListener.subscription.unsubscribe();
       appStateSub.remove();
     };
   }, []);
 
-  // ── AppIntro finished ────────────────────────────────────────────────────────
-  // Called by AppIntro once its animation completes (every launch).
   const handleIntroDone = async () => {
     const { data } = await supabase.auth.getSession();
-    const session  = data?.session;
+    const session = data?.session;
     const confirmed = session?.user?.email_confirmed_at ? session : null;
-
     if (confirmed?.user) {
       touchLastSeen(confirmed.user.id).catch(() => {});
       const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
@@ -150,41 +119,24 @@ export default function AuthNavigator() {
     }
   };
 
-  // ── GetStarted finished ──────────────────────────────────────────────────────
   const handleGetStartedDone = async () => {
     await AsyncStorage.setItem(GET_STARTED_SEEN_KEY, 'true').catch(() => {});
     transitionTo('main');
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Stack.Navigator id="AuthStack" screenOptions={{ headerShown: false, animation: 'fade' }}>
       {phase === 'splash' ? (
-        // ── 1. Splash — always first, every launch ───────────────────────────
-        <Stack.Screen name="AppIntro">
-          {(props) => (
-            <AppIntro {...props} onDone={handleIntroDone} />
-          )}
-        </Stack.Screen>
-
+        <Stack.Screen name="AppIntro">{props => <AppIntro {...props} onDone={handleIntroDone} />}</Stack.Screen>
       ) : phase === 'auth' ? (
-        // ── 2. Auth screens — user is not logged in ──────────────────────────
         <>
-          <Stack.Screen name="SignIn"    component={SignIn} />
-          <Stack.Screen name="SignUp"    component={SignUp} />
+          <Stack.Screen name="SignIn" component={SignIn} />
+          <Stack.Screen name="SignUp" component={SignUp} />
           <Stack.Screen name="VerifyOTP" component={VerifyOTP} />
         </>
-
       ) : phase === 'getstarted' ? (
-        // ── 3. GetStarted — logged in, first install ─────────────────────────
-        <Stack.Screen name="GetStarted">
-          {(props) => (
-            <GetStarted {...props} onOnboardingComplete={handleGetStartedDone} />
-          )}
-        </Stack.Screen>
-
+        <Stack.Screen name="GetStarted">{props => <GetStarted {...props} onOnboardingComplete={handleGetStartedDone} />}</Stack.Screen>
       ) : (
-        // ── 4. Main app ──────────────────────────────────────────────────────
         <Stack.Screen name="Main" component={TabNavigator} />
       )}
     </Stack.Navigator>
