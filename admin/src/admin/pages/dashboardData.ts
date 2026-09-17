@@ -160,10 +160,10 @@ export async function fetchDashboardStats(
 
 export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   const rowsResponse = await querySafe(async () => {
-    // users table stores `age` (integer) and `Address` (text) for location breakdown
+    // Read structured location columns instead of the raw Address string
     const { data, error } = await supabase
       .from("users")
-      .select("gender, age, Address");
+      .select("gender, age, country, province, city");
     if (error) throw error;
     return data as Array<Record<string, any>>;
   });
@@ -206,15 +206,18 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
       result.ageGroups.unknown += 1;
     }
 
-    // Bucket address into top locations (normalise to title-case, trim whitespace)
-    const rawAddress = String(row.Address ?? "").trim();
-    if (rawAddress) {
-      // Normalise: "city, province" → "City, Province"
-      const normAddress = rawAddress
-        .split(",")
-        .map((part) => part.trim().replace(/\b\w/g, (c) => c.toUpperCase()))
-        .join(", ");
-      result.locations[normAddress] = (result.locations[normAddress] ?? 0) + 1;
+    // Bucket by country — for Philippines also show province for finer granularity
+    const country  = String(row.country  ?? "").trim();
+    const province = String(row.province ?? "").trim();
+
+    if (country) {
+      // For PH users: show "Philippines – <Province>" when province is available
+      const locationKey =
+        country.toLowerCase() === "philippines" && province
+          ? `Philippines – ${province.replace(/\b\w/g, c => c.toUpperCase())}`
+          : country.replace(/\b\w/g, c => c.toUpperCase());
+
+      result.locations[locationKey] = (result.locations[locationKey] ?? 0) + 1;
     }
   });
 
