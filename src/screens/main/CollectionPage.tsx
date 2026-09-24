@@ -1,14 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, FlatList, Image,
+  Animated, ScrollView, ActivityIndicator, Modal, Dimensions,
+  Platform,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { supabase } from '../../services/supabase';
 import { useAppTheme } from '../../context/ThemeContext';
 import { THEMES } from '../../constants/themes';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
+import { STORAGE_KEYS, getStringArray, toggleInStringArray } from '../../utils/storage';
 
 const { width: W, height: H } = Dimensions.get('window');
 const CARD_W = (W - 48 - 12) / 2; // 2-col grid with 24px side padding + 12px gap
@@ -28,7 +32,7 @@ let C = buildC(THEMES.light);
 type Artifact = {
   id: string; name: string; category: string;
   qr_code: string; qr_value: string; created_at: string;
-  description?: string; image_url?: string; creator?: string; date?: string;
+  description?: string; image_url?: string; creator?: string;
 };
 type ArtifactTranslation = {
   id: string; language_code: string; name: string;
@@ -45,10 +49,16 @@ const CATEGORY_IMAGES: Record<string, string> = {
 };
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?w=600';
 
-// ─── Artifact Detail Bottom-Sheet Modal ──────────────────────────────────────
+// ─── Full-screen artifact detail modal ───────────────────────────────────────
 function ArtifactModal({
-  artifact, onClose, onNext,
-}: { artifact: Artifact | null; onClose: () => void; onNext?: () => void }) {
+  artifact, onClose, onNext, isFavorite, onToggleFavorite,
+}: {
+  artifact: Artifact | null;
+  onClose: () => void;
+  onNext?: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+}) {
   const slideAnim = useRef(new Animated.Value(H)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
@@ -59,17 +69,66 @@ function ArtifactModal({
   const playerRef = useRef<any>(null);
   const subRef    = useRef<any>(null);
 
-  useEffect(()=>{ if(!artifact) return; setLanguage('en'); setTranslations([]); setLoading(true); (async()=>{
-    try { await setAudioModeAsync({allowsRecording:false,playsInSilentMode:true,shouldPlayInBackground:false,interruptionMode:'duckOthers'}); const {data}=await supabase.from('artifact_translations').select('language_code,name,description,audio_url').eq('artifact_id',artifact.id); setTranslations(data||[]); const first=(data||[]).find((x:any)=>x.language_code==='en') || data?.[0]; if(first) setLanguage(first.language_code); } finally { setLoading(false); }
-  })(); return()=>{ try{player.current?.pause?.();player.current?.remove?.();}catch{} player.current=null; }; },[artifact]);
+  useEffect(() => {
+    if (!artifact) return;
+    setTranslations([]); setAudioGuides([]); setSelectedLang('en');
+    loadData(artifact.id);
+    Animated.parallel([
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: true }),
+    ]).start();
+  }, [artifact]);
 
-  if(!artifact) return null;
-  const tr=translations.find(t=>t.language_code===language);
-  const description=tr?.description || artifact.description || 'No description available.';
-  const audio=tr?.audio_url || null;
-  const available=translations.filter(t=>t.description||t.audio_url);
-  const stop=()=>{ try{player.current?.pause?.();player.current?.remove?.();}catch{} player.current=null; setPlaying(false); };
-  const toggleAudio=()=>{ if(playing){stop();return;} if(!audio)return; stop(); const p=createAudioPlayer({uri:audio}) as any; player.current=p; setPlaying(true); p.addListener?.('playbackStatusUpdate',(s:any)=>{if(s.didJustFinish)stop();}); p.play(); };
+  useEffect(() => () => { stopAudio(); }, []);
+
+  async function loadData(id: string) {
+    setLoadingData(true);
+    try {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'duckOthers' });
+      const [{ data: t }, { data: g }] = await Promise.all([
+        supabase.from('artifact_translations').select('id,language_code,name,description,audio_url').eq('artifact_id', id),
+        supabase.from('audio_guides').select('id,artifact_id,audio_url,created_at').eq('artifact_id', id),
+      ]);
+      setTranslations(t || []);
+      setAudioGuides(g || []);
+      if (t && t.length > 0) setSelectedLang(t[0].language_code);
+    } catch (_) {}
+    finally { setLoadingData(false); }
+  }
+
+  async function playAudio(url: string) {
+    await stopAudio();
+    setPlayingUrl(url);
+    const player = createAudioPlayer({ uri: url }) as any;
+    playerRef.current = player;
+    subRef.current = player.addListener('playbackStatusUpdate', (s: any) => {
+      if (s.didJustFinish) { setPlayingUrl(null); subRef.current?.remove(); playerRef.current?.remove?.(); playerRef.current = null; }
+    });
+    player.play();
+  }
+
+  async function stopAudio() {
+    try { if (playerRef.current) { await playerRef.current.pause(); subRef.current?.remove(); playerRef.current.remove?.(); playerRef.current = null; } }
+    catch (_) {}
+    setPlayingUrl(null);
+  }
+
+  const dismiss = () => {
+    stopAudio();
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: H, duration: 320, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => onClose());
+  };
+
+  if (!artifact) return null;
+
+  const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? FALLBACK_IMG;
+  const desc   = translations.find(t => t.language_code === selectedLang)?.description ?? artifact.description ?? 'No description available.';
+  const audioUrl = translations.find(t => t.language_code === selectedLang)?.audio_url ?? audioGuides[0]?.audio_url ?? null;
+  const langs  = translations.filter(t => t.description || t.audio_url);
+
+  const LANG_LABELS: Record<string, string> = { en: 'English', fil: 'Filipino', ja: 'Japanese', es: 'Spanish', ko: 'Korean' };
 
   return (
     <Modal transparent animationType="none" visible={!!artifact} onRequestClose={dismiss} statusBarTranslucent>
@@ -77,18 +136,24 @@ function ArtifactModal({
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={dismiss} activeOpacity={1} />
       </Animated.View>
 
-      <Animated.View style={[ms.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        {/* Handle */}
-        <View style={ms.handle} />
-
-        {/* Hero */}
+      <Animated.View style={[ms.sheet, { transform: [{ translateY: slideAnim }] }]}> 
+        {/* Hero image */}
         <View style={ms.heroWrap}>
-          <Image source={{ uri: imgUrl }} style={ms.heroImg} resizeMode="cover" />
+          <Image source={{ uri: imgUrl }} style={ms.heroImg} resizeMode="contain" />
           <View style={ms.heroScrim} />
-          <View style={ms.catBadge}><Text style={ms.catBadgeText}>{artifact.category}</Text></View>
+
+          <View style={ms.handle} />
+
+          <View style={ms.catBadge}>
+            <Ionicons name="business-outline" size={11} color="#C9A84C" />
+            <Text style={ms.catBadgeText}>{artifact.category}</Text>
+          </View>
           <TouchableOpacity style={ms.closeX} onPress={dismiss} activeOpacity={0.8}>
             <Ionicons name="close" size={18} color="#fff" />
           </TouchableOpacity>
+          <View style={ms.imgCounter}>
+            <Text style={ms.imgCounterText}>1 / 1</Text>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 36 }}>
@@ -97,12 +162,21 @@ function ArtifactModal({
             <View style={{ flex: 1 }}>
               <View style={ms.goldBar} />
               <Text style={ms.name}>{artifact.name}</Text>
-              {(artifact.date || artifact.creator) && (
+              {( artifact.creator) && (
                 <Text style={ms.meta}>
-                  {[artifact.date, artifact.creator].filter(Boolean).join(' · ')}
+                  {artifact.creator}
                 </Text>
               )}
             </View>
+            <TouchableOpacity
+              style={[ms.favoriteBtn, isFavorite && ms.favoriteBtnActive]}
+              onPress={onToggleFavorite}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+            >
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? C.gold : C.inkMid} />
+            </TouchableOpacity>
           </View>
 
           {/* Language pills */}
@@ -178,17 +252,22 @@ const ms = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: '#F7F4EF',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: H * 0.92, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: -6 }, shadowRadius: 20, elevation: 24,
+    maxHeight: H * 0.93,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.28, shadowOffset: { width: 0, height: -6 }, shadowRadius: 22, elevation: 26,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(26,22,18,0.15)', alignSelf: 'center', marginTop: 12, marginBottom: 0 },
-  heroWrap: { width: '100%', height: 260, position: 'relative', backgroundColor: '#0E0C09' },
+  heroWrap: { width: '100%', height: 320, position: 'relative', backgroundColor: '#0E0C09' },
   heroImg:  { width: '100%', height: '100%' },
-  heroScrim:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: 'rgba(10,8,5,0.5)' },
-  catBadge: { position: 'absolute', top: 16, left: 16, backgroundColor: 'rgba(10,8,5,0.75)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
-  catBadgeText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
-  closeX: { position: 'absolute', top: 12, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center' },
-  titleRow: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4 },
+  heroScrim:{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.32)' },
+  handle: { position: 'absolute', top: 10, alignSelf: 'center', left: '50%', marginLeft: -20, width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.55)' },
+  catBadge: { position: 'absolute', top: 16, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,8,5,0.72)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
+  catBadgeText: { fontSize: 12, fontWeight: '700', color: '#C9A84C' },
+  closeX: { position: 'absolute', top: 12, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounter: { position: 'absolute', bottom: 14, right: 16, backgroundColor: 'rgba(10,8,5,0.65)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounterText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 12 },
+  favoriteBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.25)' },
+  favoriteBtnActive: { backgroundColor: 'rgba(201,168,76,0.16)', borderColor: '#C9A84C' },
   goldBar:  { width: 32, height: 3, backgroundColor: '#C9A84C', borderRadius: 2, marginBottom: 10 },
   name:     { fontSize: 26, fontWeight: '900', color: '#1A1612', letterSpacing: -0.6, lineHeight: 32 },
   meta:     { fontSize: 13, color: '#A59C90', marginTop: 4, fontStyle: 'italic' },
@@ -212,28 +291,23 @@ const ms = StyleSheet.create({
 });
 
 // ─── Artifact Card (grid) ─────────────────────────────────────────────────────
-function ArtifactCard({ artifact, scanned, onPress }: { artifact: Artifact; scanned: boolean; onPress: () => void }) {
+function ArtifactCard({ artifact, scanned, favorite, onPress }: { artifact: Artifact; scanned: boolean; favorite: boolean; onPress: () => void }) {
   const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? FALLBACK_IMG;
 
   return (
     <TouchableOpacity
       style={[cs.card, !scanned && cs.cardLocked]}
-      onPress={scanned ? onPress : undefined}
-      activeOpacity={scanned ? 0.75 : 1}
+      onPress={onPress}
+      activeOpacity={0.75}
     >
       {/* Image */}
       <View style={cs.imgWrap}>
         <Image source={{ uri: imgUrl }} style={[cs.img, !scanned && cs.imgGray]} resizeMode="cover" />
         {/* Gold shimmer on unlocked */}
         {scanned && <View style={cs.shimmer} />}
-        {/* Lock overlay */}
-        {!scanned && (
-          <View style={cs.lockOverlay}>
-            <View style={cs.lockCircle}>
-              <Ionicons name="lock-closed" size={18} color="#fff" />
-            </View>
-          </View>
-        )}
+        <View style={cs.favoriteBadge}>
+          <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={15} color={favorite ? '#E74C3C' : '#fff'} />
+        </View>
         {/* Scanned badge */}
         {scanned && (
           <View style={cs.scannedBadge}>
@@ -252,7 +326,7 @@ function ArtifactCard({ artifact, scanned, onPress }: { artifact: Artifact; scan
             <Ionicons name="chevron-forward" size={12} color="#C9A84C" />
           </View>
         )}
-        {!scanned && <Text style={cs.lockedTxt}>Scan to unlock</Text>}
+        {!scanned && <Text style={cs.lockedTxt}>Explore artifact</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -266,7 +340,7 @@ const cs = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(26,22,18,0.08)',
     shadowColor: '#000', shadowOpacity: 0.07, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 3,
   },
-  cardLocked: { opacity: 0.65 },
+  cardLocked: { opacity: 1 },
   imgWrap: { width: '100%', height: CARD_W, position: 'relative', backgroundColor: '#E8E2D8' },
   img:     { width: '100%', height: '100%' },
   imgGray: { opacity: 0.45 },
@@ -274,6 +348,7 @@ const cs = StyleSheet.create({
   lockOverlay: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' } as any,
   lockCircle:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,8,5,0.6)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)' },
   scannedBadge:{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 3, borderWidth: 1, borderColor: 'rgba(46,204,113,0.4)' },
+  favoriteBadge:{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   info:    { padding: 12, gap: 3 },
   cardName:{ fontSize: 13, fontWeight: '700', color: '#1A1612', lineHeight: 18 },
   cardCat: { fontSize: 10, color: '#C9A84C', fontWeight: '600' },
@@ -291,6 +366,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
   const [allArtifacts,    setAllArtifacts]    = useState<Artifact[]>([]);
   const [scannedIds,      setScannedIds]      = useState<string[]>([]);
+  const [favoriteIds,     setFavoriteIds]    = useState<string[]>([]);
   const [activeCategory,  setActiveCategory]  = useState<string | null>(null);
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState<string | null>(null);
@@ -304,7 +380,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       // must have a policy allowing `anon` or `authenticated` role to SELECT.
       const { data, error: err } = await supabase
         .from('artifacts')
-        .select('id,name,category,qr_code,qr_value,created_at,description,image_url,creator,date')
+        .select('id,name,category,qr_code,qr_value,created_at,description,image_url,creator')
         .order('name', { ascending: true });
 
       if (err) throw err;
@@ -314,6 +390,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       if (raw) {
         try { setScannedIds(JSON.parse(raw).map((a: Artifact) => a.id)); } catch (_) {}
       }
+      setFavoriteIds(await getStringArray(STORAGE_KEYS.favoriteArtifacts));
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load. Check your connection.');
     } finally {
@@ -339,6 +416,11 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
   const hasNext = selectedArtifact
     ? displayed.findIndex(a => a.id === selectedArtifact.id) < displayed.length - 1
     : false;
+
+  const toggleFavorite = async (artifactId: string) => {
+    const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifactId);
+    setFavoriteIds(updated);
+  };
 
   const bg = theme.bg;
 
@@ -395,6 +477,29 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
         <View style={[st.progressBarTrack, { backgroundColor: C.border }]}>
           <View style={[st.progressBarFill, { backgroundColor: C.gold, width: `${Math.min((scannedCount / totalCount) * 100, 100)}%` as any }]} />
         </View>
+      )}
+
+      {/* ── Category filter ── */}
+      <ScrollView
+        horizontal showsHorizontalScrollIndicator={false}
+        style={[st.filterBar, { borderBottomColor: C.border }]}
+        contentContainerStyle={st.filterContent}
+      >
+        {[null, ...CATEGORIES].map(cat => {
+          const active = activeCategory === cat;
+          return (
+            <TouchableOpacity
+              key={cat ?? '__all__'}
+              style={[st.filterPill, { borderColor: active ? C.gold : C.border, backgroundColor: active ? C.gold : C.surface }]}
+              onPress={() => setActiveCategory(cat)}
+              activeOpacity={0.75}
+            >
+              <Text style={[st.filterPillTxt, { color: active ? '#fff' : C.inkMid }]}>
+                {cat ?? 'All'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* ── Grid ── */}
@@ -415,6 +520,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
             <ArtifactCard
               artifact={item}
               scanned={scannedIds.includes(item.id)}
+              favorite={favoriteIds.includes(item.id)}
               onPress={() => setSelectedArtifact(item)}
             />
           )}
@@ -426,38 +532,42 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
         artifact={selectedArtifact}
         onClose={() => setSelectedArtifact(null)}
         onNext={hasNext ? goNext : undefined}
+        isFavorite={selectedArtifact ? favoriteIds.includes(selectedArtifact.id) : false}
+        onToggleFavorite={() => selectedArtifact && toggleFavorite(selectedArtifact.id)}
       />
     </SafeAreaView>
-  </Modal>;
+  );
 }
 
-function Card({item,scanned,favorite,onPress,onFavorite}:{item:Artifact;scanned:boolean;favorite:boolean;onPress:()=>void;onFavorite:()=>void}){
- return <TouchableOpacity style={[c.card,!scanned&&c.locked]} onPress={scanned?onPress:undefined} activeOpacity={scanned ? 0.82 : 1}>
-  <View style={c.imageWrap}><Image source={{uri:item.image_url||FALLBACK}} style={[c.image,!scanned&&{opacity:.35}]}/>{!scanned&&<View style={c.lock}><Ionicons name="lock-closed" size={20} color="#fff"/></View>}{scanned&&<TouchableOpacity style={c.heart} onPress={onFavorite}><Ionicons name={favorite?'heart':'heart-outline'} size={18} color={favorite?'#E25A5A':'#fff'}/></TouchableOpacity>}</View>
-  <View style={c.info}><Text style={c.category} numberOfLines={1}>{item.category}</Text><Text style={c.title} numberOfLines={2}>{item.name}</Text><View style={c.footer}><Text style={c.status}>{scanned?'Discovered':'Scan to unlock'}</Text>{scanned&&<Ionicons name="arrow-forward" size={14} color={GOLD}/>}</View></View>
- </TouchableOpacity>
-}
+const st = StyleSheet.create({
+  root:        { flex: 1 },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  loadingTxt:  { marginTop: 12, fontSize: 14, color: '#6E665B' },
+  errorTitle:  { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  errorSub:    { fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+  retryBtn:    { backgroundColor: '#1A1612', paddingHorizontal: 28, paddingVertical: 13, borderRadius: 50 },
+  retryBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  backRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 16 },
+  backTxt:     { fontSize: 15, fontWeight: '600' },
 
-export default function CollectionPage({onBack}:{onBack:()=>void}){
- const {theme}=useAppTheme();
- const [items,setItems]=useState<Artifact[]>([]),[scanned,setScanned]=useState<string[]>([]),[favorites,setFavorites]=useState<string[]>([]);
- const [category,setCategory]=useState<string|null>(null),[selected,setSelected]=useState<Artifact|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
- const load=useCallback(async()=>{setLoading(true);setError('');try{const {data,error:e}=await supabase.from('artifacts').select('id,name,category,qr_code,qr_value,created_at,description,image_url,creator,date').order('name');if(e)throw e;setItems(data||[]);const raw=await AsyncStorage.getItem('scannedArtifacts');if(raw){try{const parsed=JSON.parse(raw);setScanned(parsed.map((x:any)=>typeof x==='string'?x:x.id).filter(Boolean));}catch{setScanned([])}}setFavorites(await getStringArray(STORAGE_KEYS.favoriteArtifacts));}catch(e:any){setError(e?.message||'Could not load collection.')}finally{setLoading(false)}},[]);
- useEffect(()=>{load()},[load]);
- const shown=useMemo(()=>category?items.filter(x=>x.category===category):items,[items,category]);
- const discovered=new Set(scanned);
- const discoveredCount=items.filter(x=>discovered.has(x.id)).length;
- const toggleFavorite=async(id:string)=>setFavorites(await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts,id));
- if(loading)return <SafeAreaView style={[s.root,{backgroundColor:theme.bg}]}><View style={s.center}><ActivityIndicator size="large" color={GOLD}/><Text style={s.muted}>Loading your collection…</Text></View></SafeAreaView>;
- return <SafeAreaView style={[s.root,{backgroundColor:theme.bg}]} edges={['top']}><StatusBar style="dark"/>
-  <View style={s.header}><TouchableOpacity style={s.back} onPress={onBack}><Ionicons name="chevron-back" size={23} color={INK}/></TouchableOpacity><View style={{flex:1}}><Text style={s.eyebrow}>YOUR JOURNEY</Text><Text style={s.heading}>Collection</Text></View><View style={s.counter}><Text style={s.counterBig}>{discoveredCount}</Text><Text style={s.counterSmall}>/{items.length}</Text></View></View>
-  <View style={s.summary}><View style={{flex:1}}><Text style={s.summaryTitle}>Sacred discoveries</Text><Text style={s.summarySub}>{discoveredCount===items.length&&items.length>0?'Collection complete':`${Math.max(items.length-discoveredCount,0)} artifacts waiting to be discovered`}</Text></View><Ionicons name="sparkles-outline" size={24} color={GOLD}/></View>
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>{[null,...CATEGORIES].map(x=><TouchableOpacity key={x||'all'} onPress={()=>setCategory(x)} style={[s.filter,category===x&&s.filterOn]}><Text style={[s.filterText,category===x&&s.filterTextOn]}>{x||'All'}</Text></TouchableOpacity>)}</ScrollView>
-  {error?<View style={s.center}><Ionicons name="cloud-offline-outline" size={48} color={GOLD}/><Text style={s.error}>{error}</Text><TouchableOpacity style={s.retry} onPress={load}><Text style={s.retryText}>Try again</Text></TouchableOpacity></View>:<FlatList data={shown} keyExtractor={x=>x.id} numColumns={2} columnWrapperStyle={s.row} contentContainerStyle={s.grid} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={s.empty}><Ionicons name="archive-outline" size={44} color="#AAA196"/><Text style={s.muted}>No artifacts in this category.</Text></View>} renderItem={({item})=><Card item={item} scanned={discovered.has(item.id)} favorite={favorites.includes(item.id)} onPress={()=>setSelected(item)} onFavorite={()=>toggleFavorite(item.id)}/>}/>} 
-  <DetailModal artifact={selected} favorite={!!selected&&favorites.includes(selected.id)} onToggleFavorite={()=>selected&&toggleFavorite(selected.id)} onClose={()=>setSelected(null)}/>
- </SafeAreaView>
-}
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, borderBottomWidth: 1, gap: 12 },
+  backBtn:     { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  eyebrow:     { fontSize: 9, fontWeight: '800', letterSpacing: 2.5, marginBottom: 2 },
+  pageTitle:   { fontSize: 26, fontWeight: '900', letterSpacing: -0.6 },
+  progressPill:{ flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, borderWidth: 1 },
+  progressTxt: { fontSize: 16, fontWeight: '900' },
+  progressOf:  { fontSize: 12, fontWeight: '600' },
 
-const s=StyleSheet.create({root:{flex:1},header:{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,gap:10},back:{width:40,height:40,borderRadius:20,alignItems:'center',justifyContent:'center',backgroundColor:'#F0ECE5'},eyebrow:{fontSize:9,fontWeight:'800',letterSpacing:2.2,color:GOLD},heading:{fontSize:28,fontWeight:'900',color:INK,letterSpacing:-.7},counter:{flexDirection:'row',alignItems:'baseline',paddingHorizontal:12,paddingVertical:8,borderRadius:18,backgroundColor:'#F0E8D8'},counterBig:{fontSize:17,fontWeight:'900',color:INK},counterSmall:{fontSize:12,color:'#7A7167'},summary:{marginHorizontal:16,marginBottom:12,padding:16,borderRadius:18,backgroundColor:INK,flexDirection:'row',alignItems:'center'},summaryTitle:{fontSize:15,fontWeight:'800',color:'#fff'},summarySub:{fontSize:12,color:'#C9C0B4',marginTop:3},filters:{paddingHorizontal:16,paddingBottom:12,gap:8},filter:{paddingHorizontal:14,paddingVertical:8,borderRadius:18,borderWidth:1,borderColor:'#DED7CC',backgroundColor:'#fff'},filterOn:{backgroundColor:INK,borderColor:INK},filterText:{fontSize:12,fontWeight:'700',color:'#71695F'},filterTextOn:{color:'#fff'},grid:{paddingHorizontal:14,paddingBottom:100,gap:GAP},row:{gap:GAP,marginBottom:GAP},center:{flex:1,alignItems:'center',justifyContent:'center',padding:30},muted:{marginTop:10,fontSize:13,color:'#81786E',textAlign:'center'},error:{marginTop:12,color:'#81786E',textAlign:'center'},retry:{marginTop:16,backgroundColor:INK,paddingHorizontal:22,paddingVertical:12,borderRadius:22},retryText:{color:'#fff',fontWeight:'700'},empty:{width:W-28,alignItems:'center',paddingTop:80}});
-const c=StyleSheet.create({card:{width:CARD_W,borderRadius:18,overflow:'hidden',backgroundColor:'#fff',borderWidth:1,borderColor:'#E8E1D7',elevation:2,shadowColor:'#000',shadowOpacity:.06,shadowRadius:8,shadowOffset:{width:0,height:3}},locked:{backgroundColor:'#F1EEE9'},imageWrap:{height:CARD_W*.88,backgroundColor:'#DDD5C9'},image:{width:'100%',height:'100%'},lock:{position:'absolute',alignSelf:'center',top:'38%',width:42,height:42,borderRadius:21,backgroundColor:'rgba(25,22,17,.72)',alignItems:'center',justifyContent:'center'},heart:{position:'absolute',right:8,top:8,width:34,height:34,borderRadius:17,backgroundColor:'rgba(25,22,17,.68)',alignItems:'center',justifyContent:'center'},info:{padding:12,minHeight:105},category:{fontSize:9,fontWeight:'800',letterSpacing:.6,color:GOLD,textTransform:'uppercase'},title:{fontSize:14,fontWeight:'800',color:INK,lineHeight:19,marginTop:4},footer:{marginTop:'auto',paddingTop:9,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},status:{fontSize:10,fontWeight:'700',color:'#8C8277'}});
-const d=StyleSheet.create({root:{flex:1,backgroundColor:CREAM},scroll:{paddingBottom:30},hero:{height:330,backgroundColor:INK},heroImage:{width:'100%',height:'100%'},scrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(0,0,0,.18)'},roundBtn:{position:'absolute',top:14,width:42,height:42,borderRadius:21,backgroundColor:'rgba(20,17,13,.7)',alignItems:'center',justifyContent:'center'},category:{position:'absolute',left:18,bottom:18,paddingHorizontal:12,paddingVertical:7,borderRadius:16,backgroundColor:'rgba(20,17,13,.78)'},categoryText:{fontSize:10,fontWeight:'800',color:'#E6C477',letterSpacing:.7},content:{padding:20},name:{fontSize:30,fontWeight:'900',color:INK,letterSpacing:-.8,lineHeight:35},place:{fontSize:12,color:'#8A8177',marginTop:5},langRow:{gap:8,paddingVertical:18},langChip:{paddingHorizontal:13,paddingVertical:8,borderRadius:18,borderWidth:1,borderColor:'#DED6CA',backgroundColor:'#fff'},langChipOn:{backgroundColor:INK,borderColor:INK},langText:{fontSize:11,fontWeight:'700',color:'#71685E'},langTextOn:{color:'#fff'},section:{fontSize:10,fontWeight:'900',letterSpacing:2,color:GOLD,marginTop:4,marginBottom:9},desc:{fontSize:15,lineHeight:25,color:'#5E574F'},metaCard:{marginTop:22,borderRadius:18,backgroundColor:'#fff',paddingHorizontal:16,borderWidth:1,borderColor:'#E8E0D5'},metaItem:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:14},metaDivider:{height:1,backgroundColor:'#EEE8DF'},metaLabel:{fontSize:10,color:'#9A9186',fontWeight:'700'},metaValue:{fontSize:13,color:INK,fontWeight:'700',marginTop:2},audioCard:{marginTop:18,flexDirection:'row',alignItems:'center',gap:12,padding:14,borderRadius:18,backgroundColor:'#fff',borderWidth:1,borderColor:'#E8E0D5'},play:{width:48,height:48,borderRadius:24,backgroundColor:INK,alignItems:'center',justifyContent:'center'},audioTitle:{fontSize:14,fontWeight:'800',color:INK},audioSub:{fontSize:11,color:'#8E857B',marginTop:2},done:{marginTop:22,backgroundColor:INK,borderRadius:24,paddingVertical:15,alignItems:'center'},doneText:{color:'#fff',fontWeight:'800',fontSize:14}});
+  progressBarTrack: { height: 3, marginHorizontal: 0 },
+  progressBarFill:  { height: '100%' as any },
+
+  filterBar:     { borderBottomWidth: 1, flexGrow: 0, flexShrink: 0 },
+  filterContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  filterPill:    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50, borderWidth: 1.5 },
+  filterPillTxt: { fontSize: 13, fontWeight: '700' },
+
+  grid:    { padding: 16, gap: 12 },
+  row:     { gap: 12 },
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyTxt:  { marginTop: 14, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+});
