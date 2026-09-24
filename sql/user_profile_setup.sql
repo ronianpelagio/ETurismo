@@ -8,6 +8,25 @@ alter table public.users
   add column if not exists city text,
   add column if not exists barangay text;
 
+-- Profile screens may read and update only the currently authenticated user's row.
+alter table public.users enable row level security;
+
+drop policy if exists "Users can read own profile" on public.users;
+drop policy if exists "Users can update own profile" on public.users;
+
+create policy "Users can read own profile"
+on public.users
+for select
+to authenticated
+using ((select auth.uid()) = id);
+
+create policy "Users can update own profile"
+on public.users
+for update
+to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

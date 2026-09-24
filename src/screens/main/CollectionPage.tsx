@@ -12,6 +12,7 @@ import { supabase } from '../../services/supabase';
 import { useAppTheme } from '../../context/ThemeContext';
 import { THEMES } from '../../constants/themes';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
+import { STORAGE_KEYS, getStringArray, toggleInStringArray } from '../../utils/storage';
 
 const { width: W, height: H } = Dimensions.get('window');
 const CARD_W = (W - 48 - 12) / 2; // 2-col grid with 24px side padding + 12px gap
@@ -31,7 +32,7 @@ let C = buildC(THEMES.light);
 type Artifact = {
   id: string; name: string; category: string;
   qr_code: string; qr_value: string; created_at: string;
-  description?: string; image_url?: string; creator?: string; date?: string;
+  description?: string; image_url?: string; creator?: string;
 };
 type ArtifactTranslation = {
   id: string; language_code: string; name: string;
@@ -48,10 +49,16 @@ const CATEGORY_IMAGES: Record<string, string> = {
 };
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?w=600';
 
-// ─── Artifact Detail Bottom-Sheet Modal ──────────────────────────────────────
+// ─── Full-screen artifact detail modal ───────────────────────────────────────
 function ArtifactModal({
-  artifact, onClose, onNext,
-}: { artifact: Artifact | null; onClose: () => void; onNext?: () => void }) {
+  artifact, onClose, onNext, isFavorite, onToggleFavorite,
+}: {
+  artifact: Artifact | null;
+  onClose: () => void;
+  onNext?: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+}) {
   const slideAnim = useRef(new Animated.Value(H)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
@@ -129,18 +136,24 @@ function ArtifactModal({
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={dismiss} activeOpacity={1} />
       </Animated.View>
 
-      <Animated.View style={[ms.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        {/* Handle */}
-        <View style={ms.handle} />
-
-        {/* Hero */}
+      <Animated.View style={[ms.sheet, { transform: [{ translateY: slideAnim }] }]}> 
+        {/* Hero image */}
         <View style={ms.heroWrap}>
-          <Image source={{ uri: imgUrl }} style={ms.heroImg} resizeMode="cover" />
+          <Image source={{ uri: imgUrl }} style={ms.heroImg} resizeMode="contain" />
           <View style={ms.heroScrim} />
-          <View style={ms.catBadge}><Text style={ms.catBadgeText}>{artifact.category}</Text></View>
+
+          <View style={ms.handle} />
+
+          <View style={ms.catBadge}>
+            <Ionicons name="business-outline" size={11} color="#C9A84C" />
+            <Text style={ms.catBadgeText}>{artifact.category}</Text>
+          </View>
           <TouchableOpacity style={ms.closeX} onPress={dismiss} activeOpacity={0.8}>
             <Ionicons name="close" size={18} color="#fff" />
           </TouchableOpacity>
+          <View style={ms.imgCounter}>
+            <Text style={ms.imgCounterText}>1 / 1</Text>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 36 }}>
@@ -149,12 +162,21 @@ function ArtifactModal({
             <View style={{ flex: 1 }}>
               <View style={ms.goldBar} />
               <Text style={ms.name}>{artifact.name}</Text>
-              {(artifact.date || artifact.creator) && (
+              {( artifact.creator) && (
                 <Text style={ms.meta}>
-                  {[artifact.date, artifact.creator].filter(Boolean).join(' · ')}
+                  {artifact.creator}
                 </Text>
               )}
             </View>
+            <TouchableOpacity
+              style={[ms.favoriteBtn, isFavorite && ms.favoriteBtnActive]}
+              onPress={onToggleFavorite}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+            >
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? C.gold : C.inkMid} />
+            </TouchableOpacity>
           </View>
 
           {/* Language pills */}
@@ -230,17 +252,22 @@ const ms = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: '#F7F4EF',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: H * 0.92, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: -6 }, shadowRadius: 20, elevation: 24,
+    maxHeight: H * 0.93,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.28, shadowOffset: { width: 0, height: -6 }, shadowRadius: 22, elevation: 26,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(26,22,18,0.15)', alignSelf: 'center', marginTop: 12, marginBottom: 0 },
-  heroWrap: { width: '100%', height: 260, position: 'relative', backgroundColor: '#0E0C09' },
+  heroWrap: { width: '100%', height: 320, position: 'relative', backgroundColor: '#0E0C09' },
   heroImg:  { width: '100%', height: '100%' },
-  heroScrim:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: 'rgba(10,8,5,0.5)' },
-  catBadge: { position: 'absolute', top: 16, left: 16, backgroundColor: 'rgba(10,8,5,0.75)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
-  catBadgeText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
-  closeX: { position: 'absolute', top: 12, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center' },
-  titleRow: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4 },
+  heroScrim:{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.32)' },
+  handle: { position: 'absolute', top: 10, alignSelf: 'center', left: '50%', marginLeft: -20, width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.55)' },
+  catBadge: { position: 'absolute', top: 16, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,8,5,0.72)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
+  catBadgeText: { fontSize: 12, fontWeight: '700', color: '#C9A84C' },
+  closeX: { position: 'absolute', top: 12, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounter: { position: 'absolute', bottom: 14, right: 16, backgroundColor: 'rgba(10,8,5,0.65)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounterText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 12 },
+  favoriteBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.25)' },
+  favoriteBtnActive: { backgroundColor: 'rgba(201,168,76,0.16)', borderColor: '#C9A84C' },
   goldBar:  { width: 32, height: 3, backgroundColor: '#C9A84C', borderRadius: 2, marginBottom: 10 },
   name:     { fontSize: 26, fontWeight: '900', color: '#1A1612', letterSpacing: -0.6, lineHeight: 32 },
   meta:     { fontSize: 13, color: '#A59C90', marginTop: 4, fontStyle: 'italic' },
@@ -264,28 +291,23 @@ const ms = StyleSheet.create({
 });
 
 // ─── Artifact Card (grid) ─────────────────────────────────────────────────────
-function ArtifactCard({ artifact, scanned, onPress }: { artifact: Artifact; scanned: boolean; onPress: () => void }) {
+function ArtifactCard({ artifact, scanned, favorite, onPress }: { artifact: Artifact; scanned: boolean; favorite: boolean; onPress: () => void }) {
   const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? FALLBACK_IMG;
 
   return (
     <TouchableOpacity
       style={[cs.card, !scanned && cs.cardLocked]}
-      onPress={scanned ? onPress : undefined}
-      activeOpacity={scanned ? 0.75 : 1}
+      onPress={onPress}
+      activeOpacity={0.75}
     >
       {/* Image */}
       <View style={cs.imgWrap}>
         <Image source={{ uri: imgUrl }} style={[cs.img, !scanned && cs.imgGray]} resizeMode="cover" />
         {/* Gold shimmer on unlocked */}
         {scanned && <View style={cs.shimmer} />}
-        {/* Lock overlay */}
-        {!scanned && (
-          <View style={cs.lockOverlay}>
-            <View style={cs.lockCircle}>
-              <Ionicons name="lock-closed" size={18} color="#fff" />
-            </View>
-          </View>
-        )}
+        <View style={cs.favoriteBadge}>
+          <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={15} color={favorite ? '#E74C3C' : '#fff'} />
+        </View>
         {/* Scanned badge */}
         {scanned && (
           <View style={cs.scannedBadge}>
@@ -304,7 +326,7 @@ function ArtifactCard({ artifact, scanned, onPress }: { artifact: Artifact; scan
             <Ionicons name="chevron-forward" size={12} color="#C9A84C" />
           </View>
         )}
-        {!scanned && <Text style={cs.lockedTxt}>Scan to unlock</Text>}
+        {!scanned && <Text style={cs.lockedTxt}>Explore artifact</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -318,7 +340,7 @@ const cs = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(26,22,18,0.08)',
     shadowColor: '#000', shadowOpacity: 0.07, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 3,
   },
-  cardLocked: { opacity: 0.65 },
+  cardLocked: { opacity: 1 },
   imgWrap: { width: '100%', height: CARD_W, position: 'relative', backgroundColor: '#E8E2D8' },
   img:     { width: '100%', height: '100%' },
   imgGray: { opacity: 0.45 },
@@ -326,6 +348,7 @@ const cs = StyleSheet.create({
   lockOverlay: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' } as any,
   lockCircle:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,8,5,0.6)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)' },
   scannedBadge:{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 3, borderWidth: 1, borderColor: 'rgba(46,204,113,0.4)' },
+  favoriteBadge:{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   info:    { padding: 12, gap: 3 },
   cardName:{ fontSize: 13, fontWeight: '700', color: '#1A1612', lineHeight: 18 },
   cardCat: { fontSize: 10, color: '#C9A84C', fontWeight: '600' },
@@ -343,6 +366,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
   const [allArtifacts,    setAllArtifacts]    = useState<Artifact[]>([]);
   const [scannedIds,      setScannedIds]      = useState<string[]>([]);
+  const [favoriteIds,     setFavoriteIds]    = useState<string[]>([]);
   const [activeCategory,  setActiveCategory]  = useState<string | null>(null);
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState<string | null>(null);
@@ -356,7 +380,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       // must have a policy allowing `anon` or `authenticated` role to SELECT.
       const { data, error: err } = await supabase
         .from('artifacts')
-        .select('id,name,category,qr_code,qr_value,created_at,description,image_url,creator,date')
+        .select('id,name,category,qr_code,qr_value,created_at,description,image_url,creator')
         .order('name', { ascending: true });
 
       if (err) throw err;
@@ -366,6 +390,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       if (raw) {
         try { setScannedIds(JSON.parse(raw).map((a: Artifact) => a.id)); } catch (_) {}
       }
+      setFavoriteIds(await getStringArray(STORAGE_KEYS.favoriteArtifacts));
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load. Check your connection.');
     } finally {
@@ -391,6 +416,11 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
   const hasNext = selectedArtifact
     ? displayed.findIndex(a => a.id === selectedArtifact.id) < displayed.length - 1
     : false;
+
+  const toggleFavorite = async (artifactId: string) => {
+    const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifactId);
+    setFavoriteIds(updated);
+  };
 
   const bg = theme.bg;
 
@@ -490,6 +520,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
             <ArtifactCard
               artifact={item}
               scanned={scannedIds.includes(item.id)}
+              favorite={favoriteIds.includes(item.id)}
               onPress={() => setSelectedArtifact(item)}
             />
           )}
@@ -501,6 +532,8 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
         artifact={selectedArtifact}
         onClose={() => setSelectedArtifact(null)}
         onNext={hasNext ? goNext : undefined}
+        isFavorite={selectedArtifact ? favoriteIds.includes(selectedArtifact.id) : false}
+        onToggleFavorite={() => selectedArtifact && toggleFavorite(selectedArtifact.id)}
       />
     </SafeAreaView>
   );

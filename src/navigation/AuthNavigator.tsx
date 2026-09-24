@@ -13,6 +13,7 @@ import TabNavigator from './TabNavigator';
 import { supabase }       from '../services/supabase';
 import { touchLastSeen }  from '../services/authService';
 import { finalizePendingProfile } from '../features/auth/services/pendingProfile';
+import { syncPushToken } from '../services/notificationService';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 // Stored per-install (AsyncStorage is wiped on uninstall).
@@ -24,6 +25,7 @@ const GET_STARTED_SEEN_KEY = 'get_started_seen';
 type Phase =
   | 'splash'       // AppIntro is playing
   | 'auth'         // Not logged in → SignIn / SignUp / VerifyOTP
+  | 'googleprofile'// Google user missing required profile details
   | 'getstarted'   // Logged in, first install → GetStarted
   | 'main';        // Logged in, GetStarted done → TabNavigator
 
@@ -63,6 +65,14 @@ export default function AuthNavigator() {
       if (session?.user) {
         const user = session.user;
 
+        // Auth is already established. Move into the app before doing optional
+        // profile maintenance so a slow database request cannot strand OAuth.
+        const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
+        const isGoogleUser = user.app_metadata?.provider === 'google'
+          || user.identities?.some(identity => identity.provider === 'google');
+        if (!isMounted) return;
+        if (!isGoogleUser) transitionTo(seen === 'true' ? 'main' : 'getstarted');
+
         // Finish the verified user's profile (email/password signup flow).
         // For Google OAuth this is a no-op because there is no pending profile.
         try {
@@ -99,16 +109,24 @@ export default function AuthNavigator() {
           console.warn('User row upsert skipped:', upsertErr);
         }
 
+        if (isGoogleUser) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('gender,age,country,"Address",province,city,barangay')
+            .eq('id', user.id)
+            .maybeSingle();
+          const profileIncomplete = !profile?.gender || !profile?.age || !profile?.country || !profile?.Address;
+          if (isMounted) transitionTo(profileIncomplete ? 'googleprofile' : seen === 'true' ? 'main' : 'getstarted');
+        }
+
         if (!isMounted) return;
 
         // Stamp last_seen
         touchLastSeen(user.id).catch(() => {});
 
-        // Check if this install has already seen GetStarted
-        const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
+        // Register / refresh the Expo push token for this device
+        syncPushToken(user.id).catch(() => {});
 
-        if (!isMounted) return;
-        transitionTo(seen === 'true' ? 'main' : 'getstarted');
       } else {
         // Signed out — go back to auth screens (splash already played)
         if (phaseRef.current !== 'splash') {
@@ -143,6 +161,20 @@ export default function AuthNavigator() {
 
     if (confirmed?.user) {
       touchLastSeen(confirmed.user.id).catch(() => {});
+      const isGoogleUser = confirmed.user.app_metadata?.provider === 'google'
+        || confirmed.user.identities?.some(identity => identity.provider === 'google');
+      if (isGoogleUser) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('gender,age,country,"Address",province,city,barangay')
+          .eq('id', confirmed.user.id)
+          .maybeSingle();
+        const profileIncomplete = !profile?.gender || !profile?.age || !profile?.country || !profile?.Address;
+        if (profileIncomplete) {
+          transitionTo('googleprofile');
+          return;
+        }
+      }
       const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
       transitionTo(seen === 'true' ? 'main' : 'getstarted');
     } else {
@@ -174,6 +206,17 @@ export default function AuthNavigator() {
           <Stack.Screen name="SignUp"    component={SignUp} />
           <Stack.Screen name="VerifyOTP" component={VerifyOTP} />
         </>
+
+      ) : phase === 'googleprofile' ? (
+        <Stack.Screen name="GoogleProfile">
+          {(props) => (
+            <SignUp
+              {...props}
+              googleMode
+              onGoogleComplete={() => transitionTo('getstarted')}
+            />
+          )}
+        </Stack.Screen>
 
       ) : phase === 'getstarted' ? (
         // ── 3. GetStarted — logged in, first install ─────────────────────────

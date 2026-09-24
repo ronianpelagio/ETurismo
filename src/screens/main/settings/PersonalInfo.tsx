@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, Animated,
-  Keyboard, Image, StyleSheet, KeyboardAvoidingView, Platform,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,465 +17,187 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../../../services/supabase';
 import { useAppTheme } from '../../../context/ThemeContext';
-import { THEMES } from '../../../constants/themes';
+import { LocationFields, LocationValue } from '../../../features/auth/components/LocationFields';
 
-function buildC(t: typeof THEMES[keyof typeof THEMES]) {
-  return {
-    bg: t.bg, surface: t.surface, raised: t.raised, deep: t.deep,
-    ink: t.ink, inkMid: t.inkMid, inkDim: t.inkDim,
-    gold: t.gold, goldSoft: t.goldSoft, goldBright: t.goldBright,
-    borderGold: t.borderGold, border: t.border,
-    crimson: t.crimson, teal: t.teal,
-  };
-}
-
-type UserData = {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  profile_picture?: string;
-  gender?: string;
-  age?: number;
-  Address?: string;
-};
-
-// ─── Field component ─────────────────────────────────────────────────────────
-function Field({
-  label, icon, value, onChangeText, placeholder,
-  keyboardType, returnKeyType, onSubmitEditing,
-  inputRef, editable = true, helperText, C,
-}: {
-  label: string; icon: string; value: string;
-  onChangeText?: (t: string) => void; placeholder?: string;
-  keyboardType?: any; returnKeyType?: any; onSubmitEditing?: () => void;
-  inputRef?: any; editable?: boolean; helperText?: string;
-  C: ReturnType<typeof buildC>;
-}) {
-  const [focused, setFocused] = useState(false);
-
-  return (
-    <View style={{ marginBottom: 18 }}>
-      <Text style={{
-        fontSize: 10, fontWeight: '800', letterSpacing: 2,
-        color: C.gold, marginBottom: 8, textTransform: 'uppercase',
-      }}>
-        {label}
-      </Text>
-      <View style={{
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: editable ? C.surface : C.deep,
-        borderRadius: 14, borderWidth: 1.5,
-        borderColor: !editable ? C.border : focused ? C.gold : C.border,
-        paddingHorizontal: 14, gap: 10,
-        shadowColor: focused ? C.gold : 'transparent',
-        shadowOpacity: 0.12, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
-        elevation: focused ? 2 : 0,
-      }}>
-        <Ionicons
-          name={icon as any}
-          size={17}
-          color={focused ? C.gold : editable ? C.inkDim : C.inkDim}
-        />
-        {editable ? (
-          <TextInput
-            ref={inputRef}
-            style={{ flex: 1, paddingVertical: 14, fontSize: 14.5, color: C.ink }}
-            value={value}
-            onChangeText={onChangeText}
-            placeholder={placeholder}
-            placeholderTextColor={C.inkDim}
-            keyboardType={keyboardType}
-            returnKeyType={returnKeyType}
-            onSubmitEditing={onSubmitEditing}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            autoCorrect={false}
-            autoCapitalize={
-              keyboardType === 'phone-pad' || keyboardType === 'email-address'
-                ? 'none' : 'words'
-            }
-          />
-        ) : (
-          <Text style={{ flex: 1, paddingVertical: 14, fontSize: 14.5, color: C.inkDim }}>
-            {value}
-          </Text>
-        )}
-        {!editable && (
-          <Ionicons name="lock-closed-outline" size={14} color={C.inkDim} />
-        )}
-      </View>
-      {helperText && (
-        <Text style={{ fontSize: 10.5, color: C.inkDim, marginTop: 6, paddingHorizontal: 2, lineHeight: 15 }}>
-          {helperText}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function PersonalInfo({ navigation }: any) {
   const { theme } = useAppTheme();
-  const C = buildC(theme);
-
-  const [user, setUser]       = useState<UserData | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
-  const [dirty, setDirty]     = useState(false);
-
+  const [saving, setSaving] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName]   = useState('');
-  const [phone, setPhone]         = useState('');
-
-  const lastNameRef = useRef<TextInput>(null);
-  const phoneRef    = useRef<TextInput>(null);
-
-  const feedbackAnim = useRef(new Animated.Value(0)).current;
-  const [feedbackType, setFeedbackType] = useState<'saved' | 'error'>('saved');
-
-  useEffect(() => { fetchUser(); }, []);
+  const [lastName, setLastName] = useState('');
+  const [location, setLocation] = useState<LocationValue>({
+    countryCode: '', country: '', province: null, city: null,
+    barangay: null, stateRegion: '', cityText: '', addressLine: '',
+  });
 
   useEffect(() => {
-    if (!user) return;
-    const changed =
-      firstName.trim() !== user.first_name ||
-      lastName.trim()  !== user.last_name  ||
-      (phone.trim() || '') !== (user.phone?.trim() || '');
-    setDirty(changed);
-  }, [firstName, lastName, phone, user]);
+    loadProfile();
+  }, []);
 
-  async function fetchUser() {
+  async function loadProfile() {
     setLoading(true);
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
-      const { data } = await supabase.from('users').select('*').eq('id', authUser.id).single();
-      if (data) {
-        setUser(data);
-        setFirstName(data.first_name || '');
-        setLastName(data.last_name || '');
-        setPhone(data.phone || '');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to load profile.');
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('Not authenticated');
+      const { data, error } = await supabase.from('users').select('*').eq('id', auth.user.id).single();
+      if (error) throw error;
+      setProfile(data);
+      setFirstName(data.first_name || '');
+      setLastName(data.last_name || '');
+      setLocation({
+        countryCode: data.country === 'Philippines' ? 'PH' : '',
+        country: data.country || '', province: null, city: null,
+        barangay: null, stateRegion: data.province || '',
+        cityText: data.city || '', addressLine: data.Address || '',
+      });
+    } catch (error: any) {
+      Alert.alert('Unable to load profile', error.message || 'Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
-  function showFeedback(type: 'saved' | 'error') {
-    setFeedbackType(type);
-    feedbackAnim.setValue(0);
-    Animated.sequence([
-      Animated.timing(feedbackAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.delay(2000),
-      Animated.timing(feedbackAnim, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start();
+  function openEditor() {
+    setFirstName(profile?.first_name || '');
+    setLastName(profile?.last_name || '');
+    setLocation({
+      countryCode: profile?.country === 'Philippines' ? 'PH' : '',
+      country: profile?.country || '', province: null, city: null,
+      barangay: null, stateRegion: profile?.province || '',
+      cityText: profile?.city || '', addressLine: profile?.Address || '',
+    });
+    setEditorOpen(true);
   }
 
-  async function handleSave() {
+  function closeEditor() {
+    if (saving) return;
+    setEditorOpen(false);
+  }
+
+  async function saveProfile() {
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Required', 'First and last name cannot be empty.');
+      Alert.alert('Required', 'First name and last name cannot be empty.');
       return;
     }
     setSaving(true);
-    Keyboard.dismiss();
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) throw new Error('Not authenticated');
-      const { error } = await supabase.from('users').update({
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('Not authenticated');
+      const isPH = location.countryCode === 'PH';
+      const address = isPH
+        ? [location.addressLine, location.barangay?.name, location.city?.name, location.province?.name, 'Philippines'].filter(Boolean).join(', ')
+        : [location.addressLine, location.cityText, location.stateRegion, location.country].filter(Boolean).join(', ');
+      const updates = {
         first_name: firstName.trim(),
-        last_name:  lastName.trim(),
-        phone:      phone.trim() || null,
-      }).eq('id', authUser.id);
+        last_name: lastName.trim(),
+        Address: address || null,
+        country: location.country || null,
+        province: isPH ? location.province?.name || null : location.stateRegion || null,
+        city: isPH ? location.city?.name || null : location.cityText || null,
+        barangay: isPH ? location.barangay?.name || null : null,
+      };
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', auth.user.id)
+        .select('*')
+        .single();
       if (error) throw error;
-      setUser(prev => prev
-        ? { ...prev, first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() }
-        : prev);
-      setDirty(false);
-      showFeedback('saved');
-    } catch (e: any) {
-      showFeedback('error');
-      Alert.alert('Save failed', e.message || 'Please try again.');
+      setProfile(data);
+      setEditorOpen(false);
+    } catch (error: any) {
+      Alert.alert('Save failed', error.message || 'Check your Supabase profile update policy.');
     } finally {
       setSaving(false);
     }
   }
 
+  const colors = {
+    bg: theme.bg, surface: theme.surface, ink: theme.ink,
+    muted: theme.inkMid, dim: theme.inkDim, gold: theme.gold, goldSoft: theme.goldSoft,
+    border: theme.border, deep: theme.deep,
+  };
+  const initials = `${profile?.first_name?.[0] || ''}${profile?.last_name?.[0] || ''}`.toUpperCase() || '?';
+
   if (loading) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={C.gold} />
-        </View>
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}><ActivityIndicator style={{ flex: 1 }} color={colors.gold} /></SafeAreaView>;
   }
 
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-
-      {/* ── Toast feedback ── */}
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 99,
-          alignItems: 'center', paddingTop: 16,
-          opacity: feedbackAnim,
-          transform: [{ translateY: feedbackAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }],
-        }}
-      >
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', gap: 8,
-          paddingHorizontal: 20, paddingVertical: 11, borderRadius: 50,
-          backgroundColor: feedbackType === 'saved' ? C.teal : C.crimson,
-          shadowColor: '#000', shadowOpacity: 0.18,
-          shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 8,
-        }}>
-          <Ionicons
-            name={feedbackType === 'saved' ? 'checkmark-circle' : 'close-circle'}
-            size={16} color="#fff"
-          />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>
-            {feedbackType === 'saved' ? 'Changes saved!' : 'Failed to save'}
-          </Text>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <TouchableOpacity onPress={() => navigation?.goBack()} style={{ padding: 8 }}>
+            <Ionicons name="arrow-back" size={22} color={colors.ink} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.ink }}>Personal Info</Text>
+          <TouchableOpacity onPress={openEditor} style={{ backgroundColor: colors.gold, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 }}>
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Edit</Text>
+          </TouchableOpacity>
         </View>
-      </Animated.View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 60 }}
-        >
-        {/* ── Hero banner ── */}
         <LinearGradient
-          colors={[C.goldSoft, C.bg]}
-          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-          style={{ paddingBottom: 28 }}
+          colors={[colors.goldSoft, colors.bg]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ alignItems: 'center', paddingVertical: 28, marginBottom: 10 }}
         >
-          {/* Header row */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
-          }}>
-            <TouchableOpacity
-              onPress={() => navigation?.goBack()}
-              activeOpacity={0.7}
-              style={{
-                width: 40, height: 40, borderRadius: 20,
-                backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-                justifyContent: 'center', alignItems: 'center',
-              }}
-            >
-              <Ionicons name="arrow-back" size={20} color={C.ink} />
-            </TouchableOpacity>
-
-            <Text style={{ fontSize: 17, fontWeight: '800', color: C.ink, letterSpacing: -0.3 }}>
-              Personal Info
-            </Text>
-
-            {dirty && !saving ? (
-              <TouchableOpacity
-                onPress={handleSave}
-                activeOpacity={0.8}
-                style={{
-                  paddingHorizontal: 16, paddingVertical: 9,
-                  borderRadius: 50, backgroundColor: C.gold,
-                  shadowColor: C.gold, shadowOpacity: 0.3,
-                  shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 4,
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff' }}>Save</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={{ width: 55 }} />
-            )}
+          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900' }}>{initials}</Text>
           </View>
-
-          {/* Avatar + name strip */}
-          <View style={{ alignItems: 'center', paddingBottom: 4 }}>
-            {user?.profile_picture ? (
-              <Image
-                source={{ uri: user.profile_picture }}
-                style={{
-                  width: 84, height: 84, borderRadius: 42,
-                  borderWidth: 3, borderColor: C.gold,
-                }}
-              />
-            ) : (
-              <View style={{
-                width: 84, height: 84, borderRadius: 42,
-                backgroundColor: C.gold,
-                borderWidth: 3, borderColor: C.goldBright,
-                justifyContent: 'center', alignItems: 'center',
-                shadowColor: C.gold, shadowOpacity: 0.35,
-                shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 6,
-              }}>
-                <Text style={{ fontSize: 28, fontWeight: '900', color: '#fff' }}>{initials}</Text>
-              </View>
-            )}
-
-            <Text style={{
-              marginTop: 12, fontSize: 20, fontWeight: '800',
-              color: C.ink, letterSpacing: -0.5,
-            }}>
-              {firstName} {lastName}
-            </Text>
-            <Text style={{ fontSize: 12, color: C.inkDim, marginTop: 3 }}>
-              {user?.email}
-            </Text>
-
-            {/* Gold rule */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingHorizontal: 40 }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: C.gold, opacity: 0.25 }} />
-              <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: C.gold }} />
-              <View style={{ flex: 1, height: 1, backgroundColor: C.gold, opacity: 0.25 }} />
-            </View>
-          </View>
+          <Text style={{ marginTop: 14, color: colors.ink, fontSize: 22, fontWeight: '800' }}>
+            {profile?.first_name} {profile?.last_name}
+          </Text>
+          <Text style={{ color: colors.dim, marginTop: 4 }}>{profile?.email}</Text>
         </LinearGradient>
 
-        {/* ── Read-only info chips (gender / age / address) ── */}
-        {(user?.gender || user?.age || user?.Address) && (
-          <View style={{
-            flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-            paddingHorizontal: 20, marginTop: -10, marginBottom: 6,
-          }}>
-            {user?.gender && (
-              <View style={chipStyle(C)}>
-                <Ionicons name="person-outline" size={12} color={C.gold} />
-                <Text style={{ fontSize: 11, color: C.inkMid, fontWeight: '600' }}>{user.gender}</Text>
-              </View>
-            )}
-            {user?.age && (
-              <View style={chipStyle(C)}>
-                <Ionicons name="calendar-outline" size={12} color={C.gold} />
-                <Text style={{ fontSize: 11, color: C.inkMid, fontWeight: '600' }}>{user.age} yrs</Text>
-              </View>
-            )}
-            {user?.Address && (
-              <View style={chipStyle(C)}>
-                <Ionicons name="location-outline" size={12} color={C.gold} />
-                <Text style={{ fontSize: 11, color: C.inkMid, fontWeight: '600' }} numberOfLines={1}>
-                  {user.Address}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Form card ── */}
-        <View style={{
-          marginHorizontal: 20, marginTop: 16,
-          backgroundColor: C.surface, borderRadius: 20,
-          borderWidth: 1, borderColor: C.border, padding: 20,
-          shadowColor: C.ink, shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-        }}>
-          {/* Card header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-            <View style={{
-              width: 28, height: 28, borderRadius: 8,
-              backgroundColor: C.goldSoft, justifyContent: 'center', alignItems: 'center',
-            }}>
-              <Ionicons name="create-outline" size={14} color={C.gold} />
-            </View>
-            <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 2.5, color: C.gold }}>
-              EDIT PROFILE
-            </Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
-          </View>
-
-          <Field C={C} label="First Name" icon="person-outline"
-            value={firstName} onChangeText={setFirstName}
-            placeholder="Enter first name"
-            returnKeyType="next"
-            onSubmitEditing={() => lastNameRef.current?.focus()}
-          />
-          <Field C={C} label="Last Name" icon="person-outline"
-            value={lastName} onChangeText={setLastName}
-            placeholder="Enter last name"
-            returnKeyType="next" inputRef={lastNameRef}
-            onSubmitEditing={() => phoneRef.current?.focus()}
-          />
-          <Field C={C} label="Phone Number" icon="call-outline"
-            value={phone} onChangeText={setPhone}
-            placeholder="+63 912 345 6789"
-            keyboardType="phone-pad" returnKeyType="done"
-            inputRef={phoneRef} onSubmitEditing={handleSave}
-          />
-          <Field C={C} label="Email Address" icon="mail-outline"
-            value={user?.email || ''} editable={false}
-            helperText="Contact support to update your email address."
-          />
-        </View>
-
-        {/* ── Save button ── */}
-        <TouchableOpacity
-          style={{
-            marginHorizontal: 20, marginTop: 20,
-            height: 54, borderRadius: 16,
-            backgroundColor: dirty ? C.gold : C.deep,
-            borderWidth: dirty ? 0 : 1, borderColor: C.border,
-            alignItems: 'center', justifyContent: 'center',
-            flexDirection: 'row', gap: 8,
-            shadowColor: dirty ? C.gold : 'transparent',
-            shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 },
-            shadowRadius: 10, elevation: dirty ? 4 : 0,
-          }}
-          onPress={handleSave}
-          disabled={!dirty || saving}
-          activeOpacity={0.85}
-        >
-          {saving
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Ionicons name="checkmark-circle-outline" size={19} color={dirty ? '#fff' : C.inkDim} />
-          }
-          <Text style={{
-            fontSize: 14, fontWeight: '800', letterSpacing: 0.4,
-            color: dirty ? '#fff' : C.inkDim,
-          }}>
-            {saving ? 'Saving…' : dirty ? 'Save Changes' : 'No changes'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* ── Info note ── */}
-        <View style={{
-          marginHorizontal: 20, marginTop: 20,
-          flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-          backgroundColor: C.deep, borderRadius: 14, padding: 14,
-          borderWidth: 1, borderColor: C.border,
-        }}>
-          <Ionicons name="information-circle-outline" size={17} color={C.inkDim} style={{ marginTop: 1 }} />
-          <Text style={{ flex: 1, fontSize: 12, color: C.inkDim, lineHeight: 18 }}>
-            To change your email or delete your account, please contact Sacred Heritage support.
-          </Text>
+        <InfoRow label="Gender" value={profile?.gender || 'Not provided'} colors={colors} />
+        <InfoRow label="Age" value={profile?.age ? `${profile.age} years` : 'Not provided'} colors={colors} />
+        <InfoRow label="Address" value={profile?.Address || 'Not provided'} colors={colors} />
+        <InfoRow label="Location" value={profile?.Address || 'Not provided'} colors={colors} />
+        <View style={{ margin: 20, padding: 16, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          <Text style={{ color: colors.muted, lineHeight: 20 }}>Tap Edit to update your name and location. Your email address cannot be changed here.</Text>
         </View>
       </ScrollView>
-      </KeyboardAvoidingView>
+
+      <Modal visible={editorOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeEditor}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView keyboardShouldPersistTaps="always" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ color: colors.ink, fontSize: 22, fontWeight: '800' }}>Edit Personal Info</Text>
+                <TouchableOpacity onPress={closeEditor} disabled={saving} style={{ padding: 8 }}>
+                  <Ionicons name="close" size={24} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
+              <EditField label="First name" value={firstName} onChangeText={setFirstName} colors={colors} autoFocus />
+              <EditField label="Last name" value={lastName} onChangeText={setLastName} colors={colors} />
+              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>LOCATION</Text>
+              <LocationFields value={location} onChange={setLocation} />
+              <EditField label="Email address" value={profile?.email || ''} colors={colors} editable={false} />
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                <TouchableOpacity onPress={closeEditor} disabled={saving} style={{ flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                  <Text style={{ color: colors.muted, fontWeight: '700' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={saveProfile} disabled={saving} style={{ flex: 1, padding: 16, borderRadius: 12, backgroundColor: colors.gold, alignItems: 'center' }}>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800' }}>Save Changes</Text>}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function chipStyle(C: ReturnType<typeof buildC>) {
-  return {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 50,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-  };
+function InfoRow({ label, value, colors }: any) {
+  return <View style={{ marginHorizontal: 20, marginBottom: 10, padding: 16, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}><Text style={{ color: colors.dim, fontSize: 11, marginBottom: 4 }}>{label}</Text><Text style={{ color: colors.ink, fontSize: 15, fontWeight: '600' }}>{value}</Text></View>;
+}
+
+function EditField({ label, value, onChangeText, colors, editable = true, keyboardType, autoFocus = false }: any) {
+  return <View style={{ marginBottom: 16 }}><Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', marginBottom: 7 }}>{label}</Text><TextInput editable={editable} autoFocus={autoFocus} value={value} onChangeText={onChangeText} keyboardType={keyboardType} showSoftInputOnFocus={editable} autoCapitalize={keyboardType === 'phone-pad' ? 'none' : 'words'} style={{ backgroundColor: editable ? colors.surface : colors.deep, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 15, color: editable ? colors.ink : colors.dim, fontSize: 15 }} /></View>;
 }

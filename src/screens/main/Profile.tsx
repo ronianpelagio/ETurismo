@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  TextInput, Image, Alert, ActivityIndicator, Animated, Keyboard,
-  KeyboardAvoidingView, Platform,
+  Image, Alert, ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -43,22 +42,11 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
 
   const [user, setUser]           = useState<UserProfile | null>(null);
   const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
-
-  // Editable fields
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName]   = useState('');
-  const [phone, setPhone]         = useState('');
-  const [editing, setEditing]     = useState(false);
-  const [saveFeedback, setSaveFeedback] = useState<'idle'|'saving'|'saved'|'error'>('idle');
 
   // Avatar upload
   const [avatarUri, setAvatarUri]   = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  const feedbackAnim = useRef(new Animated.Value(0)).current;
-  const editBorderAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => {
     setNavbarVisible?.(true);
@@ -76,9 +64,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       const { data } = await supabase.from('users').select('*').eq('id', auth.id).single();
       if (data) {
         setUser(data);
-        setFirstName(data.first_name || '');
-        setLastName(data.last_name || '');
-        setPhone(data.phone || '');
         setAvatarUri(data.profile_picture || null);
       }
     } catch {}
@@ -90,57 +75,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       const favorites = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
       setFavoriteCount(favorites.length);
     } catch {}
-  }
-
-  function startEditing() {
-    setEditing(true);
-    Animated.timing(editBorderAnim, { toValue: 1, duration: 250, useNativeDriver: false }).start();
-  }
-
-  function cancelEditing() {
-    // Reset to original values
-    setFirstName(user?.first_name || '');
-    setLastName(user?.last_name || '');
-    setPhone(user?.phone || '');
-    setEditing(false);
-    Keyboard.dismiss();
-    Animated.timing(editBorderAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-  }
-
-  async function handleSave() {
-    if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Required', 'First name and last name cannot be empty.');
-      return;
-    }
-    setSaveFeedback('saving');
-    Keyboard.dismiss();
-    try {
-      const { data: { user: auth } } = await supabase.auth.getUser();
-      if (!auth) throw new Error('Not authenticated');
-      const { error } = await supabase.from('users').update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        phone: phone.trim(),
-      }).eq('id', auth.id);
-      if (error) throw error;
-      setUser(prev => prev ? { ...prev, first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() } : prev);
-      setSaveFeedback('saved');
-      setEditing(false);
-      Animated.sequence([
-        Animated.timing(feedbackAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.delay(1800),
-        Animated.timing(feedbackAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start(() => setSaveFeedback('idle'));
-      Animated.timing(editBorderAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-    } catch (e: any) {
-      setSaveFeedback('error');
-      Alert.alert('Error', e.message || 'Failed to save changes.');
-      Animated.sequence([
-        Animated.timing(feedbackAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.delay(1800),
-        Animated.timing(feedbackAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start(() => setSaveFeedback('idle'));
-    }
   }
 
   async function handlePickAvatar() {
@@ -191,8 +125,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     }
   }
 
-  const activeInputBorder = editBorderAnim.interpolate({ inputRange: [0, 1], outputRange: [C.border, C.gold] });
-
   const initials = user
     ? `${(user.first_name[0] || '').toUpperCase()}${(user.last_name[0] || '').toUpperCase()}`
     : '?';
@@ -227,14 +159,12 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
       backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center',
     },
 
-    // Name display vs edit
+    // Name display
     heroBadge:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(199,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(199,168,75,0.25)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 12 },
     heroBadgeDot:{ width: 5, height: 5, borderRadius: 3, backgroundColor: C.gold },
     heroBadgeTxt:{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: C.gold },
     heroName:    { fontSize: 32, fontWeight: '900', color: '#FFFCF8', letterSpacing: -0.5, lineHeight: 36, textAlign: 'center' },
     heroSub:     { fontSize: 12, color: 'rgba(255,252,248,0.45)', marginTop: 4 },
-    editHeroBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-    editHeroBtnTxt: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
 
     // Settings shortcut
     settingsBtn: { position: 'absolute', top: 16, right: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
@@ -246,22 +176,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     statIconBox: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     statNum:     { fontSize: 24, fontWeight: '900', color: C.ink },
     statLbl:     { fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: C.inkDim },
-
-    // Edit form
-    editCard:    { marginHorizontal: 20, marginTop: 24, backgroundColor: C.surface, borderRadius: 20, borderWidth: 1.5, borderColor: C.gold, padding: 20, gap: 4 },
-    editHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-    editTitle:   { fontSize: 13, fontWeight: '800', color: C.gold, letterSpacing: 1.5 },
-    editActions: { flexDirection: 'row', gap: 8 },
-    cancelBtn:   { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, backgroundColor: C.deep, borderWidth: 1, borderColor: C.border },
-    cancelBtnTxt:{ fontSize: 12, fontWeight: '600', color: C.inkMid },
-    saveBtn:     { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 50, backgroundColor: C.gold },
-    saveBtnTxt:  { fontSize: 12, fontWeight: '800', color: '#fff' },
-    fieldRow:    { marginBottom: 14 },
-    fieldLabel:  { fontSize: 10, fontWeight: '800', color: C.gold, letterSpacing: 1.5, marginBottom: 6 },
-    fieldInput:  { backgroundColor: C.bg, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: C.ink },
-    fieldDisabled: { backgroundColor: C.deep, borderColor: C.border },
-    fieldDisabledTxt: { fontSize: 14, color: C.inkDim },
-    fieldHelper: { fontSize: 10, color: C.inkDim, marginTop: 4, fontStyle: 'italic' },
 
     // Section
     section:     { paddingHorizontal: 20, paddingTop: 24 },
@@ -281,11 +195,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     menuBadge:   { backgroundColor: C.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, minWidth: 22, alignItems: 'center' },
     menuBadgeTxt:{ fontSize: 11, fontWeight: '700', color: '#fff' },
 
-    // Feedback toast
-    feedbackToast: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', zIndex: 99, paddingTop: 14 },
-    feedbackPill:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.teal, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 50, elevation: 8 },
-    feedbackTxt:   { fontSize: 13, fontWeight: '700', color: '#fff' },
-
     version:     { textAlign: 'center', fontSize: 10, color: C.inkDim, marginTop: 28, letterSpacing: 0.5 },
   });
 
@@ -303,18 +212,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* ── Save feedback toast ── */}
-      <Animated.View style={[s.feedbackToast, { opacity: feedbackAnim }]} pointerEvents="none">
-        <View style={s.feedbackPill}>
-          <Ionicons name="checkmark-circle" size={16} color="#fff" />
-          <Text style={s.feedbackTxt}>Profile updated!</Text>
-        </View>
-      </Animated.View>
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: 90 + insets.bottom }]}
@@ -369,19 +266,11 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
               <Text style={s.heroBadgeTxt}>SACRED HERITAGE MEMBER</Text>
             </View>
 
-            {/* Name (live-reflects edits) */}
+            {/* Name */}
             <Text style={[s.heroName, { fontSize: 30 * fontScale }]}>
-              {firstName || user?.first_name} {lastName || user?.last_name}
+              {user?.first_name} {user?.last_name}
             </Text>
             <Text style={s.heroSub}>{user?.email}</Text>
-
-            {/* Edit profile inline button */}
-            {!editing && (
-              <TouchableOpacity style={s.editHeroBtn} onPress={startEditing} activeOpacity={0.8}>
-                <Ionicons name="pencil-outline" size={13} color="rgba(255,255,255,0.75)" />
-                <Text style={s.editHeroBtnTxt}>Edit Profile</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Settings shortcut */}
@@ -424,84 +313,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
             <Text style={s.statLbl}>HISTORY</Text>
           </View>
         </View>
-
-        {/* ══════════════════════════════
-            INLINE EDIT FORM
-        ══════════════════════════════ */}
-        {editing && (
-          <View style={s.editCard}>
-            <View style={s.editHeader}>
-              <Text style={s.editTitle}>EDIT PROFILE</Text>
-              <View style={s.editActions}>
-                <TouchableOpacity style={s.cancelBtn} onPress={cancelEditing} activeOpacity={0.8}>
-                  <Text style={s.cancelBtnTxt}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.saveBtn, saveFeedback === 'saving' && { opacity: 0.7 }]}
-                  onPress={handleSave}
-                  disabled={saveFeedback === 'saving'}
-                  activeOpacity={0.85}
-                >
-                  {saveFeedback === 'saving'
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <Text style={s.saveBtnTxt}>Save</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* First name */}
-            <View style={s.fieldRow}>
-              <Text style={s.fieldLabel}>FIRST NAME</Text>
-              <TextInput
-                style={[s.fieldInput, { borderColor: C.gold }]}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="First name"
-                placeholderTextColor={C.inkDim}
-                autoCapitalize="words"
-                returnKeyType="next"
-              />
-            </View>
-
-            {/* Last name */}
-            <View style={s.fieldRow}>
-              <Text style={s.fieldLabel}>LAST NAME</Text>
-              <TextInput
-                style={[s.fieldInput, { borderColor: C.gold }]}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Last name"
-                placeholderTextColor={C.inkDim}
-                autoCapitalize="words"
-                returnKeyType="next"
-              />
-            </View>
-
-            {/* Phone */}
-            <View style={s.fieldRow}>
-              <Text style={s.fieldLabel}>PHONE NUMBER</Text>
-              <TextInput
-                style={[s.fieldInput, { borderColor: C.borderGold }]}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="e.g. +63 912 345 6789"
-                placeholderTextColor={C.inkDim}
-                keyboardType="phone-pad"
-                returnKeyType="done"
-              />
-            </View>
-
-            {/* Email (read-only) */}
-            <View style={s.fieldRow}>
-              <Text style={s.fieldLabel}>EMAIL</Text>
-              <View style={[s.fieldInput, s.fieldDisabled]}>
-                <Text style={s.fieldDisabledTxt}>{user?.email}</Text>
-              </View>
-              <Text style={s.fieldHelper}>Email address cannot be changed here.</Text>
-            </View>
-          </View>
-        )}
 
         {/* ══════════════════════════════
             MY COLLECTION
@@ -556,7 +367,6 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
 
         <Text style={s.version}>Version 2.0.0 · Sacred Heritage</Text>
       </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

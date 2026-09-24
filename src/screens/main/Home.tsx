@@ -340,28 +340,177 @@ function FeedCard({ item, type, isInterested, onToggleInterested }: {
   const rawDate = type === 'announcement' ? item.announcement_datetime : item.event_datetime;
   const date = new Date(rawDate);
   const isEvent = type === 'event';
-  const badgeColor = isEvent ? '#085041' : '#854F0B';
-  const badgeBg = isEvent ? 'rgba(8,80,65,0.1)' : 'rgba(133,79,11,0.1)';
+  const accentColor = isEvent ? '#085041' : '#854F0B';
+  const accentBg    = isEvent ? 'rgba(8,80,65,0.08)' : 'rgba(133,79,11,0.08)';
+  const countdown   = isEvent ? getEventCountdown(rawDate) : null;
+
+  // Expandable description
+  const [expanded, setExpanded] = useState(false);
+  const COLLAPSE_LINES = 3;
+  const descriptionText: string = item.description ?? '';
+  // Only show "Read more" if text is long enough to have been clipped
+  const [isTruncated, setIsTruncated] = useState(false);
+
   return (
-    <View style={styles.feedCard}>
-      {item.image_url ? <SmartImage uri={item.image_url} style={styles.feedCardImage} resizeMode="cover" /> : null}
-      <View style={styles.feedCardBody}>
-        <View style={styles.feedTopRow}>
-          <View style={[styles.feedBadge, { backgroundColor: badgeBg, borderColor: `${badgeColor}40` }]}>
-            <Ionicons name={isEvent ? 'calendar-outline' : 'megaphone-outline'} size={10} color={badgeColor} />
-            <Text style={[styles.feedBadgeText, { color: badgeColor }]}>{isEvent ? 'EVENT' : 'ANNOUNCEMENT'}</Text>
+    <View style={{
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: C.border,
+      shadowColor: C.ink,
+      shadowOpacity: 0.06,
+      shadowOffset: { width: 0, height: 3 },
+      shadowRadius: 10,
+      elevation: 3,
+    }}>
+      {/* Hero image with gradient overlay */}
+      {item.image_url ? (
+        <View style={{ height: 180, position: 'relative' }}>
+          <SmartImage uri={item.image_url} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          <LinearGradient
+            colors={['transparent', 'rgba(10,8,5,0.75)']}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
+          />
+          {/* Floating type badge on image */}
+          <View style={{
+            position: 'absolute', top: 12, left: 12,
+            flexDirection: 'row', alignItems: 'center', gap: 5,
+            backgroundColor: 'rgba(10,8,5,0.72)',
+            paddingHorizontal: 10, paddingVertical: 5,
+            borderRadius: 50, borderWidth: 1, borderColor: `${accentColor}60`,
+          }}>
+            <Ionicons name={isEvent ? 'calendar-outline' : 'megaphone-outline'} size={11} color={accentColor === '#085041' ? '#4ECDA4' : '#E8B06A'} />
+            <Text style={{ fontSize: 9, fontWeight: '800', color: accentColor === '#085041' ? '#4ECDA4' : '#E8B06A', letterSpacing: 1 }}>
+              {isEvent ? 'EVENT' : 'ANNOUNCEMENT'}
+            </Text>
           </View>
-          <TouchableOpacity style={[styles.interestedBtn, isInterested && styles.interestedBtnActive]} onPress={onToggleInterested} activeOpacity={0.75}>
-            <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={14} color={isInterested ? '#E74C3C' : C.inkMid} />
-            <Text style={[styles.interestedBtnText, isInterested && styles.interestedBtnTextActive]}>Interested</Text>
+          {/* Interested heart on image */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute', top: 12, right: 12,
+              width: 34, height: 34, borderRadius: 17,
+              backgroundColor: isInterested ? 'rgba(231,76,60,0.85)' : 'rgba(10,8,5,0.55)',
+              borderWidth: 1, borderColor: isInterested ? 'rgba(231,76,60,0.6)' : 'rgba(255,255,255,0.2)',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+            onPress={onToggleInterested} activeOpacity={0.8}
+          >
+            <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={16} color="#fff" />
+          </TouchableOpacity>
+          {/* Countdown pill on image bottom-left */}
+          {countdown && (
+            <View style={{
+              position: 'absolute', bottom: 12, left: 12,
+              backgroundColor: 'rgba(8,80,65,0.85)',
+              paddingHorizontal: 10, paddingVertical: 4,
+              borderRadius: 50, borderWidth: 1, borderColor: 'rgba(78,205,164,0.4)',
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+            }}>
+              <Ionicons name="time-outline" size={11} color="#4ECDA4" />
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#4ECDA4' }}>{countdown}</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        /* No image — coloured banner */
+        <View style={{
+          height: 72,
+          backgroundColor: accentBg,
+          borderBottomWidth: 1, borderBottomColor: `${accentColor}20`,
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: 16, gap: 10,
+          justifyContent: 'space-between',
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{
+              width: 36, height: 36, borderRadius: 10,
+              backgroundColor: `${accentColor}18`,
+              alignItems: 'center', justifyContent: 'center',
+              borderWidth: 1, borderColor: `${accentColor}30`,
+            }}>
+              <Ionicons name={isEvent ? 'calendar-outline' : 'megaphone-outline'} size={17} color={accentColor} />
+            </View>
+            <Text style={{ fontSize: 10, fontWeight: '800', color: accentColor, letterSpacing: 1 }}>
+              {isEvent ? 'EVENT' : 'ANNOUNCEMENT'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: isInterested ? 'rgba(231,76,60,0.1)' : C.raised,
+              borderWidth: 1, borderColor: isInterested ? 'rgba(231,76,60,0.3)' : C.border,
+              paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
+            }}
+            onPress={onToggleInterested} activeOpacity={0.8}
+          >
+            <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={13} color={isInterested ? '#E74C3C' : C.inkMid} />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: isInterested ? '#E74C3C' : C.inkMid }}>
+              {isInterested ? 'Interested' : 'Interested?'}
+            </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.feedTitle}>{item.title}</Text>
-        {item.description ? <Text style={styles.feedDesc}>{item.description}</Text> : null}
-        <View style={styles.feedFooter}>
-          <Ionicons name={isEvent ? 'time-outline' : 'calendar-outline'} size={11} color={C.inkDim} />
-          <Text style={styles.feedFooterText}>{formatDate(rawDate)}</Text>
-          {isEvent && (<><View style={styles.feedFooterDot} /><Text style={styles.feedFooterText}>{date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</Text></>)}
+      )}
+
+      {/* Body */}
+      <View style={{ padding: 16, gap: 8 }}>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: C.ink, lineHeight: 23, letterSpacing: -0.3 }}>
+          {item.title}
+        </Text>
+        {descriptionText ? (
+          <View>
+            <Text
+              style={{ fontSize: 13, color: C.inkMid, lineHeight: 20 }}
+              numberOfLines={expanded ? undefined : COLLAPSE_LINES}
+              onTextLayout={e => {
+                // Only flag as truncatable if the text actually overflows
+                if (!expanded) setIsTruncated(e.nativeEvent.lines.length >= COLLAPSE_LINES);
+              }}
+            >
+              {descriptionText}
+            </Text>
+            {(isTruncated || expanded) && (
+              <TouchableOpacity
+                onPress={() => setExpanded(v => !v)}
+                activeOpacity={0.7}
+                style={{ marginTop: 5 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: C.gold }}>
+                  {expanded ? 'Show less ↑' : 'Read more ↓'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : null}
+
+        {/* Footer row */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center',
+          paddingTop: 10, marginTop: 2,
+          borderTopWidth: 1, borderTopColor: C.border,
+          gap: 6,
+        }}>
+          <Ionicons name={isEvent ? 'calendar-outline' : 'time-outline'} size={12} color={C.inkDim} />
+          <Text style={{ fontSize: 11, color: C.inkDim, flex: 1 }}>
+            {formatDate(rawDate)}{isEvent ? `  ·  ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}
+          </Text>
+          {/* If has image, show interested button here too */}
+          {item.image_url && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                backgroundColor: isInterested ? 'rgba(231,76,60,0.08)' : C.raised,
+                borderWidth: 1, borderColor: isInterested ? 'rgba(231,76,60,0.25)' : C.border,
+                paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
+              }}
+              onPress={onToggleInterested} activeOpacity={0.8}
+            >
+              <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={12} color={isInterested ? '#E74C3C' : C.inkMid} />
+              <Text style={{ fontSize: 10, fontWeight: '700', color: isInterested ? '#E74C3C' : C.inkMid }}>
+                {isInterested ? 'Interested' : 'Interested?'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -705,6 +854,21 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [showFeedModal, setShowFeedModal] = useState(false);
   const [feedModalTab, setFeedModalTab] = useState<'announcements' | 'events'>('announcements');
   const [showVisitInfoModal, setShowVisitInfoModal] = useState(false);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  // Persisted per-item read/dismissed sets — loaded from AsyncStorage on mount
+  const [notifReadIds, setNotifReadIds]           = useState<Set<string>>(new Set());
+  const [notifDismissedIds, setNotifDismissedIds] = useState<Set<string>>(new Set());
+
+  // Load persisted dismissed/read sets on mount
+  useEffect(() => {
+    AsyncStorage.getItem('notifDismissedIds').then(raw => {
+      if (raw) setNotifDismissedIds(new Set(JSON.parse(raw)));
+    }).catch(() => {});
+    AsyncStorage.getItem('notifReadIds').then(raw => {
+      if (raw) setNotifReadIds(new Set(JSON.parse(raw)));
+    }).catch(() => {});
+  }, []);
 
   // ── Exhibition Spotlight state ──
   const [spotlightIndex, setSpotlightIndex] = useState(0);
@@ -736,6 +900,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const profileSheetOpacity = useRef(new Animated.Value(0)).current;
   const feedModalSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const feedModalOpacity = useRef(new Animated.Value(0)).current;
+  const notifPanelSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const notifPanelOpacity = useRef(new Animated.Value(0)).current;
   const visitInfoSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const visitInfoOpacity = useRef(new Animated.Value(0)).current;
   const modalSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -765,8 +931,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
   // ── Navbar visibility ──
   useEffect(() => {
-    setNavbarVisible?.(!selectedArtifact && !showFeedModal && !showProfileSheet && !showMapModal && !showVisitInfoModal);
-  }, [selectedArtifact, showFeedModal, showProfileSheet, showMapModal, showVisitInfoModal]);
+    setNavbarVisible?.(!selectedArtifact && !showFeedModal && !showProfileSheet && !showMapModal && !showVisitInfoModal && !showNotifPanel);
+  }, [selectedArtifact, showFeedModal, showProfileSheet, showMapModal, showVisitInfoModal, showNotifPanel]);
 
   const handleScroll = (event: any) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -1002,6 +1168,20 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           .map(i => new Date((i as any).event_datetime || (i as any).announcement_datetime).getTime())
           .reduce((a, b) => Math.max(a, b), 0);
         setHasUnreadFeed(!lastSeen || newestTs > parseInt(lastSeen, 10));
+
+        // ── Unread count for the bell badge ──────────────────────────────
+        const notifSeen = await AsyncStorage.getItem('notifLastSeen');
+        const seenTs = notifSeen ? parseInt(notifSeen, 10) : 0;
+        const newArtifactsCount = (items || []).filter(
+          a => new Date((a as any).created_at).getTime() > seenTs,
+        ).length;
+        const newEventsCount = (eventsData || []).filter(
+          e => new Date((e as any).created_at ?? (e as any).event_datetime).getTime() > seenTs,
+        ).length;
+        const newAnnouncementsCount = (announcementsData || []).filter(
+          a => new Date((a as any).created_at ?? (a as any).announcement_datetime).getTime() > seenTs,
+        ).length;
+        setUnreadNotifCount(newArtifactsCount + newEventsCount + newAnnouncementsCount);
       } catch (_) {}
     } catch (err: any) {
       // ── Fall back to cache if offline ──
@@ -1117,6 +1297,31 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       Animated.timing(feedModalSlide, { toValue: SCREEN_HEIGHT, duration: 350, useNativeDriver: true, easing: Easing.in(Easing.cubic) }),
       Animated.timing(feedModalOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start(() => setShowFeedModal(false));
+  }
+
+  function openNotifPanel() {
+    setShowNotifPanel(true);
+    setUnreadNotifCount(0);
+    // Mark all current items read when panel opens and persist
+    setNotifReadIds(prev => {
+      const all = new Set(prev);
+      [...artifacts.map(a => `artifact_${a.id}`),
+       ...announcements.map(a => `announcement_${a.id}`),
+       ...events.map(e => `event_${e.id}`)].forEach(id => all.add(id));
+      AsyncStorage.setItem('notifReadIds', JSON.stringify([...all])).catch(() => {});
+      return all;
+    });
+    AsyncStorage.setItem('notifLastSeen', Date.now().toString()).catch(() => {});
+    Animated.parallel([
+      Animated.spring(notifPanelSlide, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
+      Animated.timing(notifPanelOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+    ]).start();
+  }
+  function closeNotifPanel() {
+    Animated.parallel([
+      Animated.timing(notifPanelSlide, { toValue: SCREEN_HEIGHT, duration: 340, useNativeDriver: true, easing: Easing.in(Easing.cubic) }),
+      Animated.timing(notifPanelOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => setShowNotifPanel(false));
   }
 
   function openVisitInfoModal() {
@@ -1389,16 +1594,23 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
               <Text style={styles.heroLogo}>ETURISMO</Text>
               <Text style={styles.heroLogoSub}>CULTURE · HISTORY · HERITAGE</Text>
             </View>
+
+            {/* Notification bell */}
             <TouchableOpacity
-              style={styles.heroProfileBtn}
-              onPress={openProfileSheet}
+              style={styles.heroNotifBtn}
+              onPress={openNotifPanel}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Open profile summary"
+              accessibilityLabel={unreadNotifCount > 0 ? `Notifications — ${unreadNotifCount} new` : 'Notifications'}
             >
-              {user?.profile_picture
-                ? <Image source={{ uri: user.profile_picture }} style={styles.heroProfileImage} />
-                : <Text style={styles.heroProfileInitial}>{firstName[0]?.toUpperCase()}</Text>}
+              <Ionicons name="notifications-outline" size={20} color="#fff" />
+              {unreadNotifCount > 0 && (
+                <View style={styles.heroNotifBadge}>
+                  <Text style={styles.heroNotifBadgeText}>
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1987,6 +2199,203 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
       )}
 
       {/* ══════════════════════════════════════════════════════
+          NOTIFICATIONS PANEL
+      ══════════════════════════════════════════════════════ */}
+      {showNotifPanel && (() => {
+        const TYPE_META = {
+          artifact:     { icon: 'cube-outline'      as const, label: 'New Artifact',  color: C.gold,    bg: `${C.gold}18`    },
+          announcement: { icon: 'megaphone-outline' as const, label: 'Announcement',  color: '#A0640A', bg: 'rgba(160,100,10,0.10)' },
+          event:        { icon: 'calendar-outline'  as const, label: 'Event',         color: '#085041', bg: 'rgba(8,80,65,0.10)'    },
+        };
+
+        const allItems: { id: string; type: 'artifact'|'announcement'|'event'; title: string; subtitle: string; ts: number; raw: any }[] = [
+          ...artifacts.map(a => ({ id: `artifact_${a.id}`,     type: 'artifact'     as const, title: a.name,    subtitle: a.category,                       ts: new Date(a.created_at).getTime(),                                                              raw: a })),
+          ...announcements.map(a => ({ id: `announcement_${a.id}`, type: 'announcement' as const, title: a.title, subtitle: (a as any).description?.slice(0,72) ?? '', ts: new Date((a as any).created_at ?? (a as any).announcement_datetime).getTime(), raw: a })),
+          ...events.map(e => ({ id: `event_${e.id}`,           type: 'event'        as const, title: e.title,   subtitle: (e as any).description?.slice(0,72) ?? '', ts: new Date((e as any).created_at ?? (e as any).event_datetime).getTime(),           raw: e })),
+        ]
+          .filter(i => !notifDismissedIds.has(i.id))
+          .sort((a, b) => b.ts - a.ts);
+
+        const unreadCount = allItems.filter(i => !notifReadIds.has(i.id)).length;
+
+        const markAllRead = () =>
+          setNotifReadIds(prev => {
+            const s = new Set(prev);
+            allItems.forEach(i => s.add(i.id));
+            AsyncStorage.setItem('notifReadIds', JSON.stringify([...s])).catch(() => {});
+            return s;
+          });
+
+        const dismissItem = (id: string) =>
+          setNotifDismissedIds(prev => {
+            const s = new Set([...prev, id]);
+            AsyncStorage.setItem('notifDismissedIds', JSON.stringify([...s])).catch(() => {});
+            return s;
+          });
+
+        const clearAll = () =>
+          setNotifDismissedIds(() => {
+            const s = new Set(allItems.map(i => i.id));
+            AsyncStorage.setItem('notifDismissedIds', JSON.stringify([...s])).catch(() => {});
+            return s;
+          });
+
+        return (
+          <Animated.View style={[styles.modalWrap, { opacity: notifPanelOpacity }]}>
+            <TouchableOpacity style={styles.modalBackdrop} onPress={closeNotifPanel} activeOpacity={1} />
+            <Animated.View style={[styles.feedModalSheet, { transform: [{ translateY: notifPanelSlide }], maxHeight: SCREEN_HEIGHT * 0.88 }]}>
+              <View style={styles.modalHandle} />
+
+              {/* ── Header ── */}
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12,
+                borderBottomWidth: 1, borderBottomColor: C.border,
+                gap: 8,
+              }}>
+                {/* Title + unread badge */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: C.inkMid, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    Notifications
+                  </Text>
+                  {unreadCount > 0 && (
+                    <View style={{ backgroundColor: C.ink, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: C.surface }}>{unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                {/* Actions */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  {unreadCount > 0 && (
+                    <TouchableOpacity onPress={markAllRead} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="checkmark-done-outline" size={13} color={C.inkMid} />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: C.inkMid }}>Mark all read</Text>
+                    </TouchableOpacity>
+                  )}
+                  {allItems.length > 0 && (
+                    <TouchableOpacity onPress={clearAll} activeOpacity={0.7}>
+                      <Text style={{ fontSize: 11, color: C.inkDim }}>Clear all</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={closeNotifPanel} activeOpacity={0.7}
+                    style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.raised, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Ionicons name="close" size={15} color={C.inkMid} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* ── List ── */}
+              {allItems.length === 0 ? (
+                <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 }}>
+                  <Ionicons name="notifications-off-outline" size={40} color={C.border} />
+                  <Text style={{ color: C.inkMid, fontSize: 13, fontWeight: '600' }}>All caught up</Text>
+                  <Text style={{ color: C.inkDim, fontSize: 11, textAlign: 'center', paddingHorizontal: 32 }}>
+                    New artifacts, announcements and events will appear here
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={allItems}
+                  keyExtractor={i => i.id}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 40 }}
+                  renderItem={({ item }) => {
+                    const meta = TYPE_META[item.type];
+                    const isRead = notifReadIds.has(item.id);
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => {
+                          // Mark this item read and persist
+                          setNotifReadIds(prev => {
+                            const s = new Set([...prev, item.id]);
+                            AsyncStorage.setItem('notifReadIds', JSON.stringify([...s])).catch(() => {});
+                            return s;
+                          });
+                          closeNotifPanel();
+                          if (item.type === 'artifact') {
+                            setTimeout(() => setSelectedArtifact(item.raw), 400);
+                          } else if (item.type === 'announcement') {
+                            setTimeout(() => openFeedModal('announcements'), 400);
+                          } else {
+                            setTimeout(() => openFeedModal('events'), 400);
+                          }
+                        }}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center',
+                          paddingHorizontal: 14, paddingVertical: 11,
+                          borderBottomWidth: 1, borderBottomColor: C.border,
+                          gap: 11,
+                          backgroundColor: isRead ? 'transparent' : `${C.gold}07`,
+                        }}
+                      >
+                        {/* Unread dot */}
+                        <View style={{ width: 7, alignItems: 'center' }}>
+                          {!isRead && (
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.ink }} />
+                          )}
+                        </View>
+
+                        {/* Icon circle */}
+                        <View style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          backgroundColor: meta.bg,
+                          alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          overflow: 'hidden',
+                        }}>
+                          {item.type === 'artifact' && item.raw.image_url ? (
+                            <Image source={{ uri: item.raw.image_url }} style={{ width: 36, height: 36, borderRadius: 10 }} resizeMode="cover" />
+                          ) : (
+                            <Ionicons name={meta.icon} size={17} color={meta.color} />
+                          )}
+                        </View>
+
+                        {/* Text */}
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <Text style={{ fontSize: 12, fontWeight: isRead ? '600' : '800', color: isRead ? C.inkMid : C.ink }} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <Text style={{ fontSize: 10, color: C.inkDim, marginLeft: 8, flexShrink: 0 }}>
+                              {getTimeAgo(new Date(item.ts))}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 11, color: C.inkDim, lineHeight: 15 }} numberOfLines={1}>
+                            {item.subtitle || meta.label}
+                          </Text>
+                        </View>
+
+                        {/* Dismiss X */}
+                        <TouchableOpacity
+                          onPress={e => { dismissItem(item.id); }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.6}
+                          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: C.raised, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        >
+                          <Ionicons name="close" size={11} color={C.inkDim} />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              )}
+
+              {/* ── Footer ── */}
+              {allItems.length > 0 && (
+                <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingVertical: 10, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, color: C.inkDim }}>
+                    {allItems.length} notification{allItems.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          </Animated.View>
+        );
+      })()}
+
+      {/* ══════════════════════════════════════════════════════
           FEED MODAL
       ══════════════════════════════════════════════════════ */}
       {showFeedModal && (
@@ -1994,34 +2403,64 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           <TouchableOpacity style={styles.modalBackdrop} onPress={closeFeedModal} activeOpacity={1} />
           <Animated.View style={[styles.feedModalSheet, { transform: [{ translateY: feedModalSlide }] }]}>
             <View style={styles.modalHandle} />
-            <View style={styles.feedModalHeader}>
-              <View style={styles.feedModalTabs}>
-                {(['announcements', 'events'] as const).map(tab => (
-                  <TouchableOpacity
-                    key={tab}
-                    style={[styles.feedModalTab, feedModalTab === tab && styles.feedModalTabActive]}
-                    onPress={() => setFeedModalTab(tab)} activeOpacity={0.75}
-                  >
-                    <Ionicons name={tab === 'announcements' ? 'megaphone-outline' : 'calendar-outline'} size={13} color={feedModalTab === tab ? C.void : C.inkMid} />
-                    <Text style={[styles.feedModalTabText, feedModalTab === tab && styles.feedModalTabTextActive]}>
-                      {tab === 'announcements' ? 'Announcements' : 'Events'}
-                    </Text>
-                    <View style={[styles.feedModalTabCount, feedModalTab === tab && styles.feedModalTabCountActive]}>
-                      <Text style={[styles.feedModalTabCountText, feedModalTab === tab && styles.feedModalTabCountTextActive]}>
-                        {tab === 'announcements' ? announcements.length : events.length}
+
+            {/* Header */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12,
+              borderBottomWidth: 1, borderBottomColor: C.border, gap: 8,
+            }}>
+              {/* Tabs */}
+              <View style={{ flex: 1, flexDirection: 'row', gap: 8 }}>
+                {(['announcements', 'events'] as const).map(tab => {
+                  const active = feedModalTab === tab;
+                  const count  = tab === 'announcements' ? announcements.length : events.length;
+                  const color  = tab === 'announcements' ? '#854F0B' : '#085041';
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => setFeedModalTab(tab)}
+                      activeOpacity={0.75}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                        paddingHorizontal: 14, paddingVertical: 9, borderRadius: 50,
+                        backgroundColor: active ? C.ink : C.raised,
+                        borderWidth: 1, borderColor: active ? C.ink : C.border,
+                      }}
+                    >
+                      <Ionicons
+                        name={tab === 'announcements' ? 'megaphone-outline' : 'calendar-outline'}
+                        size={13}
+                        color={active ? C.surface : C.inkMid}
+                      />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: active ? C.surface : C.inkMid }}>
+                        {tab === 'announcements' ? 'Announcements' : 'Events'}
                       </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                      <View style={{
+                        backgroundColor: active ? 'rgba(255,255,255,0.2)' : C.raised,
+                        borderRadius: 20, paddingHorizontal: 6, paddingVertical: 1,
+                        borderWidth: 1, borderColor: active ? 'transparent' : C.border,
+                      }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: active ? C.surface : C.inkDim }}>
+                          {count}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={closeFeedModal} activeOpacity={0.7}>
-                <Ionicons name="close" size={18} color={C.inkMid} />
+              <TouchableOpacity
+                onPress={closeFeedModal} activeOpacity={0.7}
+                style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: C.raised, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Ionicons name="close" size={15} color={C.inkMid} />
               </TouchableOpacity>
             </View>
+
             <FlatList
               data={(feedModalTab === 'announcements' ? announcements : events) as any[]}
               keyExtractor={i => i.id}
-              contentContainerStyle={styles.feedModalList}
+              contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 48 }}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <FeedCard

@@ -110,6 +110,23 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     },
     heroProfileImage: { width: '100%', height: '100%' },
     heroProfileInitial: { color: '#fff', fontSize: 15, fontWeight: '800' },
+    heroNotifBtn: {
+      width: 40, height: 40, borderRadius: 20,
+      borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    heroNotifBadge: {
+      position: 'absolute',
+      top: -2, right: -2,
+      width: 14, height: 14, borderRadius: 7,
+      backgroundColor: '#E74C3C',
+      borderWidth: 2, borderColor: 'rgba(12,9,6,0.9)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    heroNotifBadgeText: {
+      color: '#fff', fontSize: 7, fontWeight: '900',
+    },
     heroBody: {
       flex: 1,
       justifyContent: 'flex-end',

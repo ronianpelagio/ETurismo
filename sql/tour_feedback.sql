@@ -45,14 +45,7 @@ create policy "Admins can read all feedback"
   on public.tour_feedback
   for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.users
-      where users.id = (select auth.uid())
-        and users.role = 'admin'
-    )
-  );
+using (public.is_current_user_admin());
 
 grant select, insert on public.tour_feedback to authenticated;
 revoke all on public.tour_feedback from anon;

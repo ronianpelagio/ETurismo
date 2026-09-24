@@ -24,6 +24,7 @@ export function TogglePreference({
   value,
   onChange,
   isLast = false,
+  disabled = false,
 }: {
   C: SettingsPalette;
   icon: keyof typeof Ionicons.glyphMap;
@@ -32,16 +33,22 @@ export function TogglePreference({
   value: boolean;
   onChange: (value: boolean) => void;
   isLast?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={[styles.row, !isLast && { borderBottomWidth: 1, borderBottomColor: C.border }]}
-      onPress={() => onChange(!value)}
+      style={[
+        styles.row,
+        !isLast && { borderBottomWidth: 1, borderBottomColor: C.border },
+        disabled && { opacity: 0.5 },
+      ]}
+      onPress={() => !disabled && onChange(!value)}
       activeOpacity={0.75}
       accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled }}
       accessibilityLabel={title}
       accessibilityHint={description}
+      disabled={disabled}
     >
       <View style={[styles.icon, { backgroundColor: C.goldSoft, borderColor: C.borderGold }]}>
         <Ionicons name={icon} size={18} color={C.gold} />
@@ -52,9 +59,10 @@ export function TogglePreference({
       </View>
       <Switch
         value={value}
-        onValueChange={onChange}
+        onValueChange={v => { if (!disabled) onChange(v); }}
         trackColor={{ false: C.deep, true: C.gold }}
         thumbColor={C.surface}
+        disabled={disabled}
         pointerEvents="none"
       />
     </TouchableOpacity>

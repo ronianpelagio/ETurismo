@@ -24,14 +24,23 @@ const C = {
   border: '#EAE4DA',
   error: '#C0392B',
   success: '#27AE60',
+  warning: '#E67E22',
 };
 
 const OTP_LENGTH    = 6;
 const TIMER_SECONDS = 180; // 3 minutes — matches Supabase OTP expiry
+const MAX_ATTEMPTS  = 5;
 
 const BOX_SIZE = 48;
 
-type Status = 'idle' | 'verifying' | 'success' | 'expired' | 'invalid' | 'profile_error';
+type Status =
+  | 'idle'
+  | 'verifying'
+  | 'success'
+  | 'expired'
+  | 'invalid'        // wrong code — shake + red, clears after 1.5 s
+  | 'locked'         // ≥ MAX_ATTEMPTS wrong codes — wait for expiry
+  | 'profile_error';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,7 +50,6 @@ function formatTime(s: number) {
   return `${m}:${sec}`;
 }
 
-// AsyncStorage key — unique per email so multiple attempts don't collide
 function otpTimestampKey(email: string) {
   return `otp_sent_at_${email.toLowerCase().trim()}`;
 }
@@ -54,24 +62,25 @@ async function clearOtpTimestamp(email: string) {
   await AsyncStorage.removeItem(otpTimestampKey(email));
 }
 
-/** Returns how many seconds remain on the OTP, or 0 if expired / not found. */
 async function getRemainingSeconds(email: string): Promise<number> {
   const raw = await AsyncStorage.getItem(otpTimestampKey(email));
-  if (!raw) return TIMER_SECONDS; // first visit — full timer
-  const sentAt   = parseInt(raw, 10);
-  const elapsed  = Math.floor((Date.now() - sentAt) / 1000);
+  if (!raw) return TIMER_SECONDS;
+  const sentAt    = parseInt(raw, 10);
+  const elapsed   = Math.floor((Date.now() - sentAt) / 1000);
   const remaining = TIMER_SECONDS - elapsed;
   return remaining > 0 ? remaining : 0;
 }
 
 // ─── Single digit box ─────────────────────────────────────────────────────────
-function OtpBox({ digit, focused, hasError }: {
-  digit: string; focused: boolean; hasError: boolean;
+function OtpBox({ digit, focused, hasError, locked }: {
+  digit: string; focused: boolean; hasError: boolean; locked: boolean;
 }) {
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (digit) scale.value = withSequence(withSpring(1.15), withSpring(1));
+    if (digit && !hasError && !locked) {
+      scale.value = withSequence(withSpring(1.15), withSpring(1));
+    }
   }, [digit]);
 
   const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -79,13 +88,18 @@ function OtpBox({ digit, focused, hasError }: {
   return (
     <Animated.View style={[
       styles.otpBox,
-      focused  && styles.otpBoxFocused,
+      focused  && !hasError && !locked && styles.otpBoxFocused,
       hasError && styles.otpBoxError,
-      digit    && styles.otpBoxFilled,
+      locked   && styles.otpBoxLocked,
+      digit    && !hasError && !locked && styles.otpBoxFilled,
       aStyle,
     ]}>
-      <Text style={[styles.otpDigit, hasError && { color: C.error }]}>
-        {digit ? digit : focused ? '|' : ''}
+      <Text style={[
+        styles.otpDigit,
+        hasError && { color: C.error },
+        locked   && { color: C.inkLight },
+      ]}>
+        {digit ? digit : focused && !locked ? '|' : ''}
       </Text>
     </Animated.View>
   );
@@ -137,12 +151,18 @@ export default function VerifyOTP({ route, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { email } = route.params as { email: string };
 
-  const [code, setCode]         = useState('');
+  const [code, setCode]           = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [status, setStatus]     = useState<Status>('idle');
-  const [timeLeft, setTimeLeft] = useState<number | null>(null); // null = loading from storage
+  const [status, setStatus]       = useState<Status>('idle');
+  const [timeLeft, setTimeLeft]   = useState<number | null>(null);
   const [resending, setResending] = useState(false);
   const [profileError, setProfileError] = useState('');
+
+  // ── Attempt tracking ──────────────────────────────────────────────────────
+  // Counts wrong-code attempts this session (resets on resend).
+  const [attempts, setAttempts] = useState(0);
+  // How many remaining attempts to show the user (derived, not stored).
+  const remainingAttempts = MAX_ATTEMPTS - attempts;
 
   const inputRef = useRef<TextInput>(null);
   const shakeX   = useSharedValue(0);
@@ -162,7 +182,6 @@ export default function VerifyOTP({ route, navigation }: any) {
       }
     });
 
-    // Auto-focus keyboard
     const focusTimer = setTimeout(() => inputRef.current?.focus(), 400);
 
     return () => {
@@ -172,11 +191,12 @@ export default function VerifyOTP({ route, navigation }: any) {
     };
   }, [email]);
 
-  // ── Countdown tick — only runs after timeLeft is loaded from storage ──────
+  // ── Countdown tick ────────────────────────────────────────────────────────
   useEffect(() => {
     if (timeLeft === null || status === 'success' || status === 'profile_error') return;
     if (timeLeft <= 0) {
-      setStatus(prev => prev === 'success' ? prev : 'expired');
+      // If locked due to attempts, the expired overlay takes over — also clears lock.
+      setStatus(prev => (prev === 'success' ? prev : 'expired'));
       clearOtpTimestamp(email).catch(() => {});
       return;
     }
@@ -189,9 +209,10 @@ export default function VerifyOTP({ route, navigation }: any) {
   // ── Shake animation ───────────────────────────────────────────────────────
   const shake = () => {
     shakeX.value = withSequence(
-      withTiming(-10, { duration: 60 }), withTiming(10, { duration: 60 }),
-      withTiming(-8,  { duration: 60 }), withTiming(8,  { duration: 60 }),
-      withTiming(0,   { duration: 60 }),
+      withTiming(-12, { duration: 55 }), withTiming(12, { duration: 55 }),
+      withTiming(-9,  { duration: 55 }), withTiming(9,  { duration: 55 }),
+      withTiming(-6,  { duration: 55 }), withTiming(6,  { duration: 55 }),
+      withTiming(0,   { duration: 55 }),
     );
   };
 
@@ -201,14 +222,16 @@ export default function VerifyOTP({ route, navigation }: any) {
 
   // ── Input ─────────────────────────────────────────────────────────────────
   const handleChangeText = (text: string) => {
+    // Block input while locked, verifying, or in error flash
+    if (status === 'locked' || status === 'verifying' || status === 'invalid') return;
     const cleaned = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setCode(cleaned);
-    if (status === 'invalid') setStatus('idle');
   };
 
   // ── Verify ────────────────────────────────────────────────────────────────
   const handleVerify = useCallback(async (codeToVerify: string) => {
     if (codeToVerify.length < OTP_LENGTH) return;
+    if (status === 'locked') return;
 
     setStatus('verifying');
     inputRef.current?.blur();
@@ -220,6 +243,7 @@ export default function VerifyOTP({ route, navigation }: any) {
     });
 
     if (!error) {
+      // ── Success ────────────────────────────────────────────────────────
       await clearOtpTimestamp(email);
       try {
         if (!data.user) throw new Error('Verified user session was not returned.');
@@ -230,41 +254,56 @@ export default function VerifyOTP({ route, navigation }: any) {
         setStatus('profile_error');
       }
     } else if (
-      error.message?.toLowerCase().includes('expired') ||
-      error.message?.toLowerCase().includes('otp')
+      // Only treat as expired when Supabase explicitly says the token has
+      // expired AND there is no "invalid" qualifier — a wrong code comes
+      // back as "invalid" or "Token has expired or is invalid" which must
+      // NOT pop the expired overlay (just shake + red boxes instead).
+      error.message?.toLowerCase().includes('expired') &&
+      !error.message?.toLowerCase().includes('invalid')
     ) {
+      // ── OTP truly expired (server confirmed, timer ran out) ───────────
       setStatus('expired');
       await clearOtpTimestamp(email);
     } else {
-      setStatus('invalid');
+      // ── Wrong code ────────────────────────────────────────────────────
+      const newAttempts = attempts + 1;
+      setAttempts(newAttempts);
       shake();
       setCode('');
-      setTimeout(() => {
-        setStatus('idle');
-        inputRef.current?.focus();
-      }, 1500);
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        // Max attempts reached — lock the input until timer expires / resend
+        setStatus('locked');
+        // No auto-focus, no auto-reset — user must wait for resend
+      } else {
+        // Still have attempts left — flash red then let them try again
+        setStatus('invalid');
+        setTimeout(() => {
+          setStatus('idle');
+          inputRef.current?.focus();
+        }, 1500);
+      }
     }
-  }, [email]);
+  }, [email, attempts, status]);
 
   // Auto-verify once all 6 digits are entered
   useEffect(() => {
     if (code.length === OTP_LENGTH && status === 'idle') {
       handleVerify(code);
     }
-  }, [code]);
+  }, [code, handleVerify]);
 
   // ── Resend ────────────────────────────────────────────────────────────────
   const handleResend = async () => {
     setResending(true);
     setCode('');
     setStatus('idle');
+    setAttempts(0); // reset the attempt counter for the fresh code
     try {
       await supabase.auth.resend({ type: 'signup', email });
-      // Save new timestamp so the fresh 3-minute window persists across app restarts
       await saveOtpTimestamp(email);
       setTimeLeft(TIMER_SECONDS);
     } catch {
-      // silently fail — timer still resets so user can retry
       setTimeLeft(TIMER_SECONDS);
     } finally {
       setResending(false);
@@ -272,25 +311,24 @@ export default function VerifyOTP({ route, navigation }: any) {
     }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
+  // ── Derived UI values ─────────────────────────────────────────────────────
   const digits    = Array.from({ length: OTP_LENGTH }, (_, i) => code[i] ?? '');
   const hasError  = status === 'invalid';
+  const isLocked  = status === 'locked';
   const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, (_, a, b, c) =>
     a + '*'.repeat(b.length) + c
   );
 
-  // Still reading timestamp from storage — show nothing yet
   if (timeLeft === null) return null;
 
-  // Resend is available after 30 seconds have elapsed (timeLeft dropped below TIMER - 30)
-  const resendDisabled = resending || (timeLeft ?? 0) > TIMER_SECONDS - 30;
+  // Resend available after 30 s have elapsed (unless locked — then always available)
+  const resendDisabled = resending || (!isLocked && (timeLeft ?? 0) > TIMER_SECONDS - 30);
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
 
       {status === 'success' && (
-        // AuthNavigator's onAuthStateChange handles navigation automatically
         <SuccessScreen onContinue={() => { supabase.auth.refreshSession().catch(() => {}); }} />
       )}
       {status === 'expired' && (
@@ -323,23 +361,25 @@ export default function VerifyOTP({ route, navigation }: any) {
             <Text style={styles.emailHighlight}>{maskedEmail}</Text>
           </Text>
 
-          <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxesWrap}>
+          {/* OTP boxes */}
+          <Pressable
+            onPress={() => !isLocked && inputRef.current?.focus()}
+            style={styles.boxesWrap}
+          >
             <Animated.View style={[styles.boxRow, shakeStyle]}>
               {digits.map((digit, i) => (
                 <OtpBox
                   key={i}
                   digit={digit}
-                  focused={isFocused && code.length === i}
+                  focused={isFocused && code.length === i && !isLocked}
                   hasError={hasError}
+                  locked={isLocked}
                 />
               ))}
             </Animated.View>
           </Pressable>
 
-          {/*
-            The real TextInput — invisible but drives the OS keyboard.
-            opacity:0 blocks keyboard on Android, use 0.01 instead.
-          */}
+          {/* Hidden real TextInput */}
           <TextInput
             ref={inputRef}
             value={code}
@@ -350,15 +390,33 @@ export default function VerifyOTP({ route, navigation }: any) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             caretHidden
+            editable={!isLocked}
             style={styles.hiddenInput}
           />
 
-          {hasError && (
+          {/* Attempt-based feedback messages */}
+          {hasError && !isLocked && (
             <Animated.Text entering={FadeIn} exiting={FadeOut} style={styles.errorTxt}>
-              Incorrect code. Please try again.
+              Incorrect code.{' '}
+              {remainingAttempts > 1
+                ? `${remainingAttempts} attempts remaining.`
+                : '1 attempt remaining — be careful!'}
             </Animated.Text>
           )}
 
+          {isLocked && (
+            <Animated.View entering={FadeIn} style={styles.lockedBanner}>
+              <Icon name="lock-closed-outline" size={15} color={C.error} style={{ marginTop: 1 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lockedTitle}>Too many incorrect attempts</Text>
+                <Text style={styles.lockedSub}>
+                  Please wait for this code to expire, then request a new one below.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Timer */}
           <View style={styles.timerRow}>
             <Icon
               name="time-outline"
@@ -370,21 +428,26 @@ export default function VerifyOTP({ route, navigation }: any) {
             </Text>
           </View>
 
+          {/* Verify button */}
           <TouchableOpacity
             style={[
               styles.verifyBtn,
-              (status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error') && styles.btnOff,
+              (status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error' || isLocked) &&
+                styles.btnOff,
             ]}
             onPress={() => handleVerify(code)}
-            disabled={status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error'}
+            disabled={status === 'verifying' || code.length < OTP_LENGTH || status === 'profile_error' || isLocked}
             activeOpacity={0.85}
           >
             {status === 'verifying'
               ? <ActivityIndicator color="#FFF" />
-              : <Text style={styles.verifyBtnTxt}>Verify Code</Text>
+              : <Text style={styles.verifyBtnTxt}>
+                  {isLocked ? 'Input Locked' : 'Verify Code'}
+                </Text>
             }
           </TouchableOpacity>
 
+          {/* Profile error retry card */}
           {status === 'profile_error' && (
             <View style={styles.profileErrorCard}>
               <Icon name="cloud-offline-outline" size={18} color={C.error} />
@@ -413,17 +476,35 @@ export default function VerifyOTP({ route, navigation }: any) {
             </View>
           )}
 
+          {/* Resend row */}
           <View style={styles.resendRow}>
-            <Text style={styles.resendLabel}>Didn't receive it? </Text>
+            <Text style={styles.resendLabel}>
+              {isLocked ? 'Locked out? ' : "Didn't receive it? "}
+            </Text>
             <TouchableOpacity onPress={handleResend} disabled={resendDisabled}>
               {resending
                 ? <ActivityIndicator size="small" color={C.gold} />
                 : <Text style={[styles.resendLink, resendDisabled && styles.resendDisabled]}>
-                    Resend Code
+                    {isLocked ? 'Resend New Code' : 'Resend Code'}
                   </Text>
               }
             </TouchableOpacity>
           </View>
+
+          {/* Attempt dots — only shown while unlocked and at least 1 attempt used */}
+          {!isLocked && attempts > 0 && (
+            <Animated.View entering={FadeIn} style={styles.attemptDots}>
+              {Array.from({ length: MAX_ATTEMPTS }, (_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i < attempts ? styles.dotUsed : styles.dotFree,
+                  ]}
+                />
+              ))}
+            </Animated.View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -473,6 +554,7 @@ const styles = StyleSheet.create({
   otpBoxFocused: { borderColor: C.gold, backgroundColor: '#FFFDF6' },
   otpBoxFilled:  { borderColor: C.ink },
   otpBoxError:   { borderColor: C.error, backgroundColor: '#FDF0EE' },
+  otpBoxLocked:  { borderColor: '#D0C9C0', backgroundColor: '#F2EFE9', opacity: 0.7 },
   otpDigit: { fontSize: 22, fontWeight: '800', color: C.ink },
 
   hiddenInput: {
@@ -480,7 +562,24 @@ const styles = StyleSheet.create({
     opacity: 0.01, bottom: 0, left: 0,
   },
 
-  errorTxt: { color: C.error, fontSize: 13, marginBottom: 12 },
+  errorTxt: {
+    color: C.error, fontSize: 13,
+    marginBottom: 10, textAlign: 'center',
+  },
+
+  lockedBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 9,
+    width: '100%', marginBottom: 12,
+    backgroundColor: '#FDF0EE',
+    borderWidth: 1, borderColor: '#F5C6C0',
+    borderRadius: 12, padding: 13,
+  },
+  lockedTitle: {
+    color: C.error, fontSize: 13, fontWeight: '800', marginBottom: 3,
+  },
+  lockedSub: {
+    color: C.inkMid, fontSize: 12, lineHeight: 17,
+  },
 
   timerRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -496,6 +595,7 @@ const styles = StyleSheet.create({
   },
   btnOff: { opacity: 0.45 },
   verifyBtnTxt: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+
   profileErrorCard: {
     width: '100%', marginTop: 14, padding: 13, borderRadius: 12,
     backgroundColor: '#FDF0EE', flexDirection: 'row', alignItems: 'center', gap: 9,
@@ -510,6 +610,16 @@ const styles = StyleSheet.create({
   resendLabel: { color: C.inkMid, fontSize: 14 },
   resendLink: { color: C.gold, fontWeight: '700', fontSize: 14 },
   resendDisabled: { color: C.inkLight },
+
+  // Attempt indicator dots
+  attemptDots: {
+    flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'center',
+  },
+  dot: {
+    width: 8, height: 8, borderRadius: 4,
+  },
+  dotFree: { backgroundColor: C.border },
+  dotUsed: { backgroundColor: C.error },
 
   overlay: {
     position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,

@@ -473,19 +473,38 @@ export default function SignIn({
 
         const url = new URL(result.url);
         const params = new URLSearchParams(url.hash.replace('#', ''));
+        const code = url.searchParams.get('code');
+        const callbackError = url.searchParams.get('error_description') ?? url.searchParams.get('error');
         const accessToken  = url.searchParams.get('access_token')  ?? params.get('access_token');
         const refreshToken = url.searchParams.get('refresh_token') ?? params.get('refresh_token');
 
-        if (accessToken && refreshToken) {
+        if (callbackError) {
+          throw new Error(callbackError);
+        }
+
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else if (accessToken && refreshToken) {
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
           if (sessionError) throw sessionError;
         } else {
-          // Supabase may have set the session via the URL fragment automatically
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (!sessionData.session) {
+          // The native callback can reach the app before Supabase finishes
+          // persisting the session. Give that exchange a short opportunity to
+          // complete instead of reporting a false failure.
+          let sessionFound = false;
+          for (let attempt = 0; attempt < 10; attempt += 1) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session) {
+              sessionFound = true;
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          if (!sessionFound) {
             throw new Error('Sign in completed but session not found. Please try again.');
           }
         }

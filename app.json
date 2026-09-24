@@ -13,9 +13,9 @@
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "scheme": "com.ronian.eturismo",
     "ios": {
+      "bundleIdentifier": "com.ronian.eturismo",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera to scan QR codes on artifacts.",
@@ -36,12 +36,21 @@
         "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "package": "com.ronian.eturismo",
+      "softwareKeyboardLayoutMode": "resize",
       "config": {}
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
     },
     "plugins": [
+      [ 
+        "expo-sharing",
+        {
+          "ios": {
+            "isDocumentPickerEnabled": true
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -82,6 +91,16 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/icon.png",
+          "color": "#C9A84C",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "ETurismo"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show directions to the museum.",
@@ -94,5 +113,6 @@
         "projectId": "d2f73ae5-fb9c-4126-aef3-2bc1ee39f35a"
       }
     }
+    
   }
 }

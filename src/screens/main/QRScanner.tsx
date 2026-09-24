@@ -1081,8 +1081,8 @@ export default function QRScanner({
   const [showFeedback, setShowFeedback]     = useState(false);
   // True once we confirm this user already submitted feedback (checked on mount)
   const alreadySubmittedFeedback = useRef(false);
-  // True only after a new scan completed the tour in this session
-  const justCompletedTour = useRef(false);
+  // Incremented each time a scan completes the tour — drives the feedback effect
+  const [tourCompletedCount, setTourCompletedCount] = useState(0);
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
@@ -1139,20 +1139,14 @@ export default function QRScanner({
     return () => { mounted = false; };
   }, [user?.id]);
 
-  // Tour-completion: only show feedback when the user just scanned the last artifact
-  // (justCompletedTour is set inside handleBarCodeScanned, not on mount)
+  // Tour-completion: show feedback when tourCompletedCount is bumped by a new scan
   useEffect(() => {
-    if (
-      justCompletedTour.current &&
-      !alreadySubmittedFeedback.current &&
-      !showFeedback
-    ) {
-      justCompletedTour.current = false;
+    if (tourCompletedCount > 0 && !alreadySubmittedFeedback.current && !showFeedback) {
       // Small delay so the artifact detail modal can animate in first
       const t = setTimeout(() => setShowFeedback(true), 900);
       return () => clearTimeout(t);
     }
-  }, [scannedArtifacts.length]);
+  }, [tourCompletedCount]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1232,7 +1226,8 @@ export default function QRScanner({
         AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
         // Mark tour as just completed if this was the last artifact
         if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
-          justCompletedTour.current = true;
+          // Schedule outside the updater so it doesn't conflict with React state batching
+          setTimeout(() => setTourCompletedCount(c => c + 1), 0);
         }
         return updated;
       });
@@ -1310,6 +1305,9 @@ export default function QRScanner({
             if (prev.find(a => a.id === all[0].id)) return prev;
             const updated = [...prev, all[0]];
             AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
+            if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
+              setTimeout(() => setTourCompletedCount(c => c + 1), 0);
+            }
             return updated;
           });
         } else {
@@ -1335,6 +1333,9 @@ export default function QRScanner({
           if (prev.find(a => a.id === matches[0].id)) return prev;
           const updated = [...prev, matches[0]];
           AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
+          if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
+            setTimeout(() => setTourCompletedCount(c => c + 1), 0);
+          }
           return updated;
         });
         showToast(`Matched: ${matches[0].name}`);
