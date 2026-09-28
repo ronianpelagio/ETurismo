@@ -549,7 +549,10 @@ export default function AnnouncementsPage() {
             data: { type: "announcement", id: created.id },
           });
         } catch (pushError) {
-          console.warn("Announcement created, but push delivery failed:", pushError);
+          console.warn(
+            "Announcement created, but push delivery failed:",
+            pushError,
+          );
         }
       }
 

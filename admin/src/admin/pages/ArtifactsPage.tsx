@@ -751,17 +751,20 @@ export default function ArtifactsPage() {
         }
       }
 
-        if (!editingId) {
-          try {
-            await sendPushNotification({
-              title: form.name,
-              body: "A new artifact has been added to the Sacred Heritage Collection.",
-              data: { type: "artifact", id: artifactId },
-            });
-          } catch (pushError) {
-            console.warn("Artifact created, but push delivery failed:", pushError);
-          }
+      if (!editingId) {
+        try {
+          await sendPushNotification({
+            title: form.name,
+            body: "A new artifact has been added to the Sacred Heritage Collection.",
+            data: { type: "artifact", id: artifactId },
+          });
+        } catch (pushError) {
+          console.warn(
+            "Artifact created, but push delivery failed:",
+            pushError,
+          );
         }
+      }
 
       setShowModal(false);
       await fetchData(page);
