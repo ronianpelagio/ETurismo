@@ -76,7 +76,7 @@ export default function AppIntro({ onDone }: any) {
 
     return () => clearTimeout(exitTimer);
   }, [onDone]);
-
+  
   return (
     <Animated.View style={[styles.container, { opacity: screenOpacity }]}>
       <StatusBar
