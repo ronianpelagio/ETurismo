@@ -16,8 +16,12 @@ test('uploads avatars only under the authenticated user folder', () => {
 });
 
 test('signup stores the complete location hierarchy', () => {
+  assert.match(signUp, /country: location\.country/);
+  assert.match(signUp, /province:[\s\S]*location\.province\?\.name/);
+  assert.match(signUp, /city:[\s\S]*location\.city\?\.name/);
+  assert.match(signUp, /barangay:[\s\S]*location\.barangay\?\.name/);
+
   for (const field of ['country', 'province', 'city', 'barangay']) {
-    assert.match(signUp, new RegExp(`${field}: location\\.`));
     assert.match(migration, new RegExp(`add column if not exists ${field} text`));
   }
 });
