@@ -446,8 +446,7 @@ export default function SignIn({
 
     try {
       const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'com.ronian.eturismo',
-        path: 'auth/callback',
+  native: 'com.ronian.eturismo://auth/callback',
       });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -458,14 +457,17 @@ export default function SignIn({
         },
       });
 
-      if (error) throw error;
-      if (!data?.url) throw new Error('No OAuth URL returned');
+      if (error) {
+        throw error;
+      }
 
-      // Open Google login in in-app browser
+      if (!data.url) {
+        throw new Error('Google OAuth URL was not returned.');
+      }
+
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
-        redirectUri,
-        { showInRecents: false, createTask: false }
+        redirectUri
       );
 
       if (result.type === 'success' && result.url) {

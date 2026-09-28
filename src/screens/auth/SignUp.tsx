@@ -162,25 +162,11 @@ function GenderSelector({
               key={opt}
               onPress={() => onSelect(opt)}
               activeOpacity={0.8}
-              style={[
-                s.genderBtn,
-                active && s.genderBtnActive,
-              ]}
+              style={[s.genderBtn, active && s.genderBtnActive]}
             >
-              {active && (
-                <Icon
-                  name="checkmark"
-                  size={13}
-                  color={C.white}
-                />
-              )}
+              {active && <Icon name="checkmark" size={13} color={C.white} />}
 
-              <Text
-                style={[
-                  s.genderTxt,
-                  active && s.genderTxtActive,
-                ]}
-              >
+              <Text style={[s.genderTxt, active && s.genderTxtActive]}>
                 {opt}
               </Text>
             </TouchableOpacity>
@@ -190,11 +176,7 @@ function GenderSelector({
 
       {error ? (
         <View style={s.errRow}>
-          <Icon
-            name="alert-circle-outline"
-            size={12}
-            color={C.error}
-          />
+          <Icon name="alert-circle-outline" size={12} color={C.error} />
           <Text style={s.errTxt}>{error}</Text>
         </View>
       ) : null}
@@ -220,17 +202,10 @@ function ProfilePhoto({
       <View style={s.photoRow}>
         <View style={s.avatarWrap}>
           {uri ? (
-            <Image
-              source={{ uri }}
-              style={s.avatar}
-            />
+            <Image source={{ uri }} style={s.avatar} />
           ) : (
             <View style={s.avatarPlaceholder}>
-              <Icon
-                name="person-outline"
-                size={30}
-                color={C.inkLight}
-              />
+              <Icon name="person-outline" size={30} color={C.inkLight} />
             </View>
           )}
 
@@ -256,27 +231,14 @@ function ProfilePhoto({
             Optional · JPG or PNG · Add later if you prefer.
           </Text>
 
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: 6,
-              marginTop: 6,
-            }}
-          >
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
             <TouchableOpacity
               style={s.photoBtn}
               onPress={onPick}
               activeOpacity={0.8}
             >
-              <Icon
-                name="image-outline"
-                size={13}
-                color={C.ink}
-              />
-
-              <Text style={s.photoBtnTxt}>
-                {uri ? 'Change' : 'Choose'}
-              </Text>
+              <Icon name="image-outline" size={13} color={C.ink} />
+              <Text style={s.photoBtnTxt}>{uri ? 'Change' : 'Choose'}</Text>
             </TouchableOpacity>
 
             {uri && (
@@ -285,15 +247,8 @@ function ProfilePhoto({
                 onPress={onRemove}
                 activeOpacity={0.8}
               >
-                <Icon
-                  name="trash-outline"
-                  size={13}
-                  color={C.error}
-                />
-
-                <Text style={s.removeBtnTxt}>
-                  Remove
-                </Text>
+                <Icon name="trash-outline" size={13} color={C.error} />
+                <Text style={s.removeBtnTxt}>Remove</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -319,10 +274,7 @@ function TermsCheckbox({
   return (
     <View style={{ marginBottom: 8 }}>
       <TouchableOpacity
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
+        style={{ flexDirection: 'row', alignItems: 'center' }}
         onPress={onToggle}
         activeOpacity={0.7}
       >
@@ -333,30 +285,18 @@ function TermsCheckbox({
             error && s.checkboxErr,
           ]}
         >
-          {checked && (
-            <Icon
-              name="checkmark"
-              size={12}
-              color={C.white}
-            />
-          )}
+          {checked && <Icon name="checkmark" size={12} color={C.white} />}
         </View>
 
         <Text style={s.termsTxt}>
           I agree to the{' '}
-          <Text style={s.termsLink}>
-            Terms & Privacy
-          </Text>
+          <Text style={s.termsLink}>Terms & Privacy</Text>
         </Text>
       </TouchableOpacity>
 
       {error ? (
         <View style={s.errRow}>
-          <Icon
-            name="alert-circle-outline"
-            size={12}
-            color={C.error}
-          />
+          <Icon name="alert-circle-outline" size={12} color={C.error} />
           <Text style={s.errTxt}>{error}</Text>
         </View>
       ) : null}
@@ -390,42 +330,23 @@ function StepBar({
           <React.Fragment key={n}>
             <View style={s.stepItem}>
               <View
-                style={[
-                  s.stepCircle,
-                  (active || done) && s.stepCircleOn,
-                ]}
+                style={[s.stepCircle, (active || done) && s.stepCircleOn]}
               >
                 {done ? (
-                  <Icon
-                    name="checkmark"
-                    size={12}
-                    color={C.white}
-                  />
+                  <Icon name="checkmark" size={12} color={C.white} />
                 ) : (
-                  <Text
-                    style={[
-                      s.stepNum,
-                      (active || done) && s.stepNumOn,
-                    ]}
-                  >
+                  <Text style={[s.stepNum, (active || done) && s.stepNumOn]}>
                     {n}
                   </Text>
                 )}
               </View>
 
-              <Text
-                style={[
-                  s.stepLabel,
-                  active && s.stepLabelOn,
-                ]}
-              >
+              <Text style={[s.stepLabel, active && s.stepLabelOn]}>
                 {label}
               </Text>
             </View>
 
-            {i < labels.length - 1 && (
-              <View style={s.stepLine} />
-            )}
+            {i < labels.length - 1 && <View style={s.stepLine} />}
           </React.Fragment>
         );
       })}
@@ -451,32 +372,27 @@ export default function SignUp({
   const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [age, setAge] = useState('');
-  const [profilePicUri, setProfilePicUri] =
-    useState<string | null>(null);
+  const [profilePicUri, setProfilePicUri] = useState<string | null>(null);
 
   // Step 2 — Location
-  const [location, setLocation] =
-    useState<LocationValue>({
-      countryCode: '',
-      country: '',
-      province: null,
-      city: null,
-      barangay: null,
-      stateRegion: '',
-      cityText: '',
-      addressLine: '',
-    });
+  const [location, setLocation] = useState<LocationValue>({
+    countryCode: '',
+    country: '',
+    province: null,
+    city: null,
+    barangay: null,
+    stateRegion: '',
+    cityText: '',
+    addressLine: '',
+  });
 
   // Step 3 — Account
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [termsAccepted, setTermsAccepted] =
-    useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [loading, setLoading] = useState(false);
-
-  const [errors, setErrors] =
-    useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ───────────────────────────────────────────────────────────
   // Google profile
@@ -492,8 +408,7 @@ export default function SignUp({
           setEmail(data.user.email);
         }
 
-        const metadata =
-          data.user?.user_metadata ?? {};
+        const metadata = data.user?.user_metadata ?? {};
 
         if (metadata.first_name) {
           setFirstName(metadata.first_name);
@@ -517,60 +432,35 @@ export default function SignUp({
   // ───────────────────────────────────────────────────────────
 
   const pickPhoto = () =>
-    Alert.alert(
-      'Profile Photo',
-      'Choose source',
-      [
-        {
-          text: 'Camera',
-          onPress: openCamera,
-        },
-        {
-          text: 'Photo Library',
-          onPress: openGallery,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    );
+    Alert.alert('Profile Photo', 'Choose source', [
+      { text: 'Camera', onPress: openCamera },
+      { text: 'Photo Library', onPress: openGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
 
   const openCamera = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestCameraPermissionsAsync();
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert(
-          'Camera Permission',
-          'Please allow camera access.',
-        );
+        Alert.alert('Camera Permission', 'Please allow camera access.');
         return;
       }
 
-      const result =
-        await ImagePicker.launchCameraAsync({
-          // FIXED: MediaTypeOptions.Images is deprecated
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.85,
-        });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
 
-      if (
-        !result.canceled &&
-        result.assets?.length
-      ) {
-        setProfilePicUri(
-          result.assets[0].uri,
-        );
+      if (!result.canceled && result.assets?.length) {
+        setProfilePicUri(result.assets[0].uri);
       }
     } catch (error: any) {
       Alert.alert(
         'Camera Error',
-        error?.message ||
-          'Unable to open the camera.',
+        error?.message || 'Unable to open the camera.',
       );
     }
   };
@@ -581,56 +471,37 @@ export default function SignUp({
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Needed',
-          'Please allow photo library access.',
-        );
+        Alert.alert('Permission Needed', 'Please allow photo library access.');
         return;
       }
 
-      const result =
-        await ImagePicker.launchImageLibraryAsync({
-          // FIXED: MediaTypeOptions.Images is deprecated
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.85,
-        });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
 
-      if (
-        !result.canceled &&
-        result.assets?.length
-      ) {
-        setProfilePicUri(
-          result.assets[0].uri,
-        );
+      if (!result.canceled && result.assets?.length) {
+        setProfilePicUri(result.assets[0].uri);
       }
     } catch (error: any) {
       Alert.alert(
         'Photo Library Error',
-        error?.message ||
-          'Unable to open the photo library.',
+        error?.message || 'Unable to open the photo library.',
       );
     }
   };
 
   const removePhoto = () =>
-    Alert.alert(
-      'Remove Photo',
-      'Remove your profile photo?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () =>
-            setProfilePicUri(null),
-        },
-      ],
-    );
+    Alert.alert('Remove Photo', 'Remove your profile photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => setProfilePicUri(null),
+      },
+    ]);
 
   // ───────────────────────────────────────────────────────────
   // Validators
@@ -656,11 +527,7 @@ export default function SignUp({
     } else {
       const n = parseInt(age, 10);
 
-      if (
-        isNaN(n) ||
-        n < 1 ||
-        n > 120
-      ) {
+      if (isNaN(n) || n < 1 || n > 120) {
         e.age = 'Enter a valid age';
       }
     }
@@ -675,24 +542,14 @@ export default function SignUp({
 
     if (!location.countryCode) {
       e.location = 'Select your country';
-    } else if (
-      location.countryCode === 'PH'
-    ) {
-      if (
-        !location.province ||
-        !location.city ||
-        !location.barangay
-      ) {
-        e.location =
-          'Select province, city/municipality, and barangay';
+    } else if (location.countryCode === 'PH') {
+      if (!location.province || !location.city || !location.barangay) {
+        e.location = 'Select province, city/municipality, and barangay';
       }
     } else {
       if (!location.stateRegion.trim()) {
-        e.location =
-          'Enter your state or region';
-      } else if (
-        !location.cityText.trim()
-      ) {
+        e.location = 'Enter your state or region';
+      } else if (!location.cityText.trim()) {
         e.location = 'Enter your city';
       }
     }
@@ -707,24 +564,18 @@ export default function SignUp({
 
     if (!email.trim()) {
       e.email = 'Email is required';
-    } else if (
-      !/\S+@\S+\.\S+/.test(email)
-    ) {
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
       e.email = 'Enter a valid email';
     }
 
     if (!password) {
       e.password = 'Password is required';
-    } else if (
-      password.length < 8
-    ) {
-      e.password =
-        'At least 8 characters';
+    } else if (password.length < 8) {
+      e.password = 'At least 8 characters';
     }
 
     if (!termsAccepted) {
-      e.terms =
-        'You must accept the Terms & Privacy';
+      e.terms = 'You must accept the Terms & Privacy';
     }
 
     setErrors(e);
@@ -737,8 +588,7 @@ export default function SignUp({
   // ───────────────────────────────────────────────────────────
 
   const buildProfileUpdate = () => {
-    const isPH =
-      location.countryCode === 'PH';
+    const isPH = location.countryCode === 'PH';
 
     const addressParts = isPH
       ? [
@@ -756,9 +606,7 @@ export default function SignUp({
         ];
 
     return {
-      Address: addressParts
-        .filter(Boolean)
-        .join(', '),
+      Address: addressParts.filter(Boolean).join(', '),
 
       country: location.country,
 
@@ -766,13 +614,9 @@ export default function SignUp({
         ? location.province?.name ?? null
         : location.stateRegion || null,
 
-      city: isPH
-        ? location.city?.name ?? null
-        : location.cityText || null,
+      city: isPH ? location.city?.name ?? null : location.cityText || null,
 
-      barangay: isPH
-        ? location.barangay?.name ?? null
-        : null,
+      barangay: isPH ? location.barangay?.name ?? null : null,
     };
   };
 
@@ -780,60 +624,49 @@ export default function SignUp({
   // Google Profile Completion
   // ───────────────────────────────────────────────────────────
 
-  const handleGoogleProfile =
-    async () => {
-      if (!validateStep2()) return;
+  const handleGoogleProfile = async () => {
+    if (!validateStep2()) return;
 
-      setLoading(true);
+    setLoading(true);
 
-      try {
-        const { data: authData } =
-          await supabase.auth.getUser();
+    try {
+      const { data: authData } = await supabase.auth.getUser();
 
-        const authUser =
-          authData.user;
+      const authUser = authData.user;
 
-        if (!authUser) {
-          throw new Error(
-            'Your Google session has expired. Please sign in again.',
-          );
-        }
-
-        const profileUpdate = {
-          first_name:
-            firstName.trim(),
-
-          last_name:
-            lastName.trim(),
-
-          gender,
-
-          age: parseInt(age, 10),
-
-          ...buildProfileUpdate(),
-        };
-
-        const { error } =
-          await supabase
-            .from('users')
-            .update(profileUpdate)
-            .eq('id', authUser.id);
-
-        if (error) {
-          throw error;
-        }
-
-        onGoogleComplete?.();
-      } catch (err: any) {
-        Alert.alert(
-          'Unable to Save Details',
-          err?.message ||
-            'Something went wrong. Please try again.',
+      if (!authUser) {
+        throw new Error(
+          'Your Google session has expired. Please sign in again.',
         );
-      } finally {
-        setLoading(false);
       }
-    };
+
+      const profileUpdate = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        gender,
+        age: parseInt(age, 10),
+        ...buildProfileUpdate(),
+      };
+
+      const { error } = await supabase
+        .from('users')
+        .update(profileUpdate)
+        .eq('id', authUser.id);
+
+      if (error) {
+        throw error;
+      }
+
+      onGoogleComplete?.();
+    } catch (err: any) {
+      Alert.alert(
+        'Unable to Save Details',
+        err?.message || 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ───────────────────────────────────────────────────────────
   // Sign Up
@@ -845,104 +678,47 @@ export default function SignUp({
     setLoading(true);
 
     try {
-      const normalizedEmail =
-        email.toLowerCase().trim();
+      const normalizedEmail = email.toLowerCase().trim();
 
-      const isPH =
-        location.countryCode === 'PH';
-
-      const addressParts = isPH
-        ? [
-            location.addressLine,
-            location.barangay?.name,
-            location.city?.name,
-            location.province?.name,
-            'Philippines',
-          ]
-        : [
-            location.addressLine,
-            location.cityText,
-            location.stateRegion,
-            location.country,
-          ];
-
-      const address =
-        addressParts
-          .filter(Boolean)
-          .join(', ');
-
-      const dbProvince = isPH
-        ? location.province?.name ?? null
-        : location.stateRegion || null;
-
-      const dbCity = isPH
-        ? location.city?.name ?? null
-        : location.cityText || null;
-
-      const dbBarangay = isPH
-        ? location.barangay?.name ?? null
-        : null;
+      const {
+        Address: address,
+        province: dbProvince,
+        city: dbCity,
+        barangay: dbBarangay,
+      } = buildProfileUpdate();
 
       // Resize profile image before storing pending profile
-      const resizedUri =
-        profilePicUri
-          ? (
-              await ImageManipulator.manipulateAsync(
-                profilePicUri,
-                [
-                  {
-                    resize: {
-                      width: 400,
-                      height: 400,
-                    },
-                  },
-                ],
-                {
-                  compress: 0.82,
-                  format:
-                    ImageManipulator
-                      .SaveFormat.JPEG,
-                },
-              )
-            ).uri
-          : null;
+      const resizedUri = profilePicUri
+        ? (
+            await ImageManipulator.manipulateAsync(
+              profilePicUri,
+              [{ resize: { width: 400, height: 400 } }],
+              {
+                compress: 0.82,
+                format: ImageManipulator.SaveFormat.JPEG,
+              },
+            )
+          ).uri
+        : null;
 
-      const { data: signUpData, error } =
-        await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
 
-          options: {
-            data: {
-              first_name:
-                firstName.trim(),
-
-              last_name:
-                lastName.trim(),
-
-              gender,
-
-              age: parseInt(
-                age,
-                10,
-              ),
-
-              Address: address,
-
-              country:
-                location.country,
-
-              province:
-                dbProvince,
-
-              city:
-                dbCity,
-
-              barangay:
-                dbBarangay,
-            },
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            gender,
+            age: parseInt(age, 10),
+            Address: address,
+            country: location.country,
+            province: dbProvince,
+            city: dbCity,
+            barangay: dbBarangay,
           },
-        });
+        },
+      });
 
       if (error) {
         throw error;
@@ -964,34 +740,16 @@ export default function SignUp({
 
       await savePendingProfile({
         email: normalizedEmail,
-
-        firstName:
-          firstName.trim(),
-
-        lastName:
-          lastName.trim(),
-
-        gender:
-          gender as Gender,
-
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        gender: gender as Gender,
         age: parseInt(age, 10),
-
         address,
-
-        country:
-          location.country,
-
-        province:
-          dbProvince,
-
-        city:
-          dbCity,
-
-        barangay:
-          dbBarangay,
-
-        profilePicUri:
-          resizedUri,
+        country: location.country,
+        province: dbProvince,
+        city: dbCity,
+        barangay: dbBarangay,
+        profilePicUri: resizedUri,
       });
 
       await AsyncStorage.setItem(
@@ -999,13 +757,16 @@ export default function SignUp({
         Date.now().toString(),
       );
 
-      navigation.navigate(
-        'VerifyOTP',
-        {
-          email:
-            normalizedEmail,
-        },
-      );
+      // FIX: if Supabase returned a confirmed session (email confirmation
+      // disabled / auto-confirmed), AuthNavigator has already moved on and
+      // the VerifyOTP screen no longer exists. Don't navigate manually.
+      if (signUpData?.session) {
+        return;
+      }
+
+      navigation.navigate('VerifyOTP', {
+        email: normalizedEmail,
+      });
     } catch (err: any) {
       const raw: string = err?.message ?? '';
 
@@ -1014,11 +775,12 @@ export default function SignUp({
       let userMessage: string;
       if (
         raw.toLowerCase().includes('error sending confirmation email') ||
-        raw.toLowerCase().includes('email') && raw.toLowerCase().includes('rate limit') ||
+        (raw.toLowerCase().includes('email') &&
+          raw.toLowerCase().includes('rate limit')) ||
         raw.toLowerCase().includes('over_email_send_rate_limit')
       ) {
         userMessage =
-          'We couldn\'t send your verification email right now. ' +
+          "We couldn't send your verification email right now. " +
           'This is usually a temporary issue — please wait a moment and try again. ' +
           'If it keeps happening, try a different email address.';
       } else if (raw.toLowerCase().includes('already registered')) {
@@ -1038,15 +800,8 @@ export default function SignUp({
   // ───────────────────────────────────────────────────────────
 
   const stepTitles = googleMode
-    ? [
-        'Complete your profile',
-        'Where are you from?',
-      ]
-    : [
-        'Create your account',
-        'Where are you from?',
-        'Secure your account',
-      ];
+    ? ['Complete your profile', 'Where are you from?']
+    : ['Create your account', 'Where are you from?', 'Secure your account'];
 
   const stepSubtitles = [
     googleMode
@@ -1062,75 +817,47 @@ export default function SignUp({
     <View style={s.screen}>
       <StatusBar style="light" />
 
-      <Image
-        source={require('../../assets/Signin.jpg')}
-        style={s.bg}
-      />
+      <Image source={require('../../assets/Signin.jpg')} style={s.bg} />
 
       <View style={s.bgOverlay} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : 'height'
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={[
             s.scroll,
             {
-              paddingTop:
-                insets.top + 16,
-
-              paddingBottom:
-                insets.bottom + 16,
+              paddingTop: insets.top + 16,
+              paddingBottom: insets.bottom + 16,
             },
           ]}
-          showsVerticalScrollIndicator={
-            false
-          }
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={s.card}>
-
             {/* Brand */}
 
             <View style={s.brand}>
               <View style={s.logoCircle}>
-                <Icon
-                  name="map-outline"
-                  size={20}
-                  color={C.gold}
-                />
+                <Icon name="map-outline" size={20} color={C.gold} />
               </View>
 
-              <Text style={s.brandName}>
-                ETURISMO
-              </Text>
+              <Text style={s.brandName}>ETURISMO</Text>
 
-              <Text style={s.brandSub}>
-                HERITAGE • CULTURE • JOURNEY
-              </Text>
+              <Text style={s.brandSub}>HERITAGE • CULTURE • JOURNEY</Text>
             </View>
 
             <View style={s.divider} />
 
             {/* Title */}
 
-            <Text style={s.title}>
-              {stepTitles[step - 1]}
-            </Text>
+            <Text style={s.title}>{stepTitles[step - 1]}</Text>
 
-            <Text style={s.subtitle}>
-              {stepSubtitles[step - 1]}
-            </Text>
+            <Text style={s.subtitle}>{stepSubtitles[step - 1]}</Text>
 
-            <StepBar
-              step={step}
-              googleMode={googleMode}
-            />
+            <StepBar step={step} googleMode={googleMode} />
 
             {/* STEP 1 */}
 
@@ -1142,99 +869,59 @@ export default function SignUp({
                   onRemove={removePhoto}
                 />
 
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: 8,
-                  }}
-                >
-                  <View
-                    style={{ flex: 1 }}
-                  >
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
                     <Field
                       label="FIRST NAME"
                       value={firstName}
                       onChangeText={t => {
                         setFirstName(t);
-                        clearError(
-                          'firstName',
-                        );
+                        clearError('firstName');
                       }}
                       placeholder="First name"
                       autoCapitalize="words"
-                      error={
-                        errors.firstName
-                      }
+                      error={errors.firstName}
                     />
                   </View>
 
-                  <View
-                    style={{ flex: 1 }}
-                  >
+                  <View style={{ flex: 1 }}>
                     <Field
                       label="LAST NAME"
                       value={lastName}
                       onChangeText={t => {
                         setLastName(t);
-                        clearError(
-                          'lastName',
-                        );
+                        clearError('lastName');
                       }}
                       placeholder="Last name"
                       autoCapitalize="words"
-                      error={
-                        errors.lastName
-                      }
+                      error={errors.lastName}
                     />
                   </View>
                 </View>
 
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: 8,
-                  }}
-                >
-                  <View
-                    style={{ flex: 2 }}
-                  >
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 2 }}>
                     <GenderSelector
                       selected={gender}
                       onSelect={v => {
                         setGender(v);
-                        clearError(
-                          'gender',
-                        );
+                        clearError('gender');
                       }}
-                      error={
-                        errors.gender
-                      }
+                      error={errors.gender}
                     />
                   </View>
 
-                  <View
-                    style={{ flex: 1 }}
-                  >
+                  <View style={{ flex: 1 }}>
                     <Field
                       label="AGE"
                       value={age}
                       onChangeText={t => {
-                        setAge(
-                          t.replace(
-                            /[^0-9]/g,
-                            '',
-                          ),
-                        );
-
-                        clearError(
-                          'age',
-                        );
+                        setAge(t.replace(/[^0-9]/g, ''));
+                        clearError('age');
                       }}
                       placeholder="Age"
                       keyboardType="numeric"
-                      error={
-                        errors.age
-                      }
+                      error={errors.age}
                     />
                   </View>
                 </View>
@@ -1242,26 +929,16 @@ export default function SignUp({
                 <TouchableOpacity
                   style={s.mainBtn}
                   onPress={() => {
-                    if (
-                      validateStep1()
-                    ) {
+                    if (validateStep1()) {
                       setErrors({});
                       setStep(2);
                     }
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text
-                    style={s.mainBtnTxt}
-                  >
-                    Continue
-                  </Text>
+                  <Text style={s.mainBtnTxt}>Continue</Text>
 
-                  <Icon
-                    name="arrow-forward"
-                    size={17}
-                    color={C.white}
-                  />
+                  <Icon name="arrow-forward" size={17} color={C.white} />
                 </TouchableOpacity>
               </View>
             )}
@@ -1274,28 +951,17 @@ export default function SignUp({
                   value={location}
                   onChange={v => {
                     setLocation(v);
-                    clearError(
-                      'location',
-                    );
+                    clearError('location');
                   }}
-                  error={
-                    errors.location
-                  }
+                  error={errors.location}
                 />
 
                 <TouchableOpacity
-                  style={[
-                    s.mainBtn,
-                    loading && {
-                      opacity: 0.55,
-                    },
-                  ]}
+                  style={[s.mainBtn, loading && { opacity: 0.55 }]}
                   onPress={() => {
                     if (googleMode) {
                       handleGoogleProfile();
-                    } else if (
-                      validateStep2()
-                    ) {
+                    } else if (validateStep2()) {
                       setErrors({});
                       setStep(3);
                     }
@@ -1303,22 +969,12 @@ export default function SignUp({
                   disabled={loading}
                   activeOpacity={0.85}
                 >
-                  {googleMode &&
-                  loading ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={C.white}
-                    />
+                  {googleMode && loading ? (
+                    <ActivityIndicator size="small" color={C.white} />
                   ) : (
                     <>
-                      <Text
-                        style={
-                          s.mainBtnTxt
-                        }
-                      >
-                        {googleMode
-                          ? 'Complete Profile'
-                          : 'Continue'}
+                      <Text style={s.mainBtnTxt}>
+                        {googleMode ? 'Complete Profile' : 'Continue'}
                       </Text>
 
                       <Icon
@@ -1342,174 +998,116 @@ export default function SignUp({
                   }}
                   activeOpacity={0.7}
                 >
-                  <Icon
-                    name="arrow-back"
-                    size={14}
-                    color={C.inkMid}
-                  />
+                  <Icon name="arrow-back" size={14} color={C.inkMid} />
 
-                  <Text
-                    style={s.backBtnTxt}
-                  >
-                    Back to personal details
-                  </Text>
+                  <Text style={s.backBtnTxt}>Back to personal details</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {/* STEP 3 */}
 
-            {step === 3 &&
-              !googleMode && (
-                <View>
-                  <Field
-                    label="EMAIL ADDRESS"
-                    value={email}
-                    onChangeText={t => {
-                      setEmail(t);
-                      clearError(
-                        'email',
-                      );
-                    }}
-                    placeholder="you@example.com"
-                    keyboardType="email-address"
-                    error={
-                      errors.email
-                    }
-                  />
+            {step === 3 && !googleMode && (
+              <View>
+                <Field
+                  label="EMAIL ADDRESS"
+                  value={email}
+                  onChangeText={t => {
+                    setEmail(t);
+                    clearError('email');
+                  }}
+                  placeholder="you@example.com"
+                  keyboardType="email-address"
+                  error={errors.email}
+                />
 
-                  <Field
-                    label="PASSWORD"
-                    value={password}
-                    onChangeText={t => {
-                      setPassword(t);
-                      clearError(
-                        'password',
-                      );
-                    }}
-                    placeholder="At least 8 characters"
-                    secure
-                    showToggle
-                    error={
-                      errors.password
-                    }
-                  />
+                <Field
+                  label="PASSWORD"
+                  value={password}
+                  onChangeText={t => {
+                    setPassword(t);
+                    clearError('password');
+                  }}
+                  placeholder="At least 8 characters"
+                  secure
+                  showToggle
+                  error={errors.password}
+                />
 
-                  <TermsCheckbox
-                    checked={
-                      termsAccepted
-                    }
-                    onToggle={() => {
-                      setTermsAccepted(
-                        v => !v,
-                      );
+                <TermsCheckbox
+                  checked={termsAccepted}
+                  onToggle={() => {
+                    setTermsAccepted(v => !v);
+                    clearError('terms');
+                  }}
+                  error={errors.terms}
+                />
 
-                      clearError(
-                        'terms',
-                      );
-                    }}
-                    error={
-                      errors.terms
-                    }
-                  />
+                <TouchableOpacity
+                  style={[s.mainBtn, loading && { opacity: 0.55 }]}
+                  onPress={handleSignUp}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color={C.white} />
+                  ) : (
+                    <>
+                      <Text style={s.mainBtnTxt}>Create Account</Text>
 
-                  <TouchableOpacity
-                    style={[
-                      s.mainBtn,
-                      loading && {
-                        opacity: 0.55,
-                      },
-                    ]}
-                    onPress={
-                      handleSignUp
-                    }
-                    disabled={loading}
-                    activeOpacity={0.85}
-                  >
-                    {loading ? (
-                      <ActivityIndicator
-                        size="small"
+                      <Icon
+                        name="checkmark-circle-outline"
+                        size={18}
                         color={C.white}
                       />
-                    ) : (
-                      <>
-                        <Text
-                          style={
-                            s.mainBtnTxt
-                          }
-                        >
-                          Create Account
-                        </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-                        <Icon
-                          name="checkmark-circle-outline"
-                          size={18}
-                          color={C.white}
-                        />
-                      </>
-                    )}
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.backBtn}
+                  onPress={() => {
+                    setErrors({});
+                    setStep(2);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="arrow-back" size={14} color={C.inkMid} />
 
-                  <TouchableOpacity
-                    style={s.backBtn}
-                    onPress={() => {
-                      setErrors({});
-                      setStep(2);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Icon
-                      name="arrow-back"
-                      size={14}
-                      color={C.inkMid}
-                    />
+                  <Text style={s.backBtnTxt}>Back to location</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-                    <Text
-                      style={
-                        s.backBtnTxt
-                      }
-                    >
-                      Back to location
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-            {/* Footer */}
+            {/* Footer
+                FIX: in Google mode the "SignIn" screen isn't registered
+                (only "GoogleProfile" is), so navigate('SignIn') throws.
+                Signing out instead makes AuthNavigator switch back to the
+                auth phase, which shows SignIn. */}
 
             <View style={s.footer}>
-              <Text
-                style={s.footerTxt}
-              >
-                Already have an account?
-              </Text>
+              {!googleMode && (
+                <Text style={s.footerTxt}>Already have an account?</Text>
+              )}
 
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate(
-                    'SignIn',
-                  )
+                  googleMode
+                    ? supabase.auth.signOut()
+                    : navigation.navigate('SignIn')
                 }
                 activeOpacity={0.7}
               >
-                <Text
-                  style={s.footerLink}
-                >
-                  {' '}Sign In
+                <Text style={s.footerLink}>
+                  {googleMode ? 'Use a different account' : ' Sign In'}
                 </Text>
               </TouchableOpacity>
             </View>
 
             <View style={s.security}>
-              <Icon
-                name="shield-checkmark-outline"
-                size={13}
-                color={C.gold}
-              />
+              <Icon name="shield-checkmark-outline" size={13} color={C.gold} />
 
-              <Text
-                style={s.securityTxt}
-              >
+              <Text style={s.securityTxt}>
                 Your information is securely protected
               </Text>
             </View>
@@ -1541,8 +1139,7 @@ const s = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    backgroundColor:
-      'rgba(20,17,12,0.63)',
+    backgroundColor: 'rgba(20,17,12,0.63)',
   },
 
   scroll: {
@@ -1553,18 +1150,12 @@ const s = StyleSheet.create({
   },
 
   card: {
-    width:
-      SCREEN_WIDTH > 600
-        ? 430
-        : '100%',
+    width: SCREEN_WIDTH > 600 ? 430 : '100%',
 
     backgroundColor: C.card,
     borderRadius: 20,
 
-    paddingHorizontal:
-      SCREEN_WIDTH > 600
-        ? 32
-        : 20,
+    paddingHorizontal: SCREEN_WIDTH > 600 ? 32 : 20,
 
     paddingTop: 22,
     paddingBottom: 20,
@@ -1730,11 +1321,7 @@ const s = StyleSheet.create({
     color: C.ink,
     fontSize: 13,
     paddingHorizontal: 13,
-
-    paddingVertical:
-      Platform.OS === 'ios'
-        ? 12
-        : 8,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
 
   eyeBtn: {

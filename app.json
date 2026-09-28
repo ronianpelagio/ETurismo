@@ -3,7 +3,7 @@
     "name": "ETurismo",
     "slug": "eTURISMO",
     "version": "1.0.0",
-    "owner": "ronian2119",
+    "owner": "eturismo",
     "runtimeVersion": "1.0.0",
     "updates": {
       "enabled": false,
@@ -22,29 +22,30 @@
         "NSMicrophoneUsageDescription": "This app uses the microphone to record audio.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photos to set a profile picture.",
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location to show directions to the museum.",
-        "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to access your location to show directions to the museum."
+        "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to access your location to show directions to the museum.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-    "googleServicesFile": "./google-services.json",
-    "permissions": [
-      "android.permission.CAMERA",
-      "android.permission.RECORD_AUDIO",
-      "android.permission.MODIFY_AUDIO_SETTINGS",
-      "android.permission.READ_EXTERNAL_STORAGE",
-      "android.permission.WRITE_EXTERNAL_STORAGE",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION"
-    ],
-    "package": "com.ronian.eturismo",
-    "softwareKeyboardLayoutMode": "resize",
-    "config": {}
-  },
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.ronian.eturismo",
+      "softwareKeyboardLayoutMode": "resize",
+      "config": {}
+    },
     "web": {
       "favicon": "./src/assets/favicon.png"
     },
     "plugins": [
-      [ 
+      [
         "expo-sharing",
         {
           "ios": {
@@ -110,10 +111,14 @@
       ]
     ],
     "extra": {
+      "expo-navigation-bar": {
+        "enforceContrast": true,
+        "style": "light",
+        "hidden": false
+      },
       "eas": {
-        "projectId": "d2f73ae5-fb9c-4126-aef3-2bc1ee39f35a"
+        "projectId": "7ad28631-d37f-49a4-b663-7ad52d5cdde8"
       }
     }
-    
   }
 }

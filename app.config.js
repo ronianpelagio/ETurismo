@@ -1,34 +1,41 @@
-const { withAppBuildGradle } = require('@expo/config-plugins');
-
-const GOOGLE_MAPS_PLACEHOLDER = '${googleMapsApiKey}';
-
-function withGoogleMapsEnvironment(config) {
-  return withAppBuildGradle(config, (modConfig) => {
-    const placeholderLine =
-      '        manifestPlaceholders.googleMapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY") ?: ""';
-
-    if (!modConfig.modResults.contents.includes('manifestPlaceholders.googleMapsApiKey')) {
-      modConfig.modResults.contents = modConfig.modResults.contents.replace(
-        /(\s+versionName\s+[^\n]+\n)/,
-        `$1${placeholderLine}\n`,
-      );
-    }
-
-    return modConfig;
-  });
-}
-
 module.exports = ({ config }) => {
   const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
 
-  return withGoogleMapsEnvironment({
+  console.log(
+    '[MAPS TEST]',
+    googleMapsApiKey
+      ? 'GOOGLE MAPS KEY LOADED'
+      : 'GOOGLE MAPS KEY NOT LOADED'
+  );
+
+  if (!googleMapsApiKey) {
+    console.warn(
+      '[app.config.js] GOOGLE_MAPS_API_KEY is not defined.'
+    );
+  }
+
+  return {
     ...config,
+
     android: {
       ...config.android,
+
+      // Firebase / FCM
+      googleServicesFile: './google-services.json',
+
+      // ETurismo Android package
+      package:
+        config.android?.package ||
+        'com.ronian.eturismo',
+
+      // Google Maps
       config: {
         ...config.android?.config,
-        googleMaps: { apiKey: googleMapsApiKey || GOOGLE_MAPS_PLACEHOLDER },
+
+        googleMaps: {
+          apiKey: googleMapsApiKey || '',
+        },
       },
     },
-  });
+  };
 };

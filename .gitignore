@@ -6,6 +6,7 @@ node_modules/
 .expo/
 
 # Expo prebuild generates native projects for local and EAS builds.
+/android/
 /ios/
 
 # Build outputs

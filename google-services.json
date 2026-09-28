@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "591680396847",
-    "project_id": "eturismo-32f5d",
-    "storage_bucket": "eturismo-32f5d.firebasestorage.app"
+    "project_number": "858503505978",
+    "project_id": "eturismo-b049b",
+    "storage_bucket": "eturismo-b049b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:591680396847:android:6dc7175cdb9268f7c3f0da",
+        "mobilesdk_app_id": "1:858503505978:android:8257587a31ae04e6faad03",
         "android_client_info": {
           "package_name": "com.ronian.eturismo"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC4urRPCa6iNUI0-1I7gknnUTpacOE14q4"
+          "current_key": "AIzaSyAdXa0qjwj60GDMvDSns7wMb1Vg0sFPblA"
         }
       ],
       "services": {

@@ -2,234 +2,381 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { User } from '@supabase/supabase-js';
 
-import AppIntro   from '../screens/auth/AppIntro';
+import AppIntro from '../screens/auth/AppIntro';
 import GetStarted from '../screens/auth/GetStarted';
-import SignIn     from '../screens/auth/SignIn';
-import SignUp     from '../screens/auth/SignUp';
-import VerifyOTP  from '../screens/auth/VerifyOTP';
+import SignIn from '../screens/auth/SignIn';
+import SignUp from '../screens/auth/SignUp';
+import VerifyOTP from '../screens/auth/VerifyOTP';
 import TabNavigator from './TabNavigator';
 
-import { supabase }       from '../services/supabase';
-import { touchLastSeen }  from '../services/authService';
+import NotifPermissionPrimer from '../components/NotifPermissionPrimer';
+import { supabase } from '../services/supabase';
+import { touchLastSeen } from '../services/authService';
 import { finalizePendingProfile } from '../features/auth/services/pendingProfile';
-import { syncPushToken } from '../services/notificationService';
 
-// ─── Storage key ─────────────────────────────────────────────────────────────
-// Stored per-install (AsyncStorage is wiped on uninstall).
-// Once the user completes GetStarted on this install we set this to 'true'
-// and never show it again — regardless of which account is logged in.
+import {
+  hasShownNotifPrimer,
+  markNotifPrimerShown,
+  syncPushToken,
+} from '../services/notificationService';
+
 const GET_STARTED_SEEN_KEY = 'get_started_seen';
 
-// ─── Navigator types ──────────────────────────────────────────────────────────
-type Phase =
-  | 'splash'       // AppIntro is playing
-  | 'auth'         // Not logged in → SignIn / SignUp / VerifyOTP
-  | 'googleprofile'// Google user missing required profile details
-  | 'getstarted'   // Logged in, first install → GetStarted
-  | 'main';        // Logged in, GetStarted done → TabNavigator
+type Phase = 'splash' | 'auth' | 'googleprofile' | 'getstarted' | 'main';
 
 const Stack = createNativeStackNavigator();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers (no component state needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function isGoogleUser(user: User): boolean {
+  return (
+    user.app_metadata?.provider === 'google' ||
+    !!user.identities?.some((identity) => identity.provider === 'google')
+  );
+}
+
+/** Where a fully set-up user goes: onboarding once, then the app. */
+async function defaultDestination(): Promise<Phase> {
+  const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(
+    () => null,
+  );
+  return seen === 'true' ? 'main' : 'getstarted';
+}
+
+/** Full routing decision for a signed-in user (handles Google profile gate). */
+async function resolveDestination(user: User): Promise<Phase> {
+  if (!isGoogleUser(user)) {
+    return defaultDestination();
+  }
+
+  try {
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select('gender,age,country,"Address",province,city,barangay')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Could not check Google profile:', error.message);
+      return 'googleprofile';
+    }
+
+    const incomplete =
+      !profile?.gender ||
+      !profile?.age ||
+      !profile?.country ||
+      !profile?.Address;
+
+    return incomplete ? 'googleprofile' : defaultDestination();
+  } catch (error) {
+    // Never leave the user stranded on the auth screen.
+    console.warn('Google profile check failed:', error);
+    return 'googleprofile';
+  }
+}
+
+/** Finalize pending email/password profile and make sure public.users exists. */
+async function ensureUserRow(user: User) {
+  try {
+    await finalizePendingProfile(user.email ?? '', user.id);
+  } catch (error) {
+    console.warn('Profile setup could not be completed:', error);
+  }
+
+  try {
+    const meta = user.user_metadata ?? {};
+    const fullName: string = meta.full_name ?? meta.name ?? '';
+
+    // ignoreDuplicates: true → only creates a missing row. Existing rows
+    // (and anything the user edited later) are never overwritten.
+    const { error } = await supabase.from('users').upsert(
+      {
+        id: user.id,
+        email: user.email ?? '',
+        first_name: meta.first_name || fullName.split(' ')[0] || '',
+        last_name:
+          meta.last_name || fullName.split(' ').slice(1).join(' ') || '',
+        profile_picture: meta.avatar_url ?? meta.picture ?? null,
+      },
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+
+    if (error) {
+      console.warn('User row upsert skipped:', error.message);
+    }
+  } catch (error) {
+    console.warn('User row upsert skipped:', error);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function AuthNavigator() {
   const [phase, setPhase] = useState<Phase>('splash');
 
-  // Keep a ref so async callbacks always read the latest value
+  const [showNotifPrimer, setShowNotifPrimer] = useState(false);
+  const [notificationUserId, setNotificationUserId] =
+    useState<string | null>(null);
+
+  const notificationCheckRef = useRef<string | null>(null);
   const phaseRef = useRef<Phase>('splash');
+  const mountedRef = useRef(true);
+
   function transitionTo(next: Phase) {
+    if (!mountedRef.current) return;
     phaseRef.current = next;
     setPhase(next);
   }
 
-  // ── On mount: clean up legacy onboarded_ keys & attach auth listener ────────
+  // ── Notifications ──────────────────────────────────────────────────────────
+
+  async function prepareNotifications(userId: string) {
+    if (notificationCheckRef.current === userId) return;
+
+    notificationCheckRef.current = userId;
+    setNotificationUserId(userId);
+
+    try {
+      const primerShown = await hasShownNotifPrimer();
+
+      if (!primerShown) {
+        setShowNotifPrimer(true);
+        return;
+      }
+
+      syncPushToken(userId).catch((error) => {
+        console.warn('[AuthNavigator] Push token refresh failed:', error);
+      });
+    } catch (error) {
+      console.warn('[AuthNavigator] Notification initialization failed:', error);
+    }
+  }
+
+  const handleNotifAllow = async () => {
+    const userId = notificationUserId;
+    setShowNotifPrimer(false);
+
+    try {
+      await markNotifPrimerShown();
+    } catch (error) {
+      console.warn('[AuthNavigator] Could not save primer state:', error);
+    }
+
+    if (!userId) return;
+
+    syncPushToken(userId).catch((error) => {
+      console.warn('[AuthNavigator] Push registration failed:', error);
+    });
+  };
+
+  const handleNotifDismiss = async () => {
+    setShowNotifPrimer(false);
+
+    try {
+      await markNotifPrimerShown();
+    } catch (error) {
+      console.warn('[AuthNavigator] Could not save primer state:', error);
+    }
+  };
+
+  // ── Signed-in handling ─────────────────────────────────────────────────────
+
+  async function handleSignedIn(user: User) {
+    // Only route while the user is on the sign-in/sign-up screens. Repeat
+    // events (USER_UPDATED, duplicate SIGNED_IN) must not move someone who is
+    // already in onboarding, profile completion, or the app. During 'splash'
+    // the AppIntro callback decides the destination.
+    const canRoute = phaseRef.current === 'auth';
+    const google = isGoogleUser(user);
+
+    // Email/password users can go in right away; profile setup continues
+    // in the background.
+    if (canRoute && !google) {
+      transitionTo(await defaultDestination());
+    }
+
+    await ensureUserRow(user);
+    if (!mountedRef.current) return;
+
+    // Google users are gated on profile completeness, which needs the row.
+    if (canRoute && google) {
+      transitionTo(await resolveDestination(user));
+    }
+
+    touchLastSeen(user.id).catch(() => {});
+    prepareNotifications(user.id).catch(() => {});
+  }
+
+  // ── Auth listener ──────────────────────────────────────────────────────────
+
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
 
-    // Remove any legacy per-user onboarding flags from previous app versions
-    // so existing users are treated the same as fresh installs (requirement #3).
-    AsyncStorage.getAllKeys().then(keys => {
-      const legacy = keys.filter(k => k.startsWith('onboarded_'));
-      if (legacy.length) AsyncStorage.multiRemove(legacy).catch(() => {});
-    }).catch(() => {});
-
-    // Also remove the old device-level flag if it exists
+    // Remove legacy onboarding flags.
+    AsyncStorage.getAllKeys()
+      .then((keys) => {
+        const legacy = keys.filter((key) => key.startsWith('onboarded_'));
+        if (legacy.length) {
+          AsyncStorage.multiRemove(legacy).catch(() => {});
+        }
+      })
+      .catch(() => {});
     AsyncStorage.removeItem('device_onboarded').catch(() => {});
 
-    // Auth state listener — fires on sign-in / sign-out
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mountedRef.current) return;
 
-      // Ignore unconfirmed sessions created right after signUp()
-      if (event === 'SIGNED_IN' && !session?.user?.email_confirmed_at) return;
+        // Signed out (or no session).
+        if (!session?.user) {
+          setShowNotifPrimer(false);
+          setNotificationUserId(null);
+          notificationCheckRef.current = null;
 
-      if (session?.user) {
+          if (phaseRef.current !== 'splash') {
+            transitionTo('auth');
+          }
+          return;
+        }
+
+        // INITIAL_SESSION is handled by handleIntroDone (so the splash always
+        // plays). TOKEN_REFRESHED never changes where the user should be.
+        if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+          return;
+        }
+
+        // Ignore unconfirmed sessions created right after sign-up.
+        if (!session.user.email_confirmed_at) return;
+
         const user = session.user;
 
-        // Auth is already established. Move into the app before doing optional
-        // profile maintenance so a slow database request cannot strand OAuth.
-        const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
-        const isGoogleUser = user.app_metadata?.provider === 'google'
-          || user.identities?.some(identity => identity.provider === 'google');
-        if (!isMounted) return;
-        if (!isGoogleUser) transitionTo(seen === 'true' ? 'main' : 'getstarted');
-
-        // Finish the verified user's profile (email/password signup flow).
-        // For Google OAuth this is a no-op because there is no pending profile.
-        try {
-          await finalizePendingProfile(user.email ?? '', user.id);
-        } catch (error) {
-          console.warn('Profile setup could not be completed:', error);
-          // Don't return — still try to navigate for OAuth users
-        }
-
-        // ── Ensure a users row exists (handles Google OAuth & trigger failures) ──
-        // If the trigger ran correctly the upsert is a no-op. If it didn't fire
-        // (e.g. the trigger was not yet deployed), we create the row here.
-        try {
-          const meta = user.user_metadata ?? {};
-          const fullName: string = meta.full_name ?? meta.name ?? '';
-          const firstName = meta.first_name || fullName.split(' ')[0] || '';
-          const lastName  = meta.last_name  || fullName.split(' ').slice(1).join(' ') || '';
-          const avatarUrl = meta.avatar_url ?? meta.picture ?? null;
-
-          await supabase.from('users').upsert({
-            id:              user.id,
-            email:           user.email ?? '',
-            first_name:      firstName,
-            last_name:       lastName,
-            profile_picture: avatarUrl,
-            status:          'active',
-            role:            'user',
-          }, {
-            onConflict:        'id',
-            ignoreDuplicates:  false,
+        // IMPORTANT: do not await Supabase calls inside this callback.
+        // It runs while the auth lock is held, so calling supabase.from()
+        // here can deadlock. Defer to the next tick.
+        setTimeout(() => {
+          handleSignedIn(user).catch((error) => {
+            console.warn('[AuthNavigator] Sign-in handling failed:', error);
           });
-        } catch (upsertErr) {
-          // Non-fatal — the row may already exist with richer data
-          console.warn('User row upsert skipped:', upsertErr);
-        }
+        }, 0);
+      },
+    );
 
-        if (isGoogleUser) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('gender,age,country,"Address",province,city,barangay')
-            .eq('id', user.id)
-            .maybeSingle();
-          const profileIncomplete = !profile?.gender || !profile?.age || !profile?.country || !profile?.Address;
-          if (isMounted) transitionTo(profileIncomplete ? 'googleprofile' : seen === 'true' ? 'main' : 'getstarted');
-        }
+    const appStateSub = AppState.addEventListener(
+      'change',
+      (state: AppStateStatus) => {
+        if (state !== 'active') return;
 
-        if (!isMounted) return;
-
-        // Stamp last_seen
-        touchLastSeen(user.id).catch(() => {});
-
-        // Register / refresh the Expo push token for this device
-        syncPushToken(user.id).catch(() => {});
-
-      } else {
-        // Signed out — go back to auth screens (splash already played)
-        if (phaseRef.current !== 'splash') {
-          transitionTo('auth');
-        }
-      }
-    });
-
-    // Stamp last_seen when app comes back to foreground
-    const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') {
-        supabase.auth.getSession().then(({ data }) => {
-          const uid = data.session?.user?.id;
-          if (uid) touchLastSeen(uid).catch(() => {});
-        });
-      }
-    });
+        supabase.auth
+          .getSession()
+          .then(({ data }) => {
+            const uid = data.session?.user?.id;
+            if (uid) touchLastSeen(uid).catch(() => {});
+          })
+          .catch((error) => {
+            console.warn('[AuthNavigator] Could not refresh session:', error);
+          });
+      },
+    );
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
       authListener.subscription.unsubscribe();
       appStateSub.remove();
     };
   }, []);
 
-  // ── AppIntro finished ────────────────────────────────────────────────────────
-  // Called by AppIntro once its animation completes (every launch).
-  const handleIntroDone = async () => {
-    const { data } = await supabase.auth.getSession();
-    const session  = data?.session;
-    const confirmed = session?.user?.email_confirmed_at ? session : null;
+  // ── AppIntro finished ──────────────────────────────────────────────────────
 
-    if (confirmed?.user) {
-      touchLastSeen(confirmed.user.id).catch(() => {});
-      const isGoogleUser = confirmed.user.app_metadata?.provider === 'google'
-        || confirmed.user.identities?.some(identity => identity.provider === 'google');
-      if (isGoogleUser) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('gender,age,country,"Address",province,city,barangay')
-          .eq('id', confirmed.user.id)
-          .maybeSingle();
-        const profileIncomplete = !profile?.gender || !profile?.age || !profile?.country || !profile?.Address;
-        if (profileIncomplete) {
-          transitionTo('googleprofile');
-          return;
-        }
+  const handleIntroDone = async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const user = data?.session?.user;
+
+      if (!user || !user.email_confirmed_at) {
+        transitionTo('auth');
+        return;
       }
-      const seen = await AsyncStorage.getItem(GET_STARTED_SEEN_KEY).catch(() => null);
-      transitionTo(seen === 'true' ? 'main' : 'getstarted');
-    } else {
+
+      touchLastSeen(user.id).catch(() => {});
+
+      transitionTo(await resolveDestination(user));
+
+      prepareNotifications(user.id).catch(() => {});
+    } catch (error) {
+      console.warn('[AuthNavigator] Failed to restore session:', error);
       transitionTo('auth');
     }
   };
 
-  // ── GetStarted finished ──────────────────────────────────────────────────────
+  // ── GetStarted finished ────────────────────────────────────────────────────
+
   const handleGetStartedDone = async () => {
     await AsyncStorage.setItem(GET_STARTED_SEEN_KEY, 'true').catch(() => {});
     transitionTo('main');
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Google profile completed ───────────────────────────────────────────────
+
+  const handleGoogleComplete = async () => {
+    transitionTo(await defaultDestination());
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <Stack.Navigator id="AuthStack" screenOptions={{ headerShown: false, animation: 'fade' }}>
-      {phase === 'splash' ? (
-        // ── 1. Splash — always first, every launch ───────────────────────────
-        <Stack.Screen name="AppIntro">
-          {(props) => (
-            <AppIntro {...props} onDone={handleIntroDone} />
-          )}
-        </Stack.Screen>
+    <>
+      <Stack.Navigator
+        id="AuthStack"
+        screenOptions={{ headerShown: false, animation: 'fade' }}
+      >
+        {phase === 'splash' ? (
+          <Stack.Screen name="AppIntro">
+            {(props) => <AppIntro {...props} onDone={handleIntroDone} />}
+          </Stack.Screen>
+        ) : phase === 'auth' ? (
+          <>
+            <Stack.Screen name="SignIn" component={SignIn} />
+            <Stack.Screen name="SignUp" component={SignUp} />
+            <Stack.Screen name="VerifyOTP" component={VerifyOTP} />
+          </>
+        ) : phase === 'googleprofile' ? (
+          <Stack.Screen name="GoogleProfile">
+            {(props) => (
+              <SignUp
+                {...props}
+                googleMode
+                onGoogleComplete={handleGoogleComplete}
+              />
+            )}
+          </Stack.Screen>
+        ) : phase === 'getstarted' ? (
+          <Stack.Screen name="GetStarted">
+            {(props) => (
+              <GetStarted
+                {...props}
+                onOnboardingComplete={handleGetStartedDone}
+              />
+            )}
+          </Stack.Screen>
+        ) : (
+          <Stack.Screen name="Main" component={TabNavigator} />
+        )}
+      </Stack.Navigator>
 
-      ) : phase === 'auth' ? (
-        // ── 2. Auth screens — user is not logged in ──────────────────────────
-        <>
-          <Stack.Screen name="SignIn"    component={SignIn} />
-          <Stack.Screen name="SignUp"    component={SignUp} />
-          <Stack.Screen name="VerifyOTP" component={VerifyOTP} />
-        </>
-
-      ) : phase === 'googleprofile' ? (
-        <Stack.Screen name="GoogleProfile">
-          {(props) => (
-            <SignUp
-              {...props}
-              googleMode
-              onGoogleComplete={() => transitionTo('getstarted')}
-            />
-          )}
-        </Stack.Screen>
-
-      ) : phase === 'getstarted' ? (
-        // ── 3. GetStarted — logged in, first install ─────────────────────────
-        <Stack.Screen name="GetStarted">
-          {(props) => (
-            <GetStarted {...props} onOnboardingComplete={handleGetStartedDone} />
-          )}
-        </Stack.Screen>
-
-      ) : (
-        // ── 4. Main app ──────────────────────────────────────────────────────
-        <Stack.Screen name="Main" component={TabNavigator} />
-      )}
-    </Stack.Navigator>
+      {/* Our own explanation UI, shown before the OS permission dialog.
+          Allow    → syncPushToken() → OS permission → Expo token → Supabase
+          Not now  → closes; auth/navigation continue normally */}
+      <NotifPermissionPrimer
+        visible={showNotifPrimer}
+        onAllow={handleNotifAllow}
+        onDismiss={handleNotifDismiss}
+      />
+    </>
   );
 }
