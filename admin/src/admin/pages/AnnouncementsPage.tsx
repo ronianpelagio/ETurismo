@@ -544,15 +544,15 @@ export default function AnnouncementsPage() {
 
         try {
           await sendPushNotification({
-          title: form.title,
-          body: form.description || "A new announcement is available.",
-          image: form.image_url || null,
-          data: {
-            type: "announcement",
-            id: created.id,
-            image_url: form.image_url || null,
-          },
-        });
+            title: form.title,
+            body: form.description || "A new announcement is available.",
+            image: form.image_url || null,
+            data: {
+              type: "announcement",
+              id: created.id,
+              image_url: form.image_url || null,
+            },
+          });
         } catch (pushError) {
           console.warn(
             "Announcement created, but push delivery failed:",

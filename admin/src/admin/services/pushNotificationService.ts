@@ -18,9 +18,7 @@ export async function sendPushNotification(
   );
 
   if (error) {
-    throw new Error(
-      error.message || "Push notification delivery failed.",
-    );
+    throw new Error(error.message || "Push notification delivery failed.");
   }
 
   console.log("Push notification result:", data);
