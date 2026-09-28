@@ -546,10 +546,15 @@ export default function EventsPage() {
 
         try {
           await sendPushNotification({
-            title: form.title,
-            body: form.description || "A new event is available.",
-            data: { type: "event", id: created.id },
-          });
+          title: form.title,
+          body: form.description || "A new event is available.",
+          image: form.image_url || null,
+          data: {
+            type: "event",
+            id: created.id,
+            image_url: form.image_url || null,
+          },
+        });
         } catch (pushError) {
           console.warn("Event created, but push delivery failed:", pushError);
         }

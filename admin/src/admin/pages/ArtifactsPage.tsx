@@ -647,6 +647,7 @@ export default function ArtifactsPage() {
       };
 
       let artifactId = editingId!;
+      let finalImageUrl = form.image_url || null;
       if (editingId) {
         const { error } = await supabase
           .from("artifacts")
@@ -663,14 +664,23 @@ export default function ArtifactsPage() {
         artifactId = data.id;
       }
 
-      if (form.image_file) {
-        setSaveStep("Uploading image…");
-        const url = await uploadImage(artifactId, form.image_file);
-        await supabase
-          .from("artifacts")
-          .update({ image_url: url })
-          .eq("id", artifactId);
-      }
+     if (form.image_file) {
+      setSaveStep("Uploading image…");
+
+      const url = await uploadImage(
+        artifactId,
+        form.image_file,
+      );
+
+      finalImageUrl = url;
+
+      const { error: imageUpdateError } = await supabase
+        .from("artifacts")
+        .update({ image_url: url })
+        .eq("id", artifactId);
+
+      if (imageUpdateError) throw imageUpdateError;
+    }
 
       // QR code
       setSaveStep("Generating QR code…");
@@ -756,7 +766,12 @@ export default function ArtifactsPage() {
           await sendPushNotification({
             title: form.name,
             body: "A new artifact has been added to the Sacred Heritage Collection.",
-            data: { type: "artifact", id: artifactId },
+            image: finalImageUrl,
+            data: {
+              type: "artifact",
+              id: artifactId,
+              image_url: finalImageUrl,
+            },
           });
         } catch (pushError) {
           console.warn(
