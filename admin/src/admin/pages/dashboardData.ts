@@ -207,15 +207,15 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
     }
 
     // Bucket by country — for Philippines also show province for finer granularity
-    const country  = String(row.country  ?? "").trim();
+    const country = String(row.country ?? "").trim();
     const province = String(row.province ?? "").trim();
 
     if (country) {
       // For PH users: show "Philippines – <Province>" when province is available
       const locationKey =
         country.toLowerCase() === "philippines" && province
-          ? `Philippines – ${province.replace(/\b\w/g, c => c.toUpperCase())}`
-          : country.replace(/\b\w/g, c => c.toUpperCase());
+          ? `Philippines – ${province.replace(/\b\w/g, (c) => c.toUpperCase())}`
+          : country.replace(/\b\w/g, (c) => c.toUpperCase());
 
       result.locations[locationKey] = (result.locations[locationKey] ?? 0) + 1;
     }
