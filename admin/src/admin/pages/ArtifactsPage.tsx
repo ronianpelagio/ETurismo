@@ -664,23 +664,20 @@ export default function ArtifactsPage() {
         artifactId = data.id;
       }
 
-     if (form.image_file) {
-      setSaveStep("Uploading image…");
+      if (form.image_file) {
+        setSaveStep("Uploading image…");
 
-      const url = await uploadImage(
-        artifactId,
-        form.image_file,
-      );
+        const url = await uploadImage(artifactId, form.image_file);
 
-      finalImageUrl = url;
+        finalImageUrl = url;
 
-      const { error: imageUpdateError } = await supabase
-        .from("artifacts")
-        .update({ image_url: url })
-        .eq("id", artifactId);
+        const { error: imageUpdateError } = await supabase
+          .from("artifacts")
+          .update({ image_url: url })
+          .eq("id", artifactId);
 
-      if (imageUpdateError) throw imageUpdateError;
-    }
+        if (imageUpdateError) throw imageUpdateError;
+      }
 
       // QR code
       setSaveStep("Generating QR code…");
