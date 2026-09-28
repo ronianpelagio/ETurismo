@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../services/supabase";
+import { sendPushNotification } from "../services/pushNotificationService";
 import { Artifact, ArtifactTranslation } from "../types";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
@@ -749,6 +750,18 @@ export default function ArtifactsPage() {
           // Don't fail the save, just log the errors
         }
       }
+
+        if (!editingId) {
+          try {
+            await sendPushNotification({
+              title: form.name,
+              body: "A new artifact has been added to the Sacred Heritage Collection.",
+              data: { type: "artifact", id: artifactId },
+            });
+          } catch (pushError) {
+            console.warn("Artifact created, but push delivery failed:", pushError);
+          }
+        }
 
       setShowModal(false);
       await fetchData(page);

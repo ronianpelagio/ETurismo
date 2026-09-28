@@ -3,6 +3,7 @@
  *
  * Handles:
  *  - Requesting push-notification permission from the OS
+ *  - Obtaining the native FCM/APNs device token for diagnostics
  *  - Obtaining the Expo push token
  *  - Persisting the Expo push token to the `users` table
  *  - Reading/writing notification preferences
@@ -120,11 +121,11 @@ export const DEFAULT_EMAIL_PREFS: EmailPrefs = {
 /**
  * Gets the EAS project ID from the Expo application configuration.
  *
- * app.json:
+ * app.json / app.config.js:
  *
- * "extra": {
- *   "eas": {
- *     "projectId": "..."
+ * extra: {
+ *   eas: {
+ *     projectId: "..."
  *   }
  * }
  */
@@ -228,6 +229,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
 /**
  * Requests notification permission and obtains the Expo push token.
  *
+ * Also obtains the native FCM/APNs token for debugging.
+ *
  * Returns null when:
  *
  *  - Running in Expo Go
@@ -296,8 +299,86 @@ export async function registerForPushNotificationsAsync():
     );
 
     // ─────────────────────────────────────────────────────────────────────────
+    // DEBUG: Runtime information
+    // ─────────────────────────────────────────────────────────────────────────
+
+    console.log(
+      '[PUSH DEBUG] Platform:',
+      Platform.OS,
+    );
+
+    console.log(
+      '[PUSH DEBUG] EAS Project ID:',
+      projectId,
+    );
+
+    console.log(
+      '[PUSH DEBUG] App ownership:',
+      Constants.appOwnership,
+    );
+
+    console.log(
+      '[PUSH DEBUG] Physical device:',
+      Device.isDevice,
+    );
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DEBUG: Native FCM / APNs token
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
+      console.log(
+        '[PUSH DEBUG] Requesting native device push token...',
+      );
+
+      const nativeToken =
+        await Notifications.getDevicePushTokenAsync();
+
+      console.log(
+        '[PUSH DEBUG] Native token type:',
+        nativeToken.type,
+      );
+
+      /*
+       * Avoid printing the entire native token.
+       * We only need to confirm that one was successfully generated.
+       */
+      const nativeTokenString =
+        typeof nativeToken.data === 'string'
+          ? nativeToken.data
+          : JSON.stringify(nativeToken.data);
+
+      console.log(
+        '[PUSH DEBUG] Native token obtained:',
+        Boolean(nativeTokenString),
+      );
+
+      console.log(
+        '[PUSH DEBUG] Native token length:',
+        nativeTokenString?.length ?? 0,
+      );
+
+      if (nativeTokenString) {
+        console.log(
+          '[PUSH DEBUG] Native token preview:',
+          `${nativeTokenString.substring(0, 12)}...`,
+        );
+      }
+    } catch (nativeTokenError) {
+      console.error(
+        '[PUSH DEBUG] Failed to obtain native device push token:',
+        nativeTokenError,
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Expo push token
     // ─────────────────────────────────────────────────────────────────────────
+
+    console.log(
+      '[PUSH DEBUG] Requesting Expo push token using projectId:',
+      projectId,
+    );
 
     const tokenData =
       await Notifications.getExpoPushTokenAsync({
@@ -341,53 +422,70 @@ export async function registerForPushNotificationsAsync():
  * Safe to call on application startup.
  */
 export async function syncPushToken(
-  userId: string,
+  userId: string
 ): Promise<void> {
-
-  if (IS_EXPO_GO) {
-    return;
-  }
-
-  if (!userId) {
-    console.warn(
-      '[notificationService] Cannot sync push token without a user ID.',
-    );
-
-    return;
-  }
+  if (IS_EXPO_GO || !userId) return;
 
   try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('notification_prefs')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      console.warn(
+        '[PUSH] Could not verify preferences.',
+        error?.message
+      );
+      return;
+    }
+
+    if (data.notification_prefs?.push === false) {
+      console.log(
+        '[PUSH] Disabled. Skipping registration.'
+      );
+      return;
+    }
+
     const token =
       await registerForPushNotificationsAsync();
 
-    if (!token) {
+    if (!token) return;
+
+    // Check again in case the preference changed
+    // while token registration was running.
+    const { data: latest, error: readError } =
+      await supabase
+        .from('users')
+        .select('notification_prefs')
+        .eq('id', userId)
+        .single();
+
+    if (
+      readError ||
+      !latest ||
+      latest.notification_prefs?.push === false
+    ) {
       return;
     }
 
-    const { error } = await supabase
+    const { error: saveError } = await supabase
       .from('users')
-      .update({
-        expo_push_token: token,
-      })
+      .update({ expo_push_token: token })
       .eq('id', userId);
 
-    if (error) {
+    if (saveError) {
       console.warn(
-        '[notificationService] Failed to save push token:',
-        error.message,
+        '[PUSH] Token sync failed:',
+        saveError.message
       );
-
       return;
     }
 
-    console.log(
-      '[notificationService] Push token synced successfully.',
-    );
+    console.log('[PUSH] Token synced successfully.');
   } catch (error) {
-    console.warn(
-      '[notificationService] Unexpected push-token sync error:',
-      error,
-    );
+    console.error('[PUSH] Sync error:', error);
   }
 }
 
@@ -443,6 +541,7 @@ export async function saveNotificationPrefs(
       .from('users')
       .update({
         notification_prefs: prefs,
+        ...(prefs.push ? {} : { expo_push_token: null }),
       })
       .eq('id', userId);
 
@@ -451,6 +550,8 @@ export async function saveNotificationPrefs(
         '[notificationService] Failed to save notification preferences:',
         error.message,
       );
+    } else if (!prefs.push) {
+      await Notifications.cancelAllScheduledNotificationsAsync();
     }
   } catch (error) {
     console.warn(
@@ -537,8 +638,8 @@ export async function saveEmailPrefs(
  * Schedules a local notification.
  *
  * delaySeconds:
- *  0     -> show immediately
- *  > 0   -> show after the specified delay
+ *  0   -> show immediately
+ *  > 0 -> show after the specified delay
  */
 export async function scheduleLocalNotification(
   title: string,

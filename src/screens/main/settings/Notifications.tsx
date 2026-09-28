@@ -67,46 +67,98 @@ export default function Notifications({ navigation }: any) {
   }, []);
 
   // ── Toggle a preference ────────────────────────────────────────────────────
-  const update = async (key: keyof NotificationPrefs, value: boolean) => {
-    // If turning push ON, ask the OS for permission first
+ const update = async (
+  key: keyof NotificationPrefs,
+  value: boolean
+) => {
+  if (!userId || saving) return;
+
+  if (key === 'push' && value && IS_EXPO_GO) {
+    Alert.alert(
+      'Development Build Required',
+      'Remote push notifications require a development build.'
+    );
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    let token: string | null = null;
+
+    // Register before enabling push.
     if (key === 'push' && value) {
-      if (IS_EXPO_GO) {
+      token = await registerForPushNotificationsAsync();
+
+      if (!token) {
         Alert.alert(
-          'Development Build Required',
-          'Push notifications are not supported in Expo Go. Build a development build to enable them.',
+          'Registration Failed',
+          'Could not enable push notifications. Check your device permissions.'
         );
         return;
       }
-      const token = await registerForPushNotificationsAsync();
-      if (!token) {
-        Alert.alert(
-          'Permission Required',
-          'Push notifications are blocked. Please enable them in your device Settings for ETurismo.',
-        );
-        return; // don't toggle on if permission was denied
-      }
-      // Store the token in Supabase while we're here
-      if (userId) {
-        syncPushToken(userId).catch(() => {});
-      }
     }
 
-    const next: NotificationPrefs = { ...prefs, [key]: value };
+    const next: NotificationPrefs = {
+      ...prefs,
+      [key]: value,
+    };
+
+    // Save preference and token together.
+    const updates: Record<string, unknown> = {
+      notification_prefs: next,
+    };
+
+    if (key === 'push') {
+      updates.expo_push_token = value ? token : null;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select('id')
+      .single();
+
+    if (error || !data) {
+      throw error ?? new Error('Preference update failed');
+    }
+
+    if (key === 'push' && !value) {
+      const Notifications =
+        await import('expo-notifications');
+
+      await Notifications
+        .dismissAllNotificationsAsync();
+
+      await Notifications
+        .cancelAllScheduledNotificationsAsync();
+    }
+
     setPrefs(next);
 
-    // Persist locally immediately
-    AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(next)).catch(() => {});
+    await AsyncStorage.setItem(
+      LOCAL_KEY,
+      JSON.stringify(next)
+    );
 
-    // Persist to Supabase
-    if (userId) {
-      setSaving(true);
-      saveNotificationPrefs(userId, next)
-        .catch(() => {
-          // Silently fail — local state is already updated
-        })
-        .finally(() => setSaving(false));
-    }
-  };
+    console.log(
+      `[NOTIFICATIONS] ${key}: ${value}`
+    );
+  } catch (error) {
+    console.error(
+      '[NOTIFICATIONS] Update failed:',
+      error
+    );
+
+    Alert.alert(
+      'Update Failed',
+      'Your notification preference could not be fully updated. Please try again.'
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <SettingsPageShell

@@ -870,6 +870,20 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     }).catch(() => {});
   }, []);
 
+  // Keep the bell badge in sync with the same per-item state shown in the panel.
+  useEffect(() => {
+    const notificationIds = [
+      ...artifacts.map(artifact => `artifact_${artifact.id}`),
+      ...announcements.map(announcement => `announcement_${announcement.id}`),
+      ...events.map(event => `event_${event.id}`),
+    ];
+    setUnreadNotifCount(
+      notificationIds.filter(
+        id => !notifReadIds.has(id) && !notifDismissedIds.has(id),
+      ).length,
+    );
+  }, [artifacts, announcements, events, notifReadIds, notifDismissedIds]);
+
   // ── Exhibition Spotlight state ──
   const [spotlightIndex, setSpotlightIndex] = useState(0);
   const spotlightFade = useRef(new Animated.Value(1)).current;
@@ -1169,19 +1183,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
           .reduce((a, b) => Math.max(a, b), 0);
         setHasUnreadFeed(!lastSeen || newestTs > parseInt(lastSeen, 10));
 
-        // ── Unread count for the bell badge ──────────────────────────────
-        const notifSeen = await AsyncStorage.getItem('notifLastSeen');
-        const seenTs = notifSeen ? parseInt(notifSeen, 10) : 0;
-        const newArtifactsCount = (items || []).filter(
-          a => new Date((a as any).created_at).getTime() > seenTs,
-        ).length;
-        const newEventsCount = (eventsData || []).filter(
-          e => new Date((e as any).created_at ?? (e as any).event_datetime).getTime() > seenTs,
-        ).length;
-        const newAnnouncementsCount = (announcementsData || []).filter(
-          a => new Date((a as any).created_at ?? (a as any).announcement_datetime).getTime() > seenTs,
-        ).length;
-        setUnreadNotifCount(newArtifactsCount + newEventsCount + newAnnouncementsCount);
       } catch (_) {}
     } catch (err: any) {
       // ── Fall back to cache if offline ──
@@ -1301,17 +1302,6 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
   function openNotifPanel() {
     setShowNotifPanel(true);
-    setUnreadNotifCount(0);
-    // Mark all current items read when panel opens and persist
-    setNotifReadIds(prev => {
-      const all = new Set(prev);
-      [...artifacts.map(a => `artifact_${a.id}`),
-       ...announcements.map(a => `announcement_${a.id}`),
-       ...events.map(e => `event_${e.id}`)].forEach(id => all.add(id));
-      AsyncStorage.setItem('notifReadIds', JSON.stringify([...all])).catch(() => {});
-      return all;
-    });
-    AsyncStorage.setItem('notifLastSeen', Date.now().toString()).catch(() => {});
     Animated.parallel([
       Animated.spring(notifPanelSlide, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
       Animated.timing(notifPanelOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),

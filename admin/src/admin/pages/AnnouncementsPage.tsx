@@ -21,6 +21,7 @@ import {
   Clock,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import { sendPushNotification } from "../services/pushNotificationService";
 import { Announcement } from "../types";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
@@ -34,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { toDateTimeLocalValue, toIsoDateTime } from "../utils/dateTime";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -502,7 +504,7 @@ export default function AnnouncementsPage() {
       title: item.title,
       description: item.description ?? "",
       announcement_datetime: item.announcement_datetime
-        ? new Date(item.announcement_datetime).toISOString().slice(0, 16)
+        ? toDateTimeLocalValue(item.announcement_datetime)
         : "",
       image_url: item.image_url ?? "",
     });
@@ -522,9 +524,7 @@ export default function AnnouncementsPage() {
       const payload = {
         title: form.title,
         description: form.description || null,
-        announcement_datetime: new Date(
-          form.announcement_datetime,
-        ).toISOString(),
+        announcement_datetime: toIsoDateTime(form.announcement_datetime),
         image_url: form.image_url || null,
       };
 
@@ -535,10 +535,22 @@ export default function AnnouncementsPage() {
           .eq("id", editItem.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase
+        const { data: created, error: e } = await supabase
           .from("announcements")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (e) throw e;
+
+        try {
+          await sendPushNotification({
+            title: form.title,
+            body: form.description || "A new announcement is available.",
+            data: { type: "announcement", id: created.id },
+          });
+        } catch (pushError) {
+          console.warn("Announcement created, but push delivery failed:", pushError);
+        }
       }
 
       setShowModal(false);

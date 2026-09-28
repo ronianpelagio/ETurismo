@@ -20,6 +20,7 @@ import {
   Clock,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
+import { sendPushNotification } from "../services/pushNotificationService";
 import { EventItem } from "../types";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
@@ -32,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { toDateTimeLocalValue, toIsoDateTime } from "../utils/dateTime";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -501,7 +503,7 @@ export default function EventsPage() {
     setForm({
       title: item.title,
       event_datetime: item.event_datetime
-        ? new Date(item.event_datetime).toISOString().slice(0, 16)
+        ? toDateTimeLocalValue(item.event_datetime)
         : "",
       description: item.description ?? "",
       image_url: item.image_url ?? "",
@@ -521,7 +523,7 @@ export default function EventsPage() {
 
       const payload = {
         title: form.title,
-        event_datetime: new Date(form.event_datetime).toISOString(),
+        event_datetime: toIsoDateTime(form.event_datetime),
         description: form.description || null,
         image_url: form.image_url || null,
       };
@@ -535,8 +537,22 @@ export default function EventsPage() {
           .eq("id", editItem.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.from("events").insert(payload);
+        const { data: created, error: e } = await supabase
+          .from("events")
+          .insert(payload)
+          .select("id")
+          .single();
         if (e) throw e;
+
+        try {
+          await sendPushNotification({
+            title: form.title,
+            body: form.description || "A new event is available.",
+            data: { type: "event", id: created.id },
+          });
+        } catch (pushError) {
+          console.warn("Event created, but push delivery failed:", pushError);
+        }
       }
 
       setShowModal(false);

@@ -57,6 +57,7 @@
     "node_modules",
     "android",
     "ios",
-    "admin"
+    "admin",
+    "supabase/functions"
   ]
 }
