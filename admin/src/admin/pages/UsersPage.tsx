@@ -112,175 +112,272 @@ export default function UsersPage() {
     setError(null);
     setShowModal(true);
   };
+  const manageUser = async (
+  body: Record<string, unknown>,
+) => {
+  const { data, error } = await supabase.functions.invoke(
+    "manage-user",
+    {
+      body,
+    },
+  );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
+  if (error) {
+    console.error("manage-user invocation error:", error);
+    throw new Error(
+      error.message || "User operation failed.",
+    );
+  }
 
-    try {
-      // Validation
-      if (!form.email) throw new Error("Email is required.");
-      if (!form.first_name) throw new Error("First name is required.");
-      if (!form.last_name) throw new Error("Last name is required.");
-      if (!editItem && !form.password)
-        throw new Error("Password is required for new users.");
-      if (form.password && form.password.length < 6)
-        throw new Error("Password must be at least 6 characters.");
+  if (data?.error) {
+    throw new Error(data.error);
+  }
 
-      if (editItem) {
-        // Update existing user in public.users
-        const updateData: any = {
-          first_name: form.first_name.trim(),
-          last_name: form.last_name.trim(),
-          gender: form.gender || null,
-          age: form.age ? parseInt(form.age) : null,
-          Address: form.address.trim() || null,
+  return data;
+};
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setSaving(true);
+  setError(null);
+
+  try {
+    const email = form.email.trim();
+    const firstName = form.first_name.trim();
+    const lastName = form.last_name.trim();
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    if (!firstName) {
+      throw new Error("First name is required.");
+    }
+
+    if (!lastName) {
+      throw new Error("Last name is required.");
+    }
+
+    if (!editItem && !form.password) {
+      throw new Error(
+        "Password is required for new users.",
+      );
+    }
+
+    if (
+      form.password &&
+      form.password.length < 6
+    ) {
+      throw new Error(
+        "Password must be at least 6 characters.",
+      );
+    }
+
+    const age = form.age
+      ? parseInt(form.age, 10)
+      : null;
+
+    if (
+      age !== null &&
+      (Number.isNaN(age) || age < 0)
+    ) {
+      throw new Error("Please enter a valid age.");
+    }
+
+    // ─────────────────────────────────────
+    // EDIT EXISTING USER
+    // ─────────────────────────────────────
+
+    if (editItem) {
+      // Profile information
+      await manageUser({
+        action: "update",
+        userId: editItem.id,
+
+        first_name: firstName,
+        last_name: lastName,
+
+        gender: form.gender || null,
+        age,
+
+        address: form.address.trim() || null,
+      });
+
+      // Role
+      if (
+        form.role !==
+        (editItem.role ?? "user")
+      ) {
+        await manageUser({
+          action: "set-role",
+          userId: editItem.id,
           role: form.role,
-          status: form.status,
-        };
-
-        const { error: updateError } = await supabase
-          .from("users")
-          .update(updateData)
-          .eq("id", editItem.id);
-
-        if (updateError) throw updateError;
-
-        // If password is provided, update it
-        if (form.password) {
-          const { error: passwordError } = await supabase.auth.updateUser({
-            password: form.password,
-          });
-
-          if (passwordError) {
-            console.warn("Could not update password:", passwordError.message);
-          }
-        }
-      } else {
-        // FIRST: Check if user already exists
-        const { data: existingUser, error: checkError } = await supabase
-          .from("users")
-          .select("email")
-          .eq("email", form.email.trim().toLowerCase())
-          .single();
-
-        if (existingUser) {
-          throw new Error("A user with this email already exists.");
-        }
-
-        // Create new user using regular signup with better error handling
-        const { data: authData, error: signUpError } =
-          await supabase.auth.signUp({
-            email: form.email.trim().toLowerCase(),
-            password: form.password,
-            options: {
-              data: {
-                first_name: form.first_name.trim(),
-                last_name: form.last_name.trim(),
-              },
-              // Temporarily disable email confirmation to bypass SMTP issues
-              emailRedirectTo: window.location.origin,
-            },
-          });
-
-        if (signUpError) {
-          console.error("Signup error details:", signUpError);
-          throw new Error(`Signup failed: ${signUpError.message}`);
-        }
-
-        if (!authData.user) {
-          throw new Error("User creation failed - no user returned");
-        }
-
-        // Wait for the trigger to execute
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Update the user with additional fields
-        const { error: updateError } = await supabase
-          .from("users")
-          .update({
-            gender: form.gender || null,
-            age: form.age ? parseInt(form.age) : null,
-            Address: form.address.trim() || null,
-            role: form.role,
-            status: form.status,
-          })
-          .eq("id", authData.user.id);
-
-        if (updateError) {
-          console.error("Failed to update user details:", updateError);
-          // Don't throw - user was created successfully
-        }
+        });
       }
 
-      setShowModal(false);
-      await load();
-    } catch (err: any) {
-      console.error("Full error object:", err);
-      setError(err.message || "An unexpected error occurred");
-    } finally {
-      setSaving(false);
+      // Status
+      if (
+        form.status !==
+        (editItem.status ?? "active")
+      ) {
+        await manageUser({
+          action: "set-status",
+          userId: editItem.id,
+          status: form.status,
+        });
+      }
+
+      // Password only if admin entered one
+      if (form.password) {
+        await manageUser({
+          action: "set-password",
+          userId: editItem.id,
+          password: form.password,
+        });
+      }
     }
-  };
+
+    // ─────────────────────────────────────
+    // CREATE NEW USER
+    // ─────────────────────────────────────
+
+    else {
+      await manageUser({
+        action: "create",
+
+        email: email.toLowerCase(),
+        password: form.password,
+
+        first_name: firstName,
+        last_name: lastName,
+
+        gender: form.gender || null,
+        age,
+
+        address: form.address.trim() || null,
+
+        role: form.role,
+        status: form.status,
+      });
+    }
+
+    setShowModal(false);
+    setEditItem(null);
+    setForm(emptyForm);
+
+    await load();
+  } catch (err: any) {
+    console.error(
+      "User operation failed:",
+      err,
+    );
+
+    setError(
+      err?.message ||
+        "An unexpected error occurred.",
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleDelete = async () => {
-    if (!deleteItem) return;
-    setSaving(true);
+  if (!deleteItem) return;
 
-    try {
-      // Delete from public.users (cascade should handle auth.users if set up)
-      const { error } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", deleteItem.id);
+  setSaving(true);
+  setError(null);
 
-      if (error) throw error;
+  try {
+    await manageUser({
+      action: "delete",
+      userId: deleteItem.id,
+    });
 
-      setDeleteItem(null);
-      await load();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    setDeleteItem(null);
 
-  const toggleStatus = async (u: AdminUser) => {
-    setSaving(true);
-    const newStatus = u.status === "inactive" ? "active" : "inactive";
+    await load();
+  } catch (err: any) {
+    console.error(
+      "Delete user failed:",
+      err,
+    );
 
-    const { error } = await supabase
-      .from("users")
-      .update({ status: newStatus })
-      .eq("id", u.id);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      await load();
-    }
-
+    setError(
+      err?.message ||
+        "Failed to delete user.",
+    );
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
-  const toggleRole = async (u: AdminUser) => {
-    setSaving(true);
-    const newRole = u.role === "admin" ? "user" : "admin";
+ const toggleStatus = async (
+  u: AdminUser,
+) => {
+  setSaving(true);
+  setError(null);
 
-    const { error } = await supabase
-      .from("users")
-      .update({ role: newRole })
-      .eq("id", u.id);
+  try {
+    const newStatus =
+      u.status === "inactive"
+        ? "active"
+        : "inactive";
 
-    if (error) {
-      setError(error.message);
-    } else {
-      await load();
-    }
+    await manageUser({
+      action: "set-status",
+      userId: u.id,
+      status: newStatus,
+    });
 
+    await load();
+  } catch (err: any) {
+    console.error(
+      "Status update failed:",
+      err,
+    );
+
+    setError(
+      err?.message ||
+        "Failed to update user status.",
+    );
+  } finally {
     setSaving(false);
-  };
+  }
+};
+ const toggleRole = async (
+  u: AdminUser,
+) => {
+  setSaving(true);
+  setError(null);
+
+  try {
+    const newRole =
+      u.role === "admin"
+        ? "user"
+        : "admin";
+
+    await manageUser({
+      action: "set-role",
+      userId: u.id,
+      role: newRole,
+    });
+
+    await load();
+  } catch (err: any) {
+    console.error(
+      "Role update failed:",
+      err,
+    );
+
+    setError(
+      err?.message ||
+        "Failed to update user role.",
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   const getFullName = (user: AdminUser) => {
     if (user.first_name && user.last_name) {
