@@ -469,62 +469,34 @@ export default function AuthNavigator() {
    * Listen for public.users.status changes while
    * the user has the application open.
    */
-  function startUserStatusListener(
-    userId: string,
-  ) {
-    stopUserStatusListener();
+  function startUserStatusListener(userId: string) {
+      stopUserStatusListener();
 
-    console.log(
-      '[AuthNavigator] Starting user status listener:',
-      userId,
-    );
-
-    const channel = supabase
-      .channel(`user-status-${userId}`)
-      .on(
-        'postgres_changes',
-        {
+      const channel = supabase
+        .channel(`user-status-${userId}`)
+        .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'users',
           filter: `id=eq.${userId}`,
-        },
-        async (payload) => {
-          const updated =
-            payload.new as {
-              id?: string;
-              status?: string;
-            };
+        }, async payload => {
+          const updated = payload.new as {
+            id?: string;
+            status?: string;
+          };
 
-          console.log(
-            '[AuthNavigator] User account status changed:',
-            updated.status,
-          );
+          console.log('[Realtime User] Status:', updated.status);
 
-          /**
-           * ONLY a confirmed inactive status
-           * triggers automatic logout.
-           */
-          if (
-            updated.status === 'inactive'
-          ) {
-            console.warn(
-              '[AuthNavigator] Account banned by administrator.',
-            );
-
+          if (updated.status === 'inactive') {
             await handleBannedAccount();
           }
-        },
-      )
-      .subscribe((status) => {
-        console.log(
-          '[AuthNavigator] Status listener:',
-          status,
-        );
-      });
+        })
+        .subscribe(status => {
+          console.log('[Realtime User]:', status);
+        });
 
-    statusChannelRef.current = channel;
-  }
+      statusChannelRef.current = channel;
+    }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Signed-in Handling

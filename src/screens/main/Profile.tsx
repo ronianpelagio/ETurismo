@@ -54,7 +54,41 @@ export default function Profile({ navigation, setNavbarVisible }: any) {
     return () => setNavbarVisible?.(false);
   }, [setNavbarVisible]));
 
-  useEffect(() => { fetchUser(); }, []);
+  useEffect(() => {
+  let channel: any;
+
+  const start = async () => {
+    await fetchUser();
+
+    const { data: { user: auth } } = await supabase.auth.getUser();
+    if (!auth) return;
+
+    channel = supabase
+      .channel(`profile-${auth.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: `id=eq.${auth.id}`,
+      }, payload => {
+        const updated = payload.new as UserProfile;
+
+        console.log('[Profile Realtime] Updated');
+
+        setUser(prev => prev ? { ...prev, ...updated } : updated);
+        setAvatarUri(updated.profile_picture || null);
+      })
+      .subscribe(status => {
+        console.log('[Profile Realtime]:', status);
+      });
+  };
+
+  start();
+
+  return () => {
+    if (channel) supabase.removeChannel(channel);
+  };
+}, []);
 
   async function fetchUser() {
     setLoading(true);

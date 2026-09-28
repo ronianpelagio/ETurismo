@@ -973,7 +973,41 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     setupAudio();
     fetchData();
     loadStorage();
-    return () => cleanupAudio();
+
+    const channel = supabase
+      .channel('eturismo-home-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'artifacts',
+      }, payload => {
+        console.log('[Realtime] Artifact:', payload.eventType);
+        refreshArtifacts();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'events',
+      }, payload => {
+        console.log('[Realtime] Event:', payload.eventType);
+        refreshEvents();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'announcements',
+      }, payload => {
+        console.log('[Realtime] Announcement:', payload.eventType);
+        refreshAnnouncements();
+      })
+      .subscribe(status => {
+        console.log('[Realtime] Home:', status);
+      });
+
+    return () => {
+      cleanupAudio();
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // ── Exhibition Spotlight rotation (every 30 s) ──
@@ -1117,92 +1151,204 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
     } catch (e: any) { console.error('Playback error:', e.message); setPlayingLang(null); resetHighlight(); alert('Could not play audio. Please try again.'); }
   }
 
-  // ── Data fetch ──
-  async function fetchData() {
-    setLoading(true); setError(null);
+  // ── Data helpers ──
+function enrichArtifacts(items: any[]): Artifact[] {
+  return items.map(item => ({
+    ...item,
+    translations: item.artifact_translations || [],
+    audio_url: item.audio_guides?.[0]?.audio_url || null,
+    date: formatYear(item.created_at),
+    image_url: item.image_url || ARTIFACT_CATEGORY_IMAGES[item.category] || 'https://via.placeholder.com/600',
+    is_exhibition: item.category === 'Vestments' || item.category === 'Sacred Vessels',
+    is_crown: item.name?.toLowerCase().includes('crown') || item.category === 'Altar Furnishings',
+    is_artwork: item.category === 'Devotional Objects' || item.category === 'Sacramentals',
+  }));
+}
+
+async function refreshArtifacts() {
+  try {
+    const { data, error } = await supabase
+      .from('artifacts')
+      .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, audio_url)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[Realtime] Artifact refresh failed:', error.message);
+      return;
+    }
+
+    const enriched = enrichArtifacts(data || []);
+    setArtifacts(enriched);
+    setIsOffline(false);
+
     try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!authUser) throw new Error('Please sign in to continue');
-      const { data: userData, error: userError } = await supabase
-        .from('users').select('id, first_name, last_name, email, profile_picture')
-        .eq('id', authUser.id).single();
-      if (userError) throw userError;
-      setUser(userData);
+      await AsyncStorage.setItem(STORAGE_KEYS.cachedArtifacts, JSON.stringify(enriched));
+    } catch (_) {}
 
-      // ── Welcome: new user → modal, returning user → toast ──
-      const welcomeKey = `welcome_modal_seen_${authUser.id}`;
-      const alreadySeen = await AsyncStorage.getItem(welcomeKey);
-      if (!alreadySeen) {
-        // First login on this install — show welcome modal and mark as seen
-        await AsyncStorage.setItem(welcomeKey, 'true');
-        setShowWelcomeModal(true);
-      } else {
-        // Returning user — show welcome back toast
-        setShowToast(true);
-      }
+    setSelectedArtifact(current => {
+      if (!current) return null;
+      return enriched.find(item => item.id === current.id) ?? null;
+    });
 
-      const { data: items, error: itemsError } = await supabase
+    console.log('[Realtime] Artifacts refreshed:', enriched.length);
+  } catch (error) {
+    console.warn('[Realtime] Artifact refresh failed:', error);
+  }
+}
+
+async function refreshEvents() {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, title, event_datetime, description, image_url, created_at')
+      .order('event_datetime', { ascending: false });
+
+    if (error) {
+      console.warn('[Realtime] Event refresh failed:', error.message);
+      return;
+    }
+
+    setEvents(data || []);
+    await refreshFeedUnread(data || [], announcements);
+    console.log('[Realtime] Events refreshed:', data?.length ?? 0);
+  } catch (error) {
+    console.warn('[Realtime] Event refresh failed:', error);
+  }
+}
+
+async function refreshAnnouncements() {
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('id, title, announcement_datetime, description, image_url, created_at')
+      .order('announcement_datetime', { ascending: false });
+
+    if (error) {
+      console.warn('[Realtime] Announcement refresh failed:', error.message);
+      return;
+    }
+
+    setAnnouncements(data || []);
+    await refreshFeedUnread(events, data || []);
+    console.log('[Realtime] Announcements refreshed:', data?.length ?? 0);
+  } catch (error) {
+    console.warn('[Realtime] Announcement refresh failed:', error);
+  }
+}
+
+async function refreshFeedUnread(currentEvents: Event[], currentAnnouncements: Announcement[]) {
+  try {
+    const lastSeen = await AsyncStorage.getItem('feedLastSeen');
+    const timestamps = [...currentEvents, ...currentAnnouncements]
+      .map(item => new Date(
+        (item as any).event_datetime ||
+        (item as any).announcement_datetime,
+      ).getTime())
+      .filter(Number.isFinite);
+
+    const newestTs = timestamps.length ? Math.max(...timestamps) : 0;
+    setHasUnreadFeed(!lastSeen || newestTs > parseInt(lastSeen, 10));
+  } catch (_) {}
+}
+
+// ── Initial Data Fetch ──
+async function fetchData() {
+  setLoading(true);
+  setError(null);
+
+  try {
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) throw authError;
+    if (!authUser) throw new Error('Please sign in to continue');
+
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, profile_picture')
+      .eq('id', authUser.id)
+      .single();
+
+    if (userError) throw userError;
+    setUser(userData);
+
+    const welcomeKey = `welcome_modal_seen_${authUser.id}`;
+    const alreadySeen = await AsyncStorage.getItem(welcomeKey);
+
+    if (!alreadySeen) {
+      await AsyncStorage.setItem(welcomeKey, 'true');
+      setShowWelcomeModal(true);
+    } else {
+      setShowToast(true);
+    }
+
+    const [
+      artifactsResult,
+      eventsResult,
+      announcementsResult,
+    ] = await Promise.all([
+      supabase
         .from('artifacts')
         .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, audio_url)')
-        .order('created_at', { ascending: false });
-      if (itemsError) throw itemsError;
+        .order('created_at', { ascending: false }),
 
-      const enriched: Artifact[] = (items || []).map(item => ({
-        ...item,
-        translations: (item as any).artifact_translations || [],
-        audio_url: (item as any).audio_guides?.[0]?.audio_url || null,
-        date: formatYear(item.created_at),
-        image_url: item.image_url || ARTIFACT_CATEGORY_IMAGES[item.category] || 'https://via.placeholder.com/600',
-        is_exhibition: item.category === 'Vestments' || item.category === 'Sacred Vessels',
-        is_crown: item.name?.toLowerCase().includes('crown') || item.category === 'Altar Furnishings',
-        is_artwork: item.category === 'Devotional Objects' || item.category === 'Sacramentals',
-      }));
-      setArtifacts(enriched);
-      setIsOffline(false);
+      supabase
+        .from('events')
+        .select('id, title, event_datetime, description, image_url, created_at')
+        .order('event_datetime', { ascending: false }),
 
-      // ── Persist cache for offline use ──
-      try {
-        await AsyncStorage.setItem(STORAGE_KEYS.cachedArtifacts, JSON.stringify(enriched));
-      } catch (_) {}
+      supabase
+        .from('announcements')
+        .select('id, title, announcement_datetime, description, image_url, created_at')
+        .order('announcement_datetime', { ascending: false }),
+    ]);
 
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events').select('id, title, event_datetime, description, image_url, created_at')
-        .order('event_datetime', { ascending: false });
-      if (!eventsError) setEvents(eventsData || []);
+    if (artifactsResult.error) throw artifactsResult.error;
 
-      const { data: announcementsData, error: announcementsError } = await supabase
-        .from('announcements').select('id, title, announcement_datetime, description, image_url, created_at')
-        .order('announcement_datetime', { ascending: false });
-      if (!announcementsError) setAnnouncements(announcementsData || []);
+    const enriched = enrichArtifacts(artifactsResult.data || []);
+    setArtifacts(enriched);
+    setIsOffline(false);
 
-      try {
-        const lastSeen = await AsyncStorage.getItem('feedLastSeen');
-        const newestTs = [...(eventsData || []), ...(announcementsData || [])]
-          .map(i => new Date((i as any).event_datetime || (i as any).announcement_datetime).getTime())
-          .reduce((a, b) => Math.max(a, b), 0);
-        setHasUnreadFeed(!lastSeen || newestTs > parseInt(lastSeen, 10));
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.cachedArtifacts,
+        JSON.stringify(enriched),
+      );
+    } catch (_) {}
 
-      } catch (_) {}
-    } catch (err: any) {
-      // ── Fall back to cache if offline ──
-      try {
-        const cached = await AsyncStorage.getItem(STORAGE_KEYS.cachedArtifacts);
-        if (cached) {
-          const parsed: Artifact[] = JSON.parse(cached);
-          if (parsed.length > 0) {
-            setArtifacts(parsed);
-            setIsOffline(true);
-            setError(null);
-            return;
-          }
+    const currentEvents = eventsResult.error ? [] : eventsResult.data || [];
+    const currentAnnouncements = announcementsResult.error ? [] : announcementsResult.data || [];
+
+    if (!eventsResult.error) setEvents(currentEvents);
+    else console.warn('Events fetch failed:', eventsResult.error.message);
+
+    if (!announcementsResult.error) setAnnouncements(currentAnnouncements);
+    else console.warn('Announcements fetch failed:', announcementsResult.error.message);
+
+    await refreshFeedUnread(currentEvents, currentAnnouncements);
+  } catch (err: any) {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.cachedArtifacts);
+
+      if (cached) {
+        const parsed: Artifact[] = JSON.parse(cached);
+
+        if (parsed.length > 0) {
+          setArtifacts(parsed);
+          setIsOffline(true);
+          setError(null);
+          return;
         }
-      } catch (_) {}
-      setError(err.message || 'Failed to load');
-    } finally {
-      setLoading(false);
-    }
+      }
+    } catch (_) {}
+
+    setError(err.message || 'Failed to load');
+  } finally {
+    setLoading(false);
   }
+}
 
   // ── Modal helpers ──
   function handleModalClose() { cleanupAudio(); resetHighlight(); setSelectedArtifact(null); }
