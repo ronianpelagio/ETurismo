@@ -292,42 +292,79 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
         submittedAt:     Date.now(),
       };
 
-      // 1. Persist locally first (always succeeds even offline)
+      // 1. Persist locally first
       await saveTourFeedback(feedback);
 
-      // 2. Send to Supabase
-      const { error: insertError } = await supabase.from('tour_feedback').insert({
-        id:               feedback.id,
-        user_id:          feedback.userId ?? null,
-        overall_rating:   feedback.overallRating,
-        visit_type:       feedback.visitType,
-        heard_from:       feedback.heardFrom,
-        highlights:       feedback.highlights || null,
-        suggestions:      feedback.suggestions || null,
-        would_recommend:  feedback.wouldRecommend,
-        total_artifacts:  totalArtifacts,
-        submitted_at:     new Date(feedback.submittedAt).toISOString(),
-      });
+      // 2. Get the REAL authenticated Supabase user
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      if (insertError) {
-        // Unique constraint violation — already submitted
-        if (insertError.code === '23505') {
-          setError('You have already submitted feedback. Thank you!');
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          setSubmitting(false);
-          return;
-        }
-        // Other errors — local save already succeeded, still show success
-        console.warn('Supabase insert error:', insertError.message);
+      if (authError || !authUser) {
+        console.warn('Feedback auth error:', authError?.message);
+
+        setError('Your session could not be verified. Please sign in again.');
+
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Error
+        );
+
+        return;
       }
-    } catch (_) {
-      // Local save may have succeeded; proceed to success
+
+      // 3. Send feedback to Supabase using auth.uid()
+      const { error: insertError } = await supabase
+        .from('tour_feedback')
+        .insert({
+          id: feedback.id,
+          user_id: authUser.id,
+          overall_rating: feedback.overallRating,
+          visit_type: feedback.visitType,
+          heard_from: feedback.heardFrom,
+          highlights: feedback.highlights || null,
+          suggestions: feedback.suggestions || null,
+          would_recommend: feedback.wouldRecommend,
+          total_artifacts: totalArtifacts,
+          submitted_at: new Date(feedback.submittedAt).toISOString(),
+        });
+    if (insertError) {
+      console.warn('Supabase insert error:', insertError.message);
+
+      if (insertError.code === '23505') {
+        setError('You have already submitted feedback. Thank you!');
+      } else {
+        setError(
+        'Unable to submit your feedback. Please try again.'
+      );
+      }
+
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      );
+
+      setSubmitting(false);
+      return;
+    }
+
+    } catch (err: any) {
+      console.warn('Feedback submission error:', err?.message);
+
+      setError(
+        'Unable to submit feedback. Please try again.'
+      );
+
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      );
+
+      return;
     } finally {
       setSubmitting(false);
     }
 
     setStep('success');
-  };
+    };
 
   return (
     <Modal

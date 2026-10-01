@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   FlatList, Image, Animated, Dimensions,
@@ -330,6 +330,54 @@ function CompactFeedCard({ item, type, onPress }: { item: any; type: 'announceme
         </View>
       </View>
     </TouchableOpacity>
+  );
+}
+
+// ─── Event Card (modal) ──────────────────────────────────────────────────────────
+function EventCard({ item, isInterested, onToggleInterested }: { item: any; isInterested?: boolean; onToggleInterested?: () => void; }) {
+  const date = new Date(item.event_datetime);
+  const countdown = getEventCountdown(item.event_datetime);
+  const [expanded, setExpanded] = useState(false);
+  const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const day = date.getDate().toString().padStart(2, '0');
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+  const fullDate = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: C.border, shadowColor: '#000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 5 }, shadowRadius: 14, elevation: 4 }}>
+      <View style={{ height: 210, backgroundColor: C.raised }}>
+        {item.image_url ? <Image source={{ uri: item.image_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8EFED' }}><Ionicons name="calendar-outline" size={42} color="#085041" /></View>
+        )}
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.68)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+        <View style={{ position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.94)', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 30 }}>
+          <Ionicons name="calendar-outline" size={12} color="#085041" /><Text style={{ fontSize: 10, fontWeight: '900', color: '#085041', letterSpacing: 0.8 }}>EVENT</Text>
+        </View>
+        {countdown && <View style={{ position: 'absolute', right: 14, top: 14, backgroundColor: '#085041', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 30 }}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{countdown}</Text></View>}
+        <View style={{ position: 'absolute', left: 18, right: 18, bottom: 17 }}><Text style={{ color: '#fff', fontSize: 22, lineHeight: 27, fontWeight: '900' }}>{item.title}</Text></View>
+      </View>
+      <View style={{ padding: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.raised, borderRadius: 18, padding: 12, borderWidth: 1, borderColor: C.border }}>
+          <View style={{ width: 58, height: 62, borderRadius: 14, backgroundColor: '#085041', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{month}</Text><Text style={{ color: '#fff', fontSize: 25, fontWeight: '900', lineHeight: 29 }}>{day}</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 13 }}>
+            <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800', marginBottom: 4 }}>{weekday}</Text>
+            <Text style={{ color: C.inkDim, fontSize: 11, marginBottom: 4 }}>{fullDate}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Ionicons name="time-outline" size={13} color="#085041" /><Text style={{ color: '#085041', fontSize: 11, fontWeight: '700' }}>{formatEventTime(date)}</Text></View>
+          </View>
+        </View>
+        {!!item.description && <View style={{ marginTop: 18 }}>
+          <Text style={{ fontSize: 10, color: C.inkDim, fontWeight: '800', letterSpacing: 1.2, marginBottom: 7 }}>ABOUT THIS EVENT</Text>
+          <Text numberOfLines={expanded ? undefined : 4} style={{ fontSize: 13, lineHeight: 20, color: C.inkMid }}>{item.description}</Text>
+          {item.description.length > 140 && <TouchableOpacity onPress={() => setExpanded(v => !v)} activeOpacity={0.7} style={{ marginTop: 7, alignSelf: 'flex-start' }}><Text style={{ color: '#085041', fontSize: 12, fontWeight: '800' }}>{expanded ? 'Show less' : 'Read more'}</Text></TouchableOpacity>}
+        </View>}
+        <View style={{ height: 1, backgroundColor: C.border, marginVertical: 18 }} />
+        <TouchableOpacity onPress={onToggleInterested} activeOpacity={0.8} style={{ height: 50, borderRadius: 15, backgroundColor: isInterested ? '#E8F1EF' : '#085041', borderWidth: 1, borderColor: '#085041', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={18} color={isInterested ? '#085041' : '#fff'} />
+          <Text style={{ color: isInterested ? '#085041' : '#fff', fontSize: 13, fontWeight: '800' }}>{isInterested ? "You're Interested" : "I'm Interested"}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -2598,17 +2646,20 @@ async function fetchData() {
               keyExtractor={i => i.id}
               contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 48 }}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <FeedCard
-                  item={item}
-                  type={feedModalTab === 'announcements' ? 'announcement' : 'event'}
-                  isInterested={interestedIds.includes(item.id)}
-                  onToggleInterested={async () => {
-                    const updated = await toggleInStringArray(STORAGE_KEYS.interestedEvents, item.id);
-                    setInterestedIds(updated);
-                  }}
-                />
-              )}
+              renderItem={({ item }) =>
+                feedModalTab === 'events' ? (
+                  <EventCard
+                    item={item}
+                    isInterested={interestedIds.includes(item.id)}
+                    onToggleInterested={async () => {
+                      const updated = await toggleInStringArray(STORAGE_KEYS.interestedEvents, item.id);
+                      setInterestedIds(updated);
+                    }}
+                  />
+                ) : (
+                  <FeedCard item={item} type="announcement" />
+                )
+              }
             />
           </Animated.View>
         </Animated.View>

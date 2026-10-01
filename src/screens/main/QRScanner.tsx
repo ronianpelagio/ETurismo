@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
-import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
 import { STORAGE_KEYS, toggleInStringArray, getStringArray } from '../../utils/storage';
@@ -1068,7 +1067,6 @@ export default function QRScanner({
   const [scanError, setScanError]       = useState<string | null>(null);
   const [scannedArtifacts, setScannedArtifacts] = useState<Artifact[]>([]);
   const [toast, setToast]               = useState<string | null>(null);
-  const [photoMatching, setPhotoMatching] = useState(false);
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1268,88 +1266,6 @@ export default function QRScanner({
     if (isActive) setCameraActive(true);
   };
 
-  // ── Photo fallback: pick an image and fuzzy-match by filename/artifact name ──
-  const handlePhotoFallback = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.5,
-      });
-      if (result.canceled || !result.assets?.length) return;
-
-      setPhotoMatching(true);
-      setScanError(null);
-
-      // Extract a search keyword from the file name
-      const uri = result.assets[0].uri;
-      const fileName = uri.split('/').pop() ?? '';
-      // Strip extension and common camera prefixes, convert underscores/dashes to spaces
-      const keyword = fileName
-        .replace(/\.[^.]+$/, '')
-        .replace(/^(img|image|photo|dsc|pic|screenshot)[_\-]?/i, '')
-        .replace(/[_\-]/g, ' ')
-        .trim();
-
-      if (!keyword || keyword.length < 2) {
-        // Fallback: show all artifacts for the user to pick
-        const { data: all } = await supabase
-          .from('artifacts')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        if (all && all.length > 0) {
-          setArtifact(all[0]);
-          setCameraActive(false);
-          setScannedArtifacts(prev => {
-            if (prev.find(a => a.id === all[0].id)) return prev;
-            const updated = [...prev, all[0]];
-            AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
-            if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
-              setTimeout(() => setTourCompletedCount(c => c + 1), 0);
-            }
-            return updated;
-          });
-        } else {
-          setScanError('Could not match image to any artifact. Try a more specific photo.');
-        }
-        return;
-      }
-
-      // Search by name containing the keyword
-      const { data: matches, error } = await supabase
-        .from('artifacts')
-        .select('*')
-        .ilike('name', `%${keyword}%`)
-        .limit(5);
-
-      if (error) throw error;
-
-      if (matches && matches.length > 0) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setCameraActive(false);
-        setArtifact(matches[0]);
-        setScannedArtifacts(prev => {
-          if (prev.find(a => a.id === matches[0].id)) return prev;
-          const updated = [...prev, matches[0]];
-          AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
-          if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
-            setTimeout(() => setTourCompletedCount(c => c + 1), 0);
-          }
-          return updated;
-        });
-        showToast(`Matched: ${matches[0].name}`);
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setScanError(`No artifact matched "${keyword}". Try renaming the photo to match an artifact name, or scan the QR code directly.`);
-      }
-    } catch (e: any) {
-      setScanError(e.message ?? 'Photo matching failed. Please try again.');
-    } finally {
-      setPhotoMatching(false);
-    }
-  };
-
   // ── Permission states ────────────────────────────────────────────────────────
   if (!permission) return (
     <SafeAreaView style={styles.centered}>
@@ -1506,37 +1422,8 @@ export default function QRScanner({
             </View>
           ) : null}
         </View>
-
-        {/* ── Photo fallback button ── */}
-        <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-          <TouchableOpacity
-            onPress={handlePhotoFallback}
-            disabled={photoMatching}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Identify an artifact from a photo"
-            accessibilityState={{ disabled: photoMatching, busy: photoMatching }}
-            style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-              borderWidth: 1.5, borderColor: C.borderGold,
-              borderRadius: 50, paddingVertical: 13,
-              backgroundColor: C.goldSoft,
-            }}
-          >
-            {photoMatching
-              ? <ActivityIndicator size="small" color={C.gold} />
-              : <Ionicons name="image-outline" size={18} color={C.gold} />
-            }
-            <Text style={{ fontSize: 13, fontWeight: '700', color: C.gold }}>
-              {photoMatching ? 'Matching photo…' : "Can't scan? Match by photo"}
-            </Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 10, color: C.inkLight, textAlign: 'center', marginTop: 7, lineHeight: 15 }}>
-            Pick a photo of an artifact — we'll try to identify it by name
-          </Text>
-        </View>
       </SafeAreaView>
-
+       
       {/* ── Toast ── */}
       {toast && (
         <Animated.View
