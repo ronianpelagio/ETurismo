@@ -112,7 +112,7 @@ export default function AppIntro({ onDone }: any) {
             ]}
           >
             <Image
-              // Replace icon.png with your final ETURISMO logo if needed.
+              // Replace icon.png with your final ETurismo logo if needed.
               source={require('../../assets/icon.png')}
               style={styles.logo}
               resizeMode="contain"

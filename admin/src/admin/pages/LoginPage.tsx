@@ -88,7 +88,7 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
               value={email}
               autoComplete="email"
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@etorismo.com"
+              placeholder="admin@ETurismo.com"
               className="h-10 rounded-xl border-border bg-muted/40 focus-visible:ring-1 focus-visible:ring-foreground/40"
               required
             />

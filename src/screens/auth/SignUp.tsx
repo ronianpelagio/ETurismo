@@ -844,7 +844,7 @@ export default function SignUp({
                 <Icon name="map-outline" size={20} color={C.gold} />
               </View>
 
-              <Text style={s.brandName}>ETURISMO</Text>
+              <Text style={s.brandName}>ETurismo</Text>
 
               <Text style={s.brandSub}>HERITAGE • CULTURE • JOURNEY</Text>
             </View>

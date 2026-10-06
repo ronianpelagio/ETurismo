@@ -24,6 +24,7 @@ import { THEMES } from '../../constants/themes';
 import { saveTourFeedback, TourFeedback, VisitType } from '../../utils/storage';
 import { supabase } from '../../services/supabase';
 
+const TOUR_FEEDBACK_UNLOCK_COUNT = 3;
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
@@ -414,7 +415,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
                   <Ionicons name="business-outline" size={36} color={C.gold} />
                 </View>
                 <Text style={styles(C).eyebrow}>TOUR COMPLETE</Text>
-                <Text style={styles(C).heroTitle}>You've Explored All{'\n'}{totalArtifacts} Artifacts!</Text>
+                <Text style={styles(C).heroTitle}>You've Explored{'\n'}{TOUR_FEEDBACK_UNLOCK_COUNT} Artifacts!</Text>
                 <View style={styles(C).goldDivider} />
                 <Text style={styles(C).heroSub}>
                   Share your experience to help us preserve this sacred heritage for future generations.

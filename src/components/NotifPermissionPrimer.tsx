@@ -145,7 +145,7 @@ export default function NotifPermissionPrimer({ visible, onAllow, onDismiss }: P
               <Ionicons name="notifications-outline" size={32} color="#fff" />
             </View>
             <Text style={{ fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.75)', letterSpacing: 3, marginBottom: 6 }}>
-              ETURISMO
+              ETurismo
             </Text>
             <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: -0.4 }}>
               Stay in the loop

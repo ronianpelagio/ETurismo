@@ -4,7 +4,7 @@ import LegalDocument, { LegalSection } from '../../../features/settings/componen
 const SECTIONS: LegalSection[] = [
   {
     title: 'Introduction',
-    body: 'eTorismo ("we", "our", or "us") operates the eTorismo application. This policy explains the collection, use, and disclosure of personal data when you use our service and the choices associated with that data.',
+    body: 'ETurismo ("we", "our", or "us") operates the ETurismo application. This policy explains the collection, use, and disclosure of personal data when you use our service and the choices associated with that data.',
   },
   {
     title: 'Information collection and use',
@@ -12,7 +12,7 @@ const SECTIONS: LegalSection[] = [
   },
   {
     title: 'Use of data',
-    body: 'eTorismo uses collected data to provide and maintain the service, notify you about changes, support interactive features, provide customer care, improve the service through analysis, monitor usage, and detect, prevent, and address technical or security issues.',
+    body: 'ETurismo uses collected data to provide and maintain the service, notify you about changes, support interactive features, provide customer care, improve the service through analysis, monitor usage, and detect, prevent, and address technical or security issues.',
   },
   {
     title: 'Security of data',
@@ -20,7 +20,7 @@ const SECTIONS: LegalSection[] = [
   },
   {
     title: 'Contact us',
-    body: 'If you have questions about this privacy policy, contact us at privacy@etorismo.com.',
+    body: 'If you have questions about this privacy policy, contact us at privacy@ETurismo.com.',
   },
 ];
 

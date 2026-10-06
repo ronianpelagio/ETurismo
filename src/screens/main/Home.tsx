@@ -349,7 +349,7 @@ function WelcomeModal({ name, onClose }: { name: string; onClose: () => void }) 
             <Ionicons name="map-outline" size={30} color="#fff" />
           </View>
           <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 3, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>
-            ETURISMO
+            ETurismo
           </Text>
           <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5, textAlign: 'center' }}>
             Welcome, {name}!
@@ -595,7 +595,7 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
   return (
     <View>
       <Text
-        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid }}
+        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid, textAlign: 'justify' }}
         numberOfLines={expanded ? undefined : lines}
         onTextLayout={e => {
           if (!expanded) setTruncated(e.nativeEvent.lines.length >= lines);
@@ -1980,7 +1980,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
           {/* Top bar — padded by real status bar height so clock/battery stay visible */}
           <View style={[styles.heroTopBar, { paddingTop: insets.top + 14 }]}>
             <View style={styles.heroLogoGroup}>
-              <Text style={styles.heroLogo}>ETURISMO</Text>
+              <Text style={styles.heroLogo}>ETurismo</Text>
               <Text style={styles.heroLogoSub}>CULTURE · HISTORY · HERITAGE</Text>
             </View>
 
@@ -2351,9 +2351,9 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
             FOOTER
         ══════════════════════════════════════════════════════ */}
         <View style={styles.footer}>
-          <Text style={styles.footerLogo}>ETURISMO</Text>
+          <Text style={styles.footerLogo}>ETurismo</Text>
           <View style={styles.footerLine} />
-          <Text style={styles.footerCopyright}>© 2026 ETURISMO · National Shrine of Our Lady of Sorrows{'\n'}Preserving Stories · Connecting Generations</Text>
+          <Text style={styles.footerCopyright}>© 2026 ETurismo · National Shrine of Our Lady of Sorrows{'\n'}Preserving Stories · Connecting Generations</Text>
         </View>
       </ScrollView>
       </Animated.View>

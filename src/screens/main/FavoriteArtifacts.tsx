@@ -240,6 +240,7 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     fontSize: 15,
     color: C.inkMid,
     lineHeight: 24,
+    textAlign: 'justify',
   },
   audioGrid: {
     flexDirection: 'row',

@@ -571,7 +571,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     modalSectionUnderline: {
       width: 24, height: 1.5, backgroundColor: C.gold, opacity: 0.5, borderRadius: 1, marginBottom: 14,
     },
-    modalDesc: { fontSize: 14.5, color: C.inkMid, lineHeight: 24 },
+    modalDesc: { fontSize: 14.5, color: C.inkMid, lineHeight: 24, textAlign: 'justify' },
 
     // Audio
     audioLangRow: { flexDirection: 'row', gap: 8 },

@@ -70,7 +70,7 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
   return (
     <View>
       <Text
-        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid }}
+        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid, textAlign: 'justify' }}
         numberOfLines={expanded ? undefined : lines}
         onTextLayout={e => {
           if (!expanded) setTruncated(e.nativeEvent.lines.length >= lines);

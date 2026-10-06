@@ -28,7 +28,7 @@ import { supabase } from '../../services/supabase';
 WebBrowser.maybeCompleteAuthSession();
 
 /* ============================================================================
-   ETURISMO COLORS
+   ETurismo COLORS
 ============================================================================ */
 
 const COLORS = {
@@ -617,7 +617,7 @@ export default function SignIn({
 
               <View>
                 <Text style={styles.brand}>
-                  ETURISMO
+                  ETurismo
                 </Text>
 
                 <Text

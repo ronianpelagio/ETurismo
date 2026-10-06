@@ -25,6 +25,7 @@ import type { Artifact, ArtifactTranslation } from '../../features/artifacts/typ
 import { ARTIFACT_CATEGORY_IMAGES } from '../../features/artifacts/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOUR_FEEDBACK_ARTIFACT_THRESHOLD = 3;
 
 // ─── SACRED HERITAGE THEME TOKENS ──────────────────────────────────────────────
 function buildC(t: typeof THEMES[keyof typeof THEMES]) {
@@ -1182,7 +1183,7 @@ export default function QRScanner({
     return () => { mounted = false; };
   }, [user?.id]);
 
-  // Tour-completion: show feedback when tourCompletedCount is bumped by a new scan
+  // Tour-completion: show feedback when the user reaches the required artifact count.
   useEffect(() => {
     if (tourCompletedCount > 0 && !alreadySubmittedFeedback && !showFeedback) {
       const t = setTimeout(() => setShowFeedback(true), 900);
@@ -1190,19 +1191,18 @@ export default function QRScanner({
     }
   }, [tourCompletedCount]);
 
-  // Check tour completion whenever scannedArtifacts or totalArtifacts settle —
-  // catches the case where the user already scanned everything in a prior session.
+  // Check tour completion whenever scannedArtifacts settle —
+  // users only need to scan 3 artifacts to unlock the feedback prompt.
   useEffect(() => {
     if (
-      totalArtifacts > 0 &&
-      scannedArtifacts.length >= totalArtifacts &&
+      scannedArtifacts.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD &&
       !alreadySubmittedFeedback &&
       !showFeedback
     ) {
       const t = setTimeout(() => setShowFeedback(true), 800);
       return () => clearTimeout(t);
     }
-  }, [scannedArtifacts.length, totalArtifacts, alreadySubmittedFeedback]);
+  }, [scannedArtifacts.length, alreadySubmittedFeedback, showFeedback]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1280,8 +1280,8 @@ export default function QRScanner({
         if (prev.find(a => a.id === result.id)) return prev;
         const updated = [...prev, result];
         AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
-        // Mark tour as just completed if this was the last artifact
-        if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedbackRef.current) {
+        // Mark tour as just completed once the user reaches the feedback threshold.
+        if (updated.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD && !alreadySubmittedFeedbackRef.current) {
           // Schedule outside the updater so it doesn't conflict with React state batching
           setTimeout(() => setTourCompletedCount(c => c + 1), 0);
         }

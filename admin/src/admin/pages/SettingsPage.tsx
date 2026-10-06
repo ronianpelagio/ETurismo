@@ -12,7 +12,7 @@ import { ConfirmModal } from "../components/Modal";
 
 export default function SettingsPage() {
   const [form, setForm] = useState({
-    museumName: "ETorismo",
+    museumName: "ETurismo",
     defaultLanguage: "English",
     timezone: "UTC",
     notifications: true,
@@ -22,7 +22,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     try {
-      const v = localStorage.getItem("etorismoAdminSettings");
+      const v = localStorage.getItem("ETurismoAdminSettings");
       if (v) setForm(JSON.parse(v));
     } catch {
       // localStorage unavailable (private browsing); use defaults
@@ -31,7 +31,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     try {
-      localStorage.setItem("etorismoAdminSettings", JSON.stringify(form));
+      localStorage.setItem("ETurismoAdminSettings", JSON.stringify(form));
     } catch {
       // localStorage unavailable; settings won't persist
     }
