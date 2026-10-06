@@ -100,6 +100,14 @@ export default function VisitHistory({ navigation }: any) {
     );
   };
 
+  const handleBack = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    navigation?.navigate?.('ProfileRoot');
+  };
+
   const s = StyleSheet.create({
     safe:      { flex: 1, backgroundColor: C.bg },
     header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
@@ -149,7 +157,7 @@ export default function VisitHistory({ navigation }: any) {
             style={StyleSheet.absoluteFill}
           />
           <View style={s.header}>
-            <TouchableOpacity onPress={() => navigation?.goBack()} style={s.backBtn} activeOpacity={0.7}>
+            <TouchableOpacity onPress={handleBack} style={s.backBtn} activeOpacity={0.7}>
               <Ionicons name="arrow-back" size={20} color={C.ink} />
             </TouchableOpacity>
             <Text style={s.pageTitle}>Visit History</Text>

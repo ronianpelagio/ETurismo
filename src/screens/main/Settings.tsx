@@ -173,7 +173,6 @@ export default function Settings({ navigation }: any) {
         <SectionCard title="ACCOUNT" icon="person-outline" C={C}>
           <Row C={C} icon="person-outline" label="Personal Information" sublabel="Name, phone number" onPress={() => nav('PersonalInfo')} />
           <Row C={C} icon="shield-outline" label="Password & Security" sublabel="Change your password" onPress={() => nav('PasswordSecurity')} />
-          <Row C={C} icon="mail-outline" label="Email Preferences" sublabel="Notifications by email" onPress={() => nav('EmailPrefs')} isLast />
         </SectionCard>
 
         {/* ── APPEARANCE ── */}

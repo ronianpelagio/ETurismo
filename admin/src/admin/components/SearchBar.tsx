@@ -49,7 +49,7 @@ const KIND_META: Record<
   },
   audio_guide: {
     icon: Headphones,
-    label: "Audio Guide",
+    label: "Audio Narration",
     color: "text-emerald-500",
   },
 };
@@ -157,8 +157,8 @@ async function globalSearch(q: string): Promise<Result[]> {
       id: row.id,
       kind: "audio_guide",
       page: "artifacts",
-      primary: row.artifact_name ?? "Audio Guide",
-      secondary: "Audio Guide",
+      primary: row.artifact_name ?? "Audio Narration",
+      secondary: "Audio Narration",
       artifactId: row.artifact_id,
     });
   }

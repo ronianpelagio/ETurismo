@@ -13,27 +13,27 @@ type SummaryColors = {
 type HomeSummaryProps = {
   artifactCount: number;
   favoriteCount: number;
-  eventCount: number;
+  discoveredCount: number;
   colors: SummaryColors;
 };
 
 export default function HomeSummary({
   artifactCount,
   favoriteCount,
-  eventCount,
+  discoveredCount,
   colors,
 }: HomeSummaryProps) {
   const items = [
     { label: 'Artifacts', value: artifactCount, icon: 'library-outline' as const },
     { label: 'Favorites', value: favoriteCount, icon: 'heart-outline' as const },
-    { label: 'Events', value: eventCount, icon: 'calendar-outline' as const },
+    { label: 'Discovered', value: discoveredCount, icon: 'compass-outline' as const },
   ];
 
   return (
     <View
       style={[styles.wrap, { backgroundColor: colors.surface, borderColor: colors.border }]}
       accessible
-      accessibilityLabel={`${artifactCount} artifacts, ${favoriteCount} favorites, ${eventCount} upcoming events`}
+      accessibilityLabel={`${artifactCount} artifacts, ${favoriteCount} favorites, ${discoveredCount} discovered`}
     >
       {items.map((item, index) => (
         <View key={item.label} style={styles.item}>

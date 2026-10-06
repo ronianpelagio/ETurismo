@@ -220,7 +220,7 @@ export default function NotificationDropdown() {
           };
           push({
             kind: "audio_guide",
-            title: "Audio guide added",
+            title: "Audio narration added",
             detail: `"${row.artifact_name ?? "Unknown artifact"}"`,
           });
         },

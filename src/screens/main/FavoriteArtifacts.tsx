@@ -400,7 +400,7 @@ function ArtifactDetailModal({
             {/* Audio Section */}
             {(artifact.audio_en || artifact.audio_fil || artifact.audio_ja || artifact.audio_es || artifact.audio_ko) && (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Audio Guide</Text>
+                <Text style={styles.sectionLabel}>Audio Narration</Text>
                 <View style={styles.audioGrid}>
                   {artifact.audio_en && (
                     <TouchableOpacity 

@@ -49,9 +49,9 @@ const PAGES = [
   {
     eyebrow: 'Digital Artifacts',
     title: 'Experience\nDigital Museum',
-    sub: 'View artifacts up close with detailed descriptions and immersive audio guides.',
+    sub: 'View artifacts up close with detailed descriptions and immersive audio narration.',
     image: require('../../assets/onboarding-digital-museum.png'),
-    imageAlt: 'A visitor using a phone and audio guide to explore a museum artifact',
+    imageAlt: 'A visitor using a phone to listen to narration while exploring a museum artifact',
     icon: 'cpu' as const,
     accent: '#C9A84C',
   },

@@ -42,10 +42,10 @@ export default function HelpSupport({ navigation }: any) {
 
       <SectionLabel C={C}>CONTACT SUPPORT</SectionLabel>
       <TouchableOpacity style={styles.contactCard}
-        onPress={() => Linking.openURL('mailto:support@etorismo.com?subject=ETurismo%20Support')}
+        onPress={() => Linking.openURL('mailto:eturismoapp@gmail.com?subject=ETurismo%20Support')}
         activeOpacity={0.78} accessibilityRole="link" accessibilityLabel="Email ETurismo support">
         <View style={styles.contactIcon}><Ionicons name="mail-outline" size={20} color={C.gold} /></View>
-        <View style={styles.contactCopy}><Text style={styles.contactTitle}>Email support</Text><Text style={styles.contactText}>support@etorismo.com</Text></View>
+        <View style={styles.contactCopy}><Text style={styles.contactTitle}>Email support</Text><Text style={styles.contactText}>eturismoapp@gmail.com</Text></View>
         <Ionicons name="arrow-forward" size={18} color={C.gold} />
       </TouchableOpacity>
     </SettingsPageShell>

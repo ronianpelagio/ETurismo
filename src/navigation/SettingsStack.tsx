@@ -5,7 +5,6 @@ import Profile from '../screens/main/Profile';
 import Settings from '../screens/main/Settings';
 import PersonalInfo from '../screens/main/settings/PersonalInfo';
 import PasswordSecurity from '../screens/main/settings/PasswordSecurity';
-import EmailPrefs from '../screens/main/settings/EmailPrefs';
 import Language from '../screens/main/settings/Language';
 import Notifications from '../screens/main/settings/Notifications';
 import Theme from '../screens/main/settings/Theme';
@@ -38,7 +37,6 @@ export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?:
 
       <Stack.Screen name="PersonalInfo" component={PersonalInfo} />
       <Stack.Screen name="PasswordSecurity" component={PasswordSecurity} />
-      <Stack.Screen name="EmailPrefs" component={EmailPrefs} />
 
       <Stack.Screen name="Language" component={Language} />
       <Stack.Screen name="Notifications" component={Notifications} />

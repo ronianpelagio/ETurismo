@@ -49,7 +49,6 @@ type UserProfile = {
   first_name: string;
   last_name: string;
   email: string;
-  phone?: string;
   profile_picture: string | null;
 };
 
@@ -252,7 +251,7 @@ export default function Profile({
       } = await supabase
         .from('users')
         .select(
-          'id, first_name, last_name, email, phone, profile_picture'
+          'id, first_name, last_name, email, profile_picture'
         )
         .eq('id', auth.id)
         .single();

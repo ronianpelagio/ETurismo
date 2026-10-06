@@ -49,15 +49,43 @@ const CATEGORY_IMAGES: Record<string, string> = {
 };
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?w=600';
 
+// Same key QRScanner writes to — the single source of discovery
+const SCANNED_ARTIFACTS_KEY = 'scannedArtifacts';
+
+async function loadDiscoveredIds(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SCANNED_ARTIFACTS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const ids = parsed
+      .map((e: unknown) => (typeof e === 'string' ? e : (e as { id?: unknown } | null)?.id))
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    return Array.from(new Set(ids));
+  } catch (_) {
+    return [];
+  }
+}
+
+const getPreviewDescription = (description?: string | null): string => {
+  if (!description) return '';
+  const trimmed = description.trim();
+  const maxLength = 120;
+  if (trimmed.length <= maxLength) return trimmed;
+  return trimmed.slice(0, maxLength).trim() + '...';
+};
+
 // ─── Full-screen artifact detail modal ───────────────────────────────────────
 function ArtifactModal({
-  artifact, onClose, onNext, isFavorite, onToggleFavorite,
+  artifact, onClose, onNext, isFavorite, onToggleFavorite, discovered, onScan,
 }: {
   artifact: Artifact | null;
   onClose: () => void;
   onNext?: () => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  discovered: boolean;
+  onScan: () => void;
 }) {
   const slideAnim = useRef(new Animated.Value(H)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -71,13 +99,19 @@ function ArtifactModal({
 
   useEffect(() => {
     if (!artifact) return;
-    setTranslations([]); setAudioGuides([]); setSelectedLang('en');
-    loadData(artifact.id);
     Animated.parallel([
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
       Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: true }),
     ]).start();
   }, [artifact]);
+
+  // Translations + audio are only fetched for discovered artifacts
+  useEffect(() => {
+    if (!artifact) return;
+    setTranslations([]); setAudioGuides([]); setSelectedLang('en');
+    stopAudio();
+    if (discovered) loadData(artifact.id);
+  }, [artifact, discovered]);
 
   useEffect(() => () => { stopAudio(); }, []);
 
@@ -127,6 +161,7 @@ function ArtifactModal({
   const desc   = translations.find(t => t.language_code === selectedLang)?.description ?? artifact.description ?? 'No description available.';
   const audioUrl = translations.find(t => t.language_code === selectedLang)?.audio_url ?? audioGuides[0]?.audio_url ?? null;
   const langs  = translations.filter(t => t.description || t.audio_url);
+  const preview = getPreviewDescription(artifact.description) || 'Scan this artifact in the museum to reveal its story.';
 
   const LANG_LABELS: Record<string, string> = { en: 'English', fil: 'Filipino', ja: 'Japanese', es: 'Spanish', ko: 'Korean' };
 
@@ -162,11 +197,21 @@ function ArtifactModal({
             <View style={{ flex: 1 }}>
               <View style={ms.goldBar} />
               <Text style={ms.name}>{artifact.name}</Text>
-              {( artifact.creator) && (
+              {discovered && artifact.creator && (
                 <Text style={ms.meta}>
                   {artifact.creator}
                 </Text>
               )}
+              <View style={ms.statusRow}>
+                <Ionicons
+                  name={discovered ? 'checkmark-circle' : 'lock-closed-outline'}
+                  size={13}
+                  color={discovered ? '#C9A84C' : '#A59C90'}
+                />
+                <Text style={[ms.statusTxt, discovered && ms.statusTxtDiscovered]}>
+                  {discovered ? 'Discovered — full story unlocked' : 'Not discovered'}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity
               style={[ms.favoriteBtn, isFavorite && ms.favoriteBtnActive]}
@@ -179,8 +224,8 @@ function ArtifactModal({
             </TouchableOpacity>
           </View>
 
-          {/* Language pills */}
-          {langs.length > 1 && (
+          {/* Language pills (discovered only) */}
+          {discovered && langs.length > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.langBar} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
               {langs.map(t => (
                 <TouchableOpacity
@@ -197,34 +242,65 @@ function ArtifactModal({
             </ScrollView>
           )}
 
-          {/* Description */}
           <View style={ms.body}>
-            <Text style={ms.sectionLabel}>ABOUT THIS PIECE</Text>
-            <Text style={ms.desc}>{loadingData ? 'Loading…' : desc}</Text>
+            {discovered ? (
+              <>
+                {/* Description */}
+                <Text style={ms.sectionLabel}>ABOUT THIS PIECE</Text>
+                <Text style={ms.desc}>{loadingData ? 'Loading…' : desc}</Text>
 
-            {/* Audio */}
-            {(audioUrl || loadingData) && (
-              <View style={ms.audioCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                  <View style={[ms.playBtn, playingUrl === audioUrl && ms.playBtnActive]}>
-                    <TouchableOpacity
-                      onPress={() => playingUrl === audioUrl ? stopAudio() : audioUrl && playAudio(audioUrl)}
-                      activeOpacity={0.85}
-                      style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      {loadingData
-                        ? <ActivityIndicator size="small" color={C.gold} />
-                        : <Ionicons name={playingUrl === audioUrl ? 'pause' : 'play'} size={20} color={playingUrl === audioUrl ? C.ink : '#fff'} />
-                      }
-                    </TouchableOpacity>
+                {/* Audio */}
+                {(audioUrl || loadingData) && (
+                  <View style={ms.audioCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <View style={[ms.playBtn, playingUrl === audioUrl && ms.playBtnActive]}>
+                        <TouchableOpacity
+                          onPress={() => playingUrl === audioUrl ? stopAudio() : audioUrl && playAudio(audioUrl)}
+                          activeOpacity={0.85}
+                          style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {loadingData
+                            ? <ActivityIndicator size="small" color={C.gold} />
+                            : <Ionicons name={playingUrl === audioUrl ? 'pause' : 'play'} size={20} color={playingUrl === audioUrl ? C.ink : '#fff'} />
+                          }
+                        </TouchableOpacity>
+                      </View>
+                      <View>
+                        <Text style={ms.audioLabel}>Audio Narration</Text>
+                        <Text style={ms.audioSub}>{LANG_LABELS[selectedLang] ?? selectedLang} narration</Text>
+                      </View>
+                    </View>
+                    <Ionicons name="headset-outline" size={22} color={C.inkLight} />
                   </View>
-                  <View>
-                    <Text style={ms.audioLabel}>Audio Guide</Text>
-                    <Text style={ms.audioSub}>{LANG_LABELS[selectedLang] ?? selectedLang} narration</Text>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Preview only */}
+                <Text style={ms.sectionLabel}>PREVIEW</Text>
+                <Text style={ms.desc}>{preview}</Text>
+
+                {/* Locked panel */}
+                <View style={ms.lockedWrap}>
+                  <View style={ms.lockedIconWrap}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#C9A84C" />
                   </View>
+                  <Text style={ms.lockedTitle}>Discover this artifact</Text>
+                  <Text style={ms.lockedBody}>
+                    Visit the museum and scan the QR code beside this artifact to unlock its full story, audio guide, and historical details.
+                  </Text>
+                  <TouchableOpacity
+                    style={ms.lockedBtn}
+                    onPress={() => { stopAudio(); onScan(); }}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Scan QR code to discover this artifact"
+                  >
+                    <Ionicons name="scan-outline" size={17} color="#fff" />
+                    <Text style={ms.lockedBtnText}>Scan to Discover</Text>
+                  </TouchableOpacity>
                 </View>
-                <Ionicons name="headset-outline" size={22} color={C.inkLight} />
-              </View>
+              </>
             )}
 
             {/* Buttons */}
@@ -271,6 +347,9 @@ const ms = StyleSheet.create({
   goldBar:  { width: 32, height: 3, backgroundColor: '#C9A84C', borderRadius: 2, marginBottom: 10 },
   name:     { fontSize: 26, fontWeight: '900', color: '#1A1612', letterSpacing: -0.6, lineHeight: 32 },
   meta:     { fontSize: 13, color: '#A59C90', marginTop: 4, fontStyle: 'italic' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  statusTxt: { fontSize: 11.5, fontWeight: '600', color: '#A59C90' },
+  statusTxtDiscovered: { color: '#C9A84C', fontWeight: '700' },
   langBar:  { marginTop: 14, marginBottom: 2 },
   langPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 50, backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)' },
   langPillActive: { backgroundColor: 'rgba(201,168,76,0.15)', borderColor: '#C9A84C' },
@@ -288,6 +367,26 @@ const ms = StyleSheet.create({
   nextBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   closeBtn: { alignItems: 'center', paddingVertical: 14, borderRadius: 50, borderWidth: 1.5, borderColor: 'rgba(26,22,18,0.15)' },
   closeBtnText: { fontSize: 15, fontWeight: '700', color: '#6E665B' },
+
+  // Locked panel
+  lockedWrap: {
+    backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: 'rgba(201,168,76,0.2)',
+    padding: 20, alignItems: 'center', gap: 10,
+  },
+  lockedIconWrap: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(201,168,76,0.12)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.35)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lockedTitle: { fontSize: 16, fontWeight: '800', color: '#1A1612', letterSpacing: -0.2 },
+  lockedBody:  { fontSize: 13, color: '#6E665B', lineHeight: 20, textAlign: 'center' },
+  lockedBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#1A1612', borderRadius: 50,
+    paddingVertical: 13, paddingHorizontal: 24, marginTop: 6,
+  },
+  lockedBtnText: { fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
 });
 
 // ─── Artifact Card (grid) ─────────────────────────────────────────────────────
@@ -299,6 +398,8 @@ function ArtifactCard({ artifact, scanned, favorite, onPress }: { artifact: Arti
       style={[cs.card, !scanned && cs.cardLocked]}
       onPress={onPress}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${artifact.name}, ${scanned ? 'discovered' : 'not discovered'}`}
     >
       {/* Image */}
       <View style={cs.imgWrap}>
@@ -308,25 +409,30 @@ function ArtifactCard({ artifact, scanned, favorite, onPress }: { artifact: Arti
         <View style={cs.favoriteBadge}>
           <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={15} color={favorite ? '#E74C3C' : '#fff'} />
         </View>
-        {/* Scanned badge */}
-        {scanned && (
-          <View style={cs.scannedBadge}>
-            <Ionicons name="checkmark-circle" size={13} color="#2ECC71" />
-          </View>
-        )}
+        {/* Discovery badge */}
+        <View style={cs.scannedBadge}>
+          <Ionicons
+            name={scanned ? 'checkmark-circle' : 'lock-closed-outline'}
+            size={13}
+            color={scanned ? '#C9A84C' : '#fff'}
+          />
+        </View>
       </View>
 
       {/* Info */}
       <View style={cs.info}>
         <Text style={cs.cardName} numberOfLines={2}>{artifact.name}</Text>
         <Text style={cs.cardCat} numberOfLines={1}>{artifact.category}</Text>
-        {scanned && (
-          <View style={cs.viewRow}>
-            <Text style={cs.viewTxt}>View</Text>
-            <Ionicons name="chevron-forward" size={12} color="#C9A84C" />
-          </View>
-        )}
-        {!scanned && <Text style={cs.lockedTxt}>Explore artifact</Text>}
+        <View style={cs.viewRow}>
+          <Ionicons
+            name={scanned ? 'checkmark-circle' : 'lock-closed-outline'}
+            size={12}
+            color={scanned ? '#C9A84C' : '#A59C90'}
+          />
+          <Text style={scanned ? cs.viewTxt : cs.lockedTxt}>
+            {scanned ? 'Discovered' : 'Not discovered'}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -347,20 +453,21 @@ const cs = StyleSheet.create({
   shimmer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, backgroundColor: '#C9A84C' },
   lockOverlay: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' } as any,
   lockCircle:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,8,5,0.6)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)' },
-  scannedBadge:{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 3, borderWidth: 1, borderColor: 'rgba(46,204,113,0.4)' },
+  scannedBadge:{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 3, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
   favoriteBadge:{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   info:    { padding: 12, gap: 3 },
   cardName:{ fontSize: 13, fontWeight: '700', color: '#1A1612', lineHeight: 18 },
   cardCat: { fontSize: 10, color: '#C9A84C', fontWeight: '600' },
-  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
+  viewRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   viewTxt: { fontSize: 11, color: '#C9A84C', fontWeight: '700' },
-  lockedTxt:{ fontSize: 10, color: '#A59C90', fontStyle: 'italic', marginTop: 4 },
+  lockedTxt:{ fontSize: 11, color: '#A59C90', fontWeight: '600' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const CATEGORIES = ['Sacred Vessels', 'Vestments', 'Altar Furnishings', 'Devotional Objects', 'Sacramentals'];
 
-export default function CollectionPage({ onBack }: { onBack: () => void }) {
+// onOpenScanner → called by "Scan to Discover"; the parent must open the existing QR Scanner.
+export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () => void; onOpenScanner?: () => void }) {
   const { theme } = useAppTheme();
   C = buildC(theme);
 
@@ -386,10 +493,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       if (err) throw err;
       setAllArtifacts(data ?? []);
 
-      const raw = await AsyncStorage.getItem('scannedArtifacts').catch(() => null);
-      if (raw) {
-        try { setScannedIds(JSON.parse(raw).map((a: Artifact) => a.id)); } catch (_) {}
-      }
+      setScannedIds(await loadDiscoveredIds());
       setFavoriteIds(await getStringArray(STORAGE_KEYS.favoriteArtifacts));
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load. Check your connection.');
@@ -400,11 +504,17 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Re-read discovery whenever an artifact is opened so the lock state is current
+  useEffect(() => {
+    if (selectedArtifact) loadDiscoveredIds().then(setScannedIds);
+  }, [selectedArtifact]);
+
   const displayed = activeCategory
     ? allArtifacts.filter(a => a.category === activeCategory)
     : allArtifacts;
 
-  const scannedCount = scannedIds.length;
+  // Only count ids that still exist in the artifact list
+  const scannedCount = allArtifacts.filter(a => scannedIds.includes(a.id)).length;
   const totalCount   = allArtifacts.length;
 
   const goNext = () => {
@@ -420,6 +530,11 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
   const toggleFavorite = async (artifactId: string) => {
     const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifactId);
     setFavoriteIds(updated);
+  };
+
+  const handleScanToDiscover = () => {
+    setSelectedArtifact(null);
+    onOpenScanner?.();
   };
 
   const bg = theme.bg;
@@ -466,9 +581,13 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
           <Text style={[st.pageTitle, { color: C.ink }]}>Collection</Text>
         </View>
         {/* Progress pill */}
-        <View style={[st.progressPill, { backgroundColor: C.goldSoft, borderColor: C.borderGold }]}>
+        <View
+          style={[st.progressPill, { backgroundColor: C.goldSoft, borderColor: C.borderGold }]}
+          accessible
+          accessibilityLabel={`${scannedCount} of ${totalCount} artifacts discovered`}
+        >
           <Text style={[st.progressTxt, { color: C.ink }]}>{scannedCount}</Text>
-          <Text style={[st.progressOf, { color: C.inkMid }]}>/{totalCount}</Text>
+          <Text style={[st.progressOf, { color: C.inkMid }]}>/{totalCount} Discovered</Text>
         </View>
       </View>
 
@@ -511,6 +630,7 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       ) : (
         <FlatList
           data={displayed}
+          extraData={{ scannedIds, favoriteIds }}
           keyExtractor={a => a.id}
           numColumns={2}
           columnWrapperStyle={st.row}
@@ -534,6 +654,8 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
         onNext={hasNext ? goNext : undefined}
         isFavorite={selectedArtifact ? favoriteIds.includes(selectedArtifact.id) : false}
         onToggleFavorite={() => selectedArtifact && toggleFavorite(selectedArtifact.id)}
+        discovered={selectedArtifact ? scannedIds.includes(selectedArtifact.id) : false}
+        onScan={handleScanToDiscover}
       />
     </SafeAreaView>
   );

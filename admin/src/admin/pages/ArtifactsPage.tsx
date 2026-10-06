@@ -268,6 +268,10 @@ export default function ArtifactsPage() {
   const [txMap, setTxMap] = useState<
     Record<string, Record<string, ArtifactTranslation>>
   >({});
+  // rating summary keyed by artifact_id
+  const [ratingMap, setRatingMap] = useState<
+    Record<string, { avg_rating: number; rating_count: number }>
+  >({});
   // audio map for currently editing artifact
   const [audioMap, setAudioMap] = useState<AudioMap>({});
 
@@ -377,6 +381,20 @@ export default function ArtifactsPage() {
           map[tx.artifact_id][tx.language_code] = tx;
         }
         setTxMap(map);
+
+        // fetch rating summaries for this page
+        const { data: ratingData } = await supabase
+          .from("artifact_rating_summary")
+          .select("artifact_id, avg_rating, rating_count")
+          .in("artifact_id", ids);
+        const rMap: Record<string, { avg_rating: number; rating_count: number }> = {};
+        for (const r of (ratingData || []) as any[]) {
+          rMap[r.artifact_id] = {
+            avg_rating: Number(r.avg_rating),
+            rating_count: Number(r.rating_count),
+          };
+        }
+        setRatingMap(rMap);
       }
     } catch (e: any) {
       setListError(e.message);
@@ -1131,6 +1149,36 @@ export default function ArtifactsPage() {
                         {artTx.en.description}
                       </p>
                     )}
+                    {/* ── Artifact rating summary ── */}
+                    {(() => {
+                      const r = ratingMap[a.id];
+                      if (!r || r.rating_count === 0) return (
+                        <p className="mt-1.5 text-[11px] text-muted-foreground/50">No ratings yet</p>
+                      );
+                      const full  = Math.floor(r.avg_rating);
+                      const half  = r.avg_rating - full >= 0.5;
+                      const empty = 5 - full - (half ? 1 : 0);
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span className="flex items-center gap-0.5">
+                            {Array.from({ length: full }).map((_, i) => (
+                              <svg key={`f${i}`} className="h-3 w-3 fill-amber-400 text-amber-400" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            ))}
+                            {half && (
+                              <svg className="h-3 w-3 text-amber-400" viewBox="0 0 20 20">
+                                <defs><linearGradient id={`hg-${a.id}`}><stop offset="50%" stopColor="#fbbf24"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs>
+                                <path fill={`url(#hg-${a.id})`} stroke="#fbbf24" strokeWidth="0.5" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                              </svg>
+                            )}
+                            {Array.from({ length: empty }).map((_, i) => (
+                              <svg key={`e${i}`} className="h-3 w-3 text-muted-foreground/30" viewBox="0 0 20 20"><path fill="currentColor" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            ))}
+                          </span>
+                          <span className="text-[11px] font-semibold text-foreground">{r.avg_rating.toFixed(1)}</span>
+                          <span className="text-[11px] text-muted-foreground">({r.rating_count} {r.rating_count === 1 ? "rating" : "ratings"})</span>
+                        </div>
+                      );
+                    })()}
                     {langsWithDesc.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {langsWithDesc.map((l) => {

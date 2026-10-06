@@ -17,7 +17,9 @@ import AdaptiveGlassView from '../components/AdaptiveGlassView';
 
 // Screens
 import Home from '../screens/main/Home';
+import Announcements from '../screens/main/Announcements';
 import QRScanner from '../screens/main/QRScanner';
+import Events from '../screens/main/Events';
 import SettingsStack from './SettingsStack';
 
 
@@ -45,16 +47,37 @@ type NavigationColors = ReturnType<typeof buildColors>;
 // ─────────────────────────────────────────────
 // TABS
 // ─────────────────────────────────────────────
-const TABS = [
+// Pages: 0=Home  1=Announcements  2=QR(scan)  3=Events  4=Profile
+// The QR page is the floating centre button — not in this array.
+const TABS_LEFT = [
   {
     key: 'Home',
     label: 'Home',
+    page: 0,
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
   },
   {
+    key: 'Announcements',
+    label: 'News',
+    page: 1,
+    activeIcon: 'megaphone',
+    inactiveIcon: 'megaphone-outline',
+  },
+] as const;
+
+const TABS_RIGHT = [
+  {
+    key: 'Events',
+    label: 'Events',
+    page: 3,
+    activeIcon: 'calendar',
+    inactiveIcon: 'calendar-outline',
+  },
+  {
     key: 'Profile',
     label: 'Profile',
+    page: 4,
     activeIcon: 'person',
     inactiveIcon: 'person-outline',
   },
@@ -106,9 +129,11 @@ export default function TabNavigator() {
             initialPage={0}
             onPageSelected={(e) => setIndex(e.nativeEvent.position)}
           >
-            <View key="0"><Home setNavbarVisible={setNavbarVisible} /></View>
-            <View key="1"><QRScanner setNavbarVisible={setNavbarVisible} isActive={index === 1} /></View>
-            <View key="2"><SettingsStack setNavbarVisible={setNavbarVisible} /></View>
+            <View key="0"><Home setNavbarVisible={setNavbarVisible} onOpenScanner={() => goToPage(2)} onGoAnnouncements={() => goToPage(1)} onGoEvents={() => goToPage(3)} /></View>
+            <View key="1"><Announcements setNavbarVisible={setNavbarVisible} /></View>
+            <View key="2"><QRScanner setNavbarVisible={setNavbarVisible} isActive={index === 2} /></View>
+            <View key="3"><Events setNavbarVisible={setNavbarVisible} /></View>
+            <View key="4"><SettingsStack setNavbarVisible={setNavbarVisible} /></View>
           </PagerView>
 
           <Animated.View
@@ -134,27 +159,52 @@ export default function TabNavigator() {
                 },
               ]}
             >
-              <TabItem colors={colors} label={TABS[0].label} activeIcon={TABS[0].activeIcon} inactiveIcon={TABS[0].inactiveIcon} focused={index === 0} onPress={() => goToPage(0)} />
-              <View style={{ width: 80 }} />
-              <TabItem colors={colors} label={TABS[1].label} activeIcon={TABS[1].activeIcon} inactiveIcon={TABS[1].inactiveIcon} focused={index === 2} onPress={() => goToPage(2)} />
+              {/* Left side: Home + Announcements */}
+              {TABS_LEFT.map(tab => (
+                <TabItem
+                  key={tab.key}
+                  colors={colors}
+                  label={tab.label}
+                  activeIcon={tab.activeIcon}
+                  inactiveIcon={tab.inactiveIcon}
+                  focused={index === tab.page}
+                  onPress={() => goToPage(tab.page)}
+                />
+              ))}
+
+              {/* Centre gap for the floating QR button */}
+              <View style={{ width: 72 }} />
+
+              {/* Right side: Events + Profile */}
+              {TABS_RIGHT.map(tab => (
+                <TabItem
+                  key={tab.key}
+                  colors={colors}
+                  label={tab.label}
+                  activeIcon={tab.activeIcon}
+                  inactiveIcon={tab.inactiveIcon}
+                  focused={index === tab.page}
+                  onPress={() => goToPage(tab.page)}
+                />
+              ))}
             </AdaptiveGlassView>
             <TouchableOpacity
               activeOpacity={0.9}
               style={[
                 styles.scanButton,
                 {
-                  backgroundColor: index === 1 ? colors.gold : colors.textPrimary,
+                  backgroundColor: index === 2 ? colors.gold : colors.textPrimary,
                   borderColor: colors.background,
                   shadowColor: colors.shadow,
                 },
               ]}
-              onPress={() => goToPage(1)}
+              onPress={() => goToPage(2)}
               accessibilityRole="tab"
               accessibilityLabel="Scan artifact QR code"
-              accessibilityState={{ selected: index === 1 }}
+              accessibilityState={{ selected: index === 2 }}
             >
               <View style={[styles.scanGlow, { backgroundColor: colors.goldSoft }]} />
-              <Ionicons name={index === 1 ? 'scan' : 'scan-outline'} size={24} color="#fff" />
+              <Ionicons name={index === 2 ? 'scan' : 'scan-outline'} size={24} color="#fff" />
               <Text style={styles.scanLabel}>SCAN</Text>
             </TouchableOpacity>
           </Animated.View>

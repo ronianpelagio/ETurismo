@@ -77,12 +77,12 @@ export default function Language({ navigation }: any) {
 
   return (
     <SettingsPageShell navigation={navigation} title="Language" eyebrow="YOUR GUIDE"
-      headline="Explore in your language" description="Choose the default language for artifact stories and available audio guides."
+      headline="Explore in your language" description="Choose the default language for artifact stories and available audio narration."
       icon="language-outline">
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>SELECT LANGUAGE</Text>
         <Text style={styles.sectionHint}>
-          Controls the default language for artifact descriptions and audio guides throughout the app.
+          Controls the default language for artifact descriptions and audio narration throughout the app.
         </Text>
         <View style={styles.card}>
           {LANGUAGES.map(({ code }, idx) => {

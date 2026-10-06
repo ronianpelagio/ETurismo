@@ -55,10 +55,9 @@ export async function fetchDashboardStats(
     users,
     activeUsers,
     blockedUsers,
-    reviewCount,
+    ratingSummaryResponse,
     scannedArtifacts,
     audioPlays,
-    ratingResponse,
     visitorRows,
     liveResponse,
   ] = await Promise.all([
@@ -67,7 +66,19 @@ export async function fetchDashboardStats(
     fetchActiveUserCount(5),
     // schema now uses 'active' / 'inactive' for user status
     queryCount("users", { status: "inactive" }),
-    queryCount("user_ratings"),
+    querySafe(async () => {
+      const { data, error } = await supabase
+        .from("artifact_rating_summary")
+        .select("count_1, count_2, count_3, count_4, count_5");
+      if (error) throw error;
+      return data as Array<{
+        count_1?: number | null;
+        count_2?: number | null;
+        count_3?: number | null;
+        count_4?: number | null;
+        count_5?: number | null;
+      }>;
+    }),
     querySafe(async () => {
       const { count, error } = await supabase
         .from("artifacts")
@@ -77,13 +88,6 @@ export async function fetchDashboardStats(
       return count ?? 0;
     }),
     queryCount("audio_guides"),
-    querySafe(async () => {
-      const { data, error } = await supabase
-        .from("user_ratings")
-        .select("rating", { head: false });
-      if (error) throw error;
-      return data as Array<{ rating?: number | null }>;
-    }),
     querySafe(async () => {
       // Use fromDate if provided, otherwise default to 6 days ago (7-day window)
       const start = fromDate
@@ -109,12 +113,31 @@ export async function fetchDashboardStats(
     }),
   ]);
 
-  const ratings = Array.isArray(ratingResponse)
-    ? ratingResponse.map((item) => Number(item.rating ?? 0))
+  const ratingSummaries = Array.isArray(ratingSummaryResponse)
+    ? ratingSummaryResponse
     : [];
-  const averageRating = ratings.length
-    ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length
-    : 0;
+  const { reviews, totalRating } = ratingSummaries.reduce(
+    (totals, item) => {
+      const counts = [
+        item.count_1,
+        item.count_2,
+        item.count_3,
+        item.count_4,
+        item.count_5,
+      ].map((count) => Number(count ?? 0));
+      if (counts.some((count) => !Number.isFinite(count) || count < 0))
+        return totals;
+
+      totals.reviews += counts.reduce((sum, count) => sum + count, 0);
+      totals.totalRating += counts.reduce(
+        (sum, count, index) => sum + count * (index + 1),
+        0,
+      );
+      return totals;
+    },
+    { reviews: 0, totalRating: 0 },
+  );
+  const averageRating = reviews ? totalRating / reviews : 0;
 
   // Build trend days spanning from fromDate to today
   const startMs = fromDate
@@ -148,7 +171,7 @@ export async function fetchDashboardStats(
     users,
     activeUsers,
     blockedUsers,
-    reviews: reviewCount,
+    reviews,
     liveStatus,
     totalVisitors: users,
     scannedArtifacts: Number(scannedArtifacts ?? 0),

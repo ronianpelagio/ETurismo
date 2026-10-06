@@ -17,6 +17,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../context/LanguageContext';
 import PostTourFeedback from './PostTourFeedback';
+import ArtifactRatingModal from '../../components/ArtifactRatingModal';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
 import HighlightedText from '../../components/HighlightedText';
@@ -735,28 +736,50 @@ function ArtifactModal({
             {/* ── Tab content ── */}
             <Text style={ams.tabContent}>{getTabContent(activeTab)}</Text>
 
-            {/* ── Metadata grid ── */}
+            {/* ── Metadata grid (2 rows × 2 cols) ── */}
             {activeTab === 'Details' && (
               <View style={ams.metaGrid}>
-                <View style={ams.metaCell}>
-                  <Ionicons name="calendar-outline" size={18} color={C.inkMid} />
-                  <Text style={ams.metaLabel}>Date</Text>
-                  <Text style={ams.metaValue}>{artifact.date ?? 'Date unknown'}</Text>
+                {/* Row 1: Date | Creator */}
+                <View style={ams.metaRow}>
+                  <View style={ams.metaCell}>
+                    <View style={ams.metaIconWrap}>
+                      <Ionicons name="calendar-outline" size={14} color={C.gold} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ams.metaLabel}>DATE</Text>
+                      <Text style={ams.metaValue} numberOfLines={1}>{artifact.date ?? 'Unknown'}</Text>
+                    </View>
+                  </View>
+                  <View style={[ams.metaCell, ams.metaCellRight]}>
+                    <View style={ams.metaIconWrap}>
+                      <Ionicons name="person-outline" size={14} color={C.gold} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ams.metaLabel}>CREATOR</Text>
+                      <Text style={ams.metaValue} numberOfLines={1}>{artifact.creator ?? 'Unknown'}</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={[ams.metaCell, ams.metaCellRight]}>
-                  <Ionicons name="person-outline" size={18} color={C.inkMid} />
-                  <Text style={ams.metaLabel}>Creator / Artist</Text>
-                  <Text style={ams.metaValue}>{artifact.creator ?? 'Unknown'}</Text>
-                </View>
-                <View style={[ams.metaCell, ams.metaCellBottom]}>
-                  <Ionicons name="layers-outline" size={18} color={C.inkMid} />
-                  <Text style={ams.metaLabel}>Category</Text>
-                  <Text style={ams.metaValue}>{artifact.category}</Text>
-                </View>
-                <View style={[ams.metaCell, ams.metaCellRight, ams.metaCellBottom]}>
-                  <Ionicons name="location-outline" size={18} color={C.inkMid} />
-                  <Text style={ams.metaLabel}>Location</Text>
-                  <Text style={ams.metaValue}>National Shrine of Our Lady of Sorrows</Text>
+                {/* Row 2: Category | Location */}
+                <View style={[ams.metaRow, ams.metaRowBorder]}>
+                  <View style={ams.metaCell}>
+                    <View style={ams.metaIconWrap}>
+                      <Ionicons name="layers-outline" size={14} color={C.gold} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ams.metaLabel}>CATEGORY</Text>
+                      <Text style={ams.metaValue} numberOfLines={1}>{artifact.category}</Text>
+                    </View>
+                  </View>
+                  <View style={[ams.metaCell, ams.metaCellRight]}>
+                    <View style={ams.metaIconWrap}>
+                      <Ionicons name="location-outline" size={14} color={C.gold} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ams.metaLabel}>LOCATION</Text>
+                      <Text style={ams.metaValue} numberOfLines={1}>National Shrine</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -962,14 +985,27 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     borderRadius: 16, borderWidth: 1, borderColor: C.border,
     overflow: 'hidden', marginBottom: 24,
   },
-  metaCell: {
-    padding: 14, backgroundColor: C.bg, flex: 1, gap: 4,
-    borderRightWidth: 0, borderBottomWidth: 0,
+  metaRow: {
+    flexDirection: 'row',
   },
-  metaCellRight:  { borderLeftWidth: 1, borderColor: C.border },
-  metaCellBottom: { borderTopWidth: 1,  borderColor: C.border },
-  metaLabel: { fontSize: 10, color: C.inkLight, marginTop: 4 },
-  metaValue: { fontSize: 13, fontWeight: '700', color: C.ink, lineHeight: 18 },
+  metaRowBorder: {
+    borderTopWidth: 1, borderTopColor: C.border,
+  },
+  metaCell: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 11,
+    backgroundColor: C.bg, gap: 10,
+  },
+  metaCellRight: {
+    borderLeftWidth: 1, borderLeftColor: C.border,
+  },
+  metaIconWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.borderGold,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  metaLabel: { fontSize: 9, color: C.inkLight, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  metaValue: { fontSize: 12, fontWeight: '700', color: C.ink, lineHeight: 16, marginTop: 1 },
 
   // ── Audio section ──
   audioSection: {
@@ -1067,10 +1103,15 @@ export default function QRScanner({
   const [scanError, setScanError]       = useState<string | null>(null);
   const [scannedArtifacts, setScannedArtifacts] = useState<Artifact[]>([]);
   const [toast, setToast]               = useState<string | null>(null);
+  // ── Artifact rating ─────────────────────────────────────────────────────────
+  // Holds the artifact that was just dismissed so we can prompt a rating.
+  // Set to null when "Scan Another" is tapped (skip the rating prompt in that case).
+  const [pendingRatingArtifact, setPendingRatingArtifact] = useState<Artifact | null>(null);
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inCooldown  = useRef(false);
+  const scanAgainAfterRatingRef = useRef(false);
   const pulse = useRef(new Animated.Value(0)).current;
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
@@ -1078,13 +1119,14 @@ export default function QRScanner({
   const [totalArtifacts, setTotalArtifacts] = useState(0);
   const [showFeedback, setShowFeedback]     = useState(false);
   // True once we confirm this user already submitted feedback (checked on mount)
-  const alreadySubmittedFeedback = useRef(false);
+  const [alreadySubmittedFeedback, setAlreadySubmittedFeedback] = useState(false);
+  const alreadySubmittedFeedbackRef = useRef(false);
   // Incremented each time a scan completes the tour — drives the feedback effect
   const [tourCompletedCount, setTourCompletedCount] = useState(0);
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
-    if (isActive && !artifact) {
+    if (isActive && !artifact && !pendingRatingArtifact) {
       if (inCooldown.current) return; // still in cooldown — don't re-enable yet
       // Small delay so the swipe animation finishes before camera activates
       const t = setTimeout(() => {
@@ -1098,17 +1140,19 @@ export default function QRScanner({
       setCameraActive(false);
       setTorchOn(false);
     }
-  }, [isActive, artifact]);
+  }, [isActive, artifact, pendingRatingArtifact]);
 
-  // Hide navbar when modal is open
+  // Hide navbar when artifact modal OR rating modal is open
   useEffect(() => {
-    setNavbarVisible?.(!artifact);
-  }, [artifact]);
+    setNavbarVisible?.(!artifact && !pendingRatingArtifact);
+  }, [artifact, pendingRatingArtifact]);
 
   // Load scanned artifacts from storage
   useEffect(() => {
     AsyncStorage.getItem('scannedArtifacts')
-      .then(stored => stored && setScannedArtifacts(JSON.parse(stored)))
+      .then(stored => {
+        if (stored) setScannedArtifacts(JSON.parse(stored));
+      })
       .catch(() => {});
   }, []);
 
@@ -1130,7 +1174,8 @@ export default function QRScanner({
           .eq('user_id', user.id)
           .maybeSingle();
         if (mounted && data) {
-          alreadySubmittedFeedback.current = true;
+          alreadySubmittedFeedbackRef.current = true;
+          setAlreadySubmittedFeedback(true);
         }
       }
     })();
@@ -1139,12 +1184,25 @@ export default function QRScanner({
 
   // Tour-completion: show feedback when tourCompletedCount is bumped by a new scan
   useEffect(() => {
-    if (tourCompletedCount > 0 && !alreadySubmittedFeedback.current && !showFeedback) {
-      // Small delay so the artifact detail modal can animate in first
+    if (tourCompletedCount > 0 && !alreadySubmittedFeedback && !showFeedback) {
       const t = setTimeout(() => setShowFeedback(true), 900);
       return () => clearTimeout(t);
     }
   }, [tourCompletedCount]);
+
+  // Check tour completion whenever scannedArtifacts or totalArtifacts settle —
+  // catches the case where the user already scanned everything in a prior session.
+  useEffect(() => {
+    if (
+      totalArtifacts > 0 &&
+      scannedArtifacts.length >= totalArtifacts &&
+      !alreadySubmittedFeedback &&
+      !showFeedback
+    ) {
+      const t = setTimeout(() => setShowFeedback(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [scannedArtifacts.length, totalArtifacts, alreadySubmittedFeedback]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1223,7 +1281,7 @@ export default function QRScanner({
         const updated = [...prev, result];
         AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
         // Mark tour as just completed if this was the last artifact
-        if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedback.current) {
+        if (totalArtifacts > 0 && updated.length >= totalArtifacts && !alreadySubmittedFeedbackRef.current) {
           // Schedule outside the updater so it doesn't conflict with React state batching
           setTimeout(() => setTourCompletedCount(c => c + 1), 0);
         }
@@ -1238,12 +1296,50 @@ export default function QRScanner({
     }
   };
 
-  // scanAgain=true  → "Scan Another Artifact" button → 1s cooldown
-  // scanAgain=false → X / backdrop dismiss           → 5s cooldown
+  // Both dismiss paths (X/backdrop AND "Scan Another") show the rating modal,
+  // UNLESS the user already rated this artifact — in that case go straight to cooldown.
+  // scanAgain drives the cooldown length after the rating is done/skipped:
+  //   scanAgain=true  → 1s cooldown
+  //   scanAgain=false → 5s cooldown
+
   const reset = (scanAgain = false) => {
+    const closedArtifact = artifact; // capture before state clear
+    scanAgainAfterRatingRef.current = scanAgain;
     setArtifact(null);
     setScanned(false);
     setScanError(null);
+
+    if (!closedArtifact) return;
+
+    // Check whether this user has already rated this artifact.
+    // If yes — skip the modal and go straight to cooldown.
+    void (async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: existing } = await supabase
+            .from('artifact_ratings')
+            .select('id')
+            .eq('artifact_id', closedArtifact.id)
+            .eq('user_id', authUser.id)
+            .maybeSingle();
+
+          if (existing) {
+            // Already rated — skip the modal entirely
+            resumeAfterRating(scanAgain);
+            return;
+          }
+        }
+      } catch (_) {
+        // Network/auth error — fall through and show the modal anyway
+      }
+      // No existing rating — show the rating prompt
+      setPendingRatingArtifact(closedArtifact);
+    })();
+  };
+
+  // Resume camera after rating is done/skipped (or skipped because already rated)
+  const resumeAfterRating = (scanAgain: boolean) => {
     const delay = scanAgain ? 1000 : 5000;
     const label = scanAgain ? '1s' : '5s';
     inCooldown.current = true;
@@ -1257,6 +1353,12 @@ export default function QRScanner({
       }
     }, delay);
     showToast(`Camera ready in ${label}…`);
+  };
+
+  // Called after the rating modal is submitted or skipped
+  const afterRating = () => {
+    setPendingRatingArtifact(null);
+    resumeAfterRating(scanAgainAfterRatingRef.current);
   };
 
   const startScanning = () => {
@@ -1444,9 +1546,17 @@ export default function QRScanner({
         totalArtifacts={totalArtifacts}
         userId={user?.id}
         onClose={() => {
-          alreadySubmittedFeedback.current = true;
+          alreadySubmittedFeedbackRef.current = true;
+          setAlreadySubmittedFeedback(true);
           setShowFeedback(false);
         }}
+      />
+
+      {/* ─── Artifact Rating Modal (shown after artifact modal dismissed normally) ── */}
+      <ArtifactRatingModal
+        visible={!!pendingRatingArtifact}
+        artifact={pendingRatingArtifact}
+        onDone={afterRating}
       />
     </View>
   );
