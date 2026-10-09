@@ -1,0 +1,142 @@
+@startuml
+title ETurismo - Data Flow Diagram Level 1
+
+left to right direction
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam nodesep 80
+skinparam ranksep 120
+skinparam ArrowFontSize 11
+skinparam linetype ortho
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+}
+
+skinparam circle {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+}
+
+' ==========================================
+' EXTERNAL ENTITY - LEFT
+' ==========================================
+
+rectangle "TOURIST / USER" as User
+
+
+' ==========================================
+' PROCESSES - CENTER
+' ==========================================
+
+circle "1.0\nAccount\nManagement" as P1
+
+circle "2.0\nArtifact\nExploration" as P2
+
+circle "3.0\nQR Scan &\nDiscovery" as P3
+
+circle "4.0\nEvents &\nAnnouncements" as P4
+
+circle "5.0\nFeedback &\nRatings" as P5
+
+
+' ==========================================
+' DATA STORES
+' ==========================================
+
+rectangle "D1\nUser Records" as D1
+
+rectangle "D2\nArtifact Records" as D2
+
+rectangle "D3\nEvent & Announcement\nRecords" as D3
+
+rectangle "D4\nFeedback & Rating\nRecords" as D4
+
+
+' ==========================================
+' EXTERNAL ENTITY - RIGHT
+' ==========================================
+
+rectangle "ADMINISTRATOR" as Admin
+
+
+' ==========================================
+' TOURIST / USER FLOWS
+' ==========================================
+
+User --> P1 : Login / Registration Data
+P1 --> User : Account Information
+
+User --> P2 : Artifact Request
+P2 --> User : Artifact Information
+
+User --> P3 : QR Code Data
+P3 --> User : Scan Result
+
+User --> P4 : Event Request
+P4 --> User : Events / Announcements
+
+User --> P5 : Feedback / Rating
+P5 --> User : Submission Confirmation
+
+
+' ==========================================
+' DATA STORE FLOWS
+' ==========================================
+
+P1 --> D1 : User Data
+D1 --> P1 : User Record
+
+P2 --> D2 : Artifact Query
+D2 --> P2 : Artifact Record
+
+P3 --> D2 : QR Identifier
+D2 --> P3 : Matching Artifact
+
+P4 --> D3 : Event Query
+D3 --> P4 : Event Records
+
+P5 --> D4 : Feedback Data
+D4 --> P5 : Feedback Records
+
+
+' ==========================================
+' ADMINISTRATOR FLOWS
+' ==========================================
+
+Admin --> P1 : User Update Data
+P1 --> Admin : User Records
+
+Admin --> P2 : Artifact Data
+P2 --> Admin : Artifact Records
+
+Admin --> P4 : Event / Announcement Data
+P4 --> Admin : Updated Records
+
+Admin --> P5 : Feedback Request
+P5 --> Admin : Feedback Records
+
+
+' ==========================================
+' ALIGNMENT
+' ==========================================
+
+P1 -[hidden]down-> P2
+P2 -[hidden]down-> P3
+P3 -[hidden]down-> P4
+P4 -[hidden]down-> P5
+
+D1 -[hidden]down-> D2
+D2 -[hidden]down-> D3
+D3 -[hidden]down-> D4
+
+P1 -[hidden]right-> D1
+P2 -[hidden]right-> D2
+P4 -[hidden]right-> D3
+P5 -[hidden]right-> D4
+
+D1 -[hidden]right-> Admin
+
+@enduml

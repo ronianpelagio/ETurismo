@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Users,
   Boxes,
   Star,
@@ -56,6 +58,8 @@ const TYPE_META: Record<
       "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800",
   },
 };
+
+const LOGS_PER_PAGE = 10;
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -158,6 +162,7 @@ export default function RecentLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<LogEntry["type"] | "all">("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -177,6 +182,16 @@ export default function RecentLogsPage() {
 
   const displayed =
     filter === "all" ? logs : logs.filter((l) => l.type === filter);
+  const totalPages = Math.max(1, Math.ceil(displayed.length / LOGS_PER_PAGE));
+  const page = Math.min(currentPage, totalPages);
+  const paginatedLogs = displayed.slice(
+    (page - 1) * LOGS_PER_PAGE,
+    page * LOGS_PER_PAGE,
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const counts = logs.reduce(
     (acc, l) => {
@@ -214,7 +229,10 @@ export default function RecentLogsPage() {
           <Card
             key={t}
             className="rounded-xl border-border bg-card cursor-pointer hover:bg-muted/40 transition"
-            onClick={() => setFilter(filter === t ? "all" : t)}
+            onClick={() => {
+              setFilter(filter === t ? "all" : t);
+              setCurrentPage(1);
+            }}
           >
             <CardContent className="flex items-center gap-2 p-3">
               <span className={`rounded-lg border p-1.5 ${TYPE_META[t].color}`}>
@@ -238,7 +256,10 @@ export default function RecentLogsPage() {
         {(["all", ...Object.keys(TYPE_META)] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setFilter(t as any)}
+            onClick={() => {
+              setFilter(t as any);
+              setCurrentPage(1);
+            }}
             className={`rounded-full border px-3 py-1 text-xs transition
               ${filter === t ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}
           >
@@ -275,7 +296,7 @@ export default function RecentLogsPage() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {displayed.map((entry) => {
+            {paginatedLogs.map((entry) => {
               const meta = TYPE_META[entry.type];
               return (
                 <div
@@ -311,6 +332,42 @@ export default function RecentLogsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+        {!loading && displayed.length > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Showing {(page - 1) * LOGS_PER_PAGE + 1}–
+              {Math.min(page * LOGS_PER_PAGE, displayed.length)} of{" "}
+              {displayed.length} activities
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Previous page"
+                  disabled={page === 1}
+                  onClick={() => setCurrentPage(page - 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Next page"
+                  disabled={page === totalPages}
+                  onClick={() => setCurrentPage(page + 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>

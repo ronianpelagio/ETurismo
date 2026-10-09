@@ -108,7 +108,8 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show directions to the museum.",
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show directions to the museum."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "extra": {
       "expo-navigation-bar": {

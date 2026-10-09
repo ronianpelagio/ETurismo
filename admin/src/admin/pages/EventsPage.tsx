@@ -18,6 +18,7 @@ import {
   Link2,
   AlignLeft,
   Clock,
+  Heart,
 } from "lucide-react";
 import { supabase } from "../services/supabase";
 import { sendPushNotification } from "../services/pushNotificationService";
@@ -398,9 +399,20 @@ function EventRow({
           </Badge>
         </div>
 
-        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Clock className="h-3 w-3 shrink-0" />
-          <span>{new Date(item.event_datetime).toLocaleString()}</span>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Clock className="h-3 w-3 shrink-0" />
+            <span>{new Date(item.event_datetime).toLocaleString()}</span>
+          </div>
+          {(item.interested_count ?? 0) > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-rose-500">
+              <Heart className="h-3 w-3 fill-rose-500 shrink-0" />
+              <span className="font-semibold tabular-nums">
+                {item.interested_count}{" "}
+                {item.interested_count === 1 ? "interested" : "interested"}
+              </span>
+            </div>
+          )}
         </div>
 
         {item.description && (
@@ -470,7 +482,7 @@ export default function EventsPage() {
       const from = (currentPage - 1) * itemsPerPage;
       const { data, error: e } = await supabase
         .from("events")
-        .select("*")
+        .select("id, title, event_datetime, description, image_url, created_at, interested_count")
         .order("event_datetime", { ascending: false })
         .range(from, from + itemsPerPage - 1);
 

@@ -52,6 +52,7 @@ export type EventItem = {
   description?: string | null;
   image_url?: string | null;
   created_at?: string | null;
+  interested_count?: number | null;
 };
 
 export type AudioGuide = {

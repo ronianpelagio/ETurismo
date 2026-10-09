@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { useAppTheme } from '../../context/ThemeContext';
 import { THEMES } from '../../constants/themes';
-import { saveTourFeedback, TourFeedback, VisitType } from '../../utils/storage';
+import { saveTourFeedback, markFeedbackSubmitted, TourFeedback, VisitType } from '../../utils/storage';
 import { supabase } from '../../services/supabase';
 
 const TOUR_FEEDBACK_UNLOCK_COUNT = 3;
@@ -364,6 +364,8 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
       setSubmitting(false);
     }
 
+    // Persist the flag locally so the modal is never shown again across sessions
+    await markFeedbackSubmitted();
     setStep('success');
     };
 

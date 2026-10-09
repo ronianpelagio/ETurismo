@@ -14,6 +14,7 @@ import {
   ImageBackground,
 } from 'react-native';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons as Icon } from '@expo/vector-icons';
@@ -437,6 +438,31 @@ export default function SignIn({
   };
 
   /* ==========================================================================
+     GOOGLE PROFILE HELPER
+  ========================================================================== */
+
+  const getGoogleProfile = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!data.user) throw new Error('Unable to retrieve Google account.');
+
+    const user = data.user;
+    const metadata = user.user_metadata ?? {};
+    const fullName = metadata.full_name ?? metadata.name ?? '';
+
+    return {
+      userId: user.id,
+      email: user.email ?? '',
+      firstName: metadata.given_name ?? fullName.split(' ')[0] ?? '',
+      lastName:
+        metadata.family_name ??
+        fullName.split(' ').slice(1).join(' ') ??
+        '',
+      profilePicture: metadata.avatar_url ?? metadata.picture ?? '',
+    };
+  };
+
+  /* ==========================================================================
      GOOGLE
   ========================================================================== */
 
@@ -510,6 +536,27 @@ export default function SignIn({
             throw new Error('Sign in completed but session not found. Please try again.');
           }
         }
+
+        // Retrieve and persist the Google profile so SignUp (googleMode)
+        // can prefill name and avatar without another network call.
+        try {
+          const googleProfile = await getGoogleProfile();
+          await AsyncStorage.setItem(
+            'google_prefill_profile',
+            JSON.stringify(googleProfile),
+          );
+          console.log('Google profile retrieved:', {
+            hasEmail: Boolean(googleProfile.email),
+            hasFirstName: Boolean(googleProfile.firstName),
+            hasLastName: Boolean(googleProfile.lastName),
+            hasProfilePicture: Boolean(googleProfile.profilePicture),
+          });
+        } catch (profileErr) {
+          // Non-fatal — SignUp will fall back to reading supabase.auth.getUser()
+          console.warn('[SignIn] Could not cache Google profile:', profileErr);
+        }
+        // AuthNavigator's onAuthStateChange will now detect SIGNED_IN and
+        // route to the correct phase — no manual navigation needed here.
       } else if (result.type === 'cancel') {
         // User closed the browser — silent, no error
       }

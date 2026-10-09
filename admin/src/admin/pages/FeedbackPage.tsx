@@ -7,6 +7,8 @@ import {
   ThumbsDown,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Search,
   RefreshCw,
   Filter,
@@ -54,6 +56,7 @@ const VISIT_TYPE_LABELS: Record<string, string> = {
 };
 
 const VISIT_TYPES = ["", "solo", "couple", "family", "group", "school"];
+const FEEDBACK_PER_PAGE = 10;
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -165,6 +168,7 @@ export default function FeedbackPage() {
   const [sortField, setSortField] = useState<SortField>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -227,6 +231,19 @@ export default function FeedbackPage() {
         );
       })
     : rows;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visible.length / FEEDBACK_PER_PAGE),
+  );
+  const page = Math.min(currentPage, totalPages);
+  const paginatedRows = visible.slice(
+    (page - 1) * FEEDBACK_PER_PAGE,
+    page * FEEDBACK_PER_PAGE,
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   // ── Sort toggle ────────────────────────────────────────────────────────────
 
@@ -326,7 +343,10 @@ export default function FeedbackPage() {
             type="text"
             placeholder="Search comments or visit type…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className="h-8 rounded-xl border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20 w-64"
           />
           {search && (
@@ -342,12 +362,13 @@ export default function FeedbackPage() {
         {/* Rating filter */}
         <select
           value={filter.rating ?? ""}
-          onChange={(e) =>
+          onChange={(e) => {
             setFilter((f) => ({
               ...f,
               rating: e.target.value === "" ? null : Number(e.target.value),
-            }))
-          }
+            }));
+            setCurrentPage(1);
+          }}
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         >
           <option value="">All ratings</option>
@@ -363,13 +384,14 @@ export default function FeedbackPage() {
           value={
             filter.recommend === null ? "" : filter.recommend ? "yes" : "no"
           }
-          onChange={(e) =>
+          onChange={(e) => {
             setFilter((f) => ({
               ...f,
               recommend:
                 e.target.value === "" ? null : e.target.value === "yes",
-            }))
-          }
+            }));
+            setCurrentPage(1);
+          }}
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         >
           <option value="">All responses</option>
@@ -380,9 +402,10 @@ export default function FeedbackPage() {
         {/* Visit type filter */}
         <select
           value={filter.visitType}
-          onChange={(e) =>
-            setFilter((f) => ({ ...f, visitType: e.target.value }))
-          }
+          onChange={(e) => {
+            setFilter((f) => ({ ...f, visitType: e.target.value }));
+            setCurrentPage(1);
+          }}
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         >
           {VISIT_TYPES.map((vt) => (
@@ -397,7 +420,10 @@ export default function FeedbackPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={clearFilters}
+            onClick={() => {
+              clearFilters();
+              setCurrentPage(1);
+            }}
             className="h-8 gap-1 rounded-xl text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3 w-3" />
@@ -471,7 +497,7 @@ export default function FeedbackPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 <AnimatePresence initial={false}>
-                  {visible.map((fb) => {
+                  {paginatedRows.map((fb) => {
                     const isExpanded = expandedId === fb.id;
                     return (
                       <React.Fragment key={fb.id}>
@@ -574,6 +600,42 @@ export default function FeedbackPage() {
                 </AnimatePresence>
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && visible.length > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Showing {(page - 1) * FEEDBACK_PER_PAGE + 1}–
+              {Math.min(page * FEEDBACK_PER_PAGE, visible.length)} of{" "}
+              {visible.length} results
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Previous page"
+                  disabled={page === 1}
+                  onClick={() => setCurrentPage(page - 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Next page"
+                  disabled={page === totalPages}
+                  onClick={() => setCurrentPage(page + 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>

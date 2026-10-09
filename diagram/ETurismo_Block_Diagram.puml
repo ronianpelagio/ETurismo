@@ -1,0 +1,105 @@
+@startuml
+title ETurismo - System Block Diagram
+
+left to right direction
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam nodesep 50
+skinparam ranksep 70
+skinparam linetype ortho
+
+skinparam rectangle {
+    BackgroundColor white
+    BorderColor black
+    RoundCorner 10
+}
+
+skinparam database {
+    BackgroundColor white
+    BorderColor black
+}
+
+' =========================
+' USERS
+' =========================
+
+rectangle "TOURIST / USER" as User
+rectangle "ADMINISTRATOR" as Admin
+
+
+' =========================
+' APPLICATIONS
+' =========================
+
+rectangle "ETURISMO\nMOBILE APPLICATION" as Mobile {
+    rectangle "User Account" as M1
+    rectangle "Artifact & QR\nExploration" as M2
+    rectangle "Events &\nAnnouncements" as M3
+    rectangle "Feedback &\nRatings" as M4
+}
+
+rectangle "ADMIN\nWEB DASHBOARD" as Dashboard {
+    rectangle "User Management" as A1
+    rectangle "Artifact Management" as A2
+    rectangle "Content Management" as A3
+}
+
+
+' =========================
+' BACKEND
+' =========================
+
+rectangle "BACKEND SERVICES" as Backend {
+    rectangle "Authentication" as B1
+    rectangle "Data Management" as B2
+    rectangle "Notification Service" as B3
+}
+
+
+' =========================
+' DATABASE
+' =========================
+
+rectangle "SUPABASE" as Supabase {
+    database "User Data" as D1
+    database "Artifact Data" as D2
+    database "Content &\nFeedback Data" as D3
+    rectangle "Media Storage" as D4
+}
+
+
+' =========================
+' CONNECTIONS
+' =========================
+
+User --> Mobile : Uses
+
+Admin --> Dashboard : Manages
+
+Mobile <--> Backend : Requests / Data
+
+Dashboard <--> Backend : Management Data
+
+Backend <--> Supabase : Store / Retrieve Data
+
+
+' =========================
+' ALIGNMENT
+' =========================
+
+M1 -[hidden]down-> M2
+M2 -[hidden]down-> M3
+M3 -[hidden]down-> M4
+
+A1 -[hidden]down-> A2
+A2 -[hidden]down-> A3
+
+B1 -[hidden]down-> B2
+B2 -[hidden]down-> B3
+
+D1 -[hidden]down-> D2
+D2 -[hidden]down-> D3
+D3 -[hidden]down-> D4
+
+@enduml

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Plus,
   ShieldCheck,
@@ -38,6 +40,7 @@ import {
 const ROLES = ["user", "admin"] as const;
 const STATUSES = ["active", "inactive"] as const;
 const GENDERS = ["Male", "Female", "Other"] as const;
+const USERS_PER_PAGE = 10;
 
 const emptyForm = {
   email: "",
@@ -61,6 +64,7 @@ export default function UsersPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     load();
@@ -88,6 +92,17 @@ export default function UsersPage() {
         (u.role ?? "").toLowerCase().includes(q),
     );
   }, [users, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / USERS_PER_PAGE));
+  const page = Math.min(currentPage, totalPages);
+  const paginatedUsers = filtered.slice(
+    (page - 1) * USERS_PER_PAGE,
+    page * USERS_PER_PAGE,
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -411,7 +426,10 @@ const handleSubmit = async (e: React.FormEvent) => {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <Input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search users…"
             className="w-full sm:w-64"
           />
@@ -457,7 +475,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((u) => (
+                {paginatedUsers.map((u) => (
                   <tr key={u.id} className="group transition hover:bg-muted/30">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
@@ -577,6 +595,43 @@ const handleSubmit = async (e: React.FormEvent) => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Showing {(page - 1) * USERS_PER_PAGE + 1}–
+              {Math.min(page * USERS_PER_PAGE, filtered.length)} of{" "}
+              {filtered.length} users
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Previous page"
+                  disabled={page === 1}
+                  onClick={() => setCurrentPage(page - 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Next page"
+                  disabled={page === totalPages}
+                  onClick={() => setCurrentPage(page + 1)}
+                  className="h-8 rounded-lg"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>

@@ -12,7 +12,7 @@ import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
-import { STORAGE_KEYS, toggleInStringArray, getStringArray } from '../../utils/storage';
+import { STORAGE_KEYS, toggleInStringArray, getStringArray, hasFeedbackBeenSubmitted, markFeedbackSubmitted } from '../../utils/storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../context/LanguageContext';
@@ -1161,6 +1161,13 @@ export default function QRScanner({
   useEffect(() => {
     let mounted = true;
     void (async () => {
+      // Check local flag immediately — blocks the modal before any network call
+      const localFlag = await hasFeedbackBeenSubmitted();
+      if (localFlag) {
+        alreadySubmittedFeedbackRef.current = true;
+        if (mounted) setAlreadySubmittedFeedback(true);
+      }
+
       // Total artifacts count
       const { count } = await supabase
         .from('artifacts')
@@ -1168,7 +1175,7 @@ export default function QRScanner({
       if (mounted && count != null && count > 0) setTotalArtifacts(count);
 
       // Per-user feedback check — if they already submitted, never show again
-      if (user?.id) {
+      if (!localFlag && user?.id) {
         const { data } = await supabase
           .from('tour_feedback')
           .select('id')
@@ -1177,6 +1184,8 @@ export default function QRScanner({
         if (mounted && data) {
           alreadySubmittedFeedbackRef.current = true;
           setAlreadySubmittedFeedback(true);
+          // Persist locally so future sessions skip the network round-trip
+          await markFeedbackSubmitted();
         }
       }
     })();

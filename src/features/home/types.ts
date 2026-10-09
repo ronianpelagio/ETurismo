@@ -5,6 +5,7 @@ export type Event = {
   description?: string;
   image_url?: string;
   created_at?: string;
+  interested_count?: number;
 };
 
 export type Announcement = {

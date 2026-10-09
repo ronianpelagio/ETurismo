@@ -18,6 +18,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { buildC } from '../../features/home/styles';
 import { THEMES } from '../../constants/themes';
 import { STORAGE_KEYS, toggleInStringArray, getStringArray } from '../../utils/storage';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { Event } from '../../features/home/types';
 import {
   formatEventTime,
@@ -106,13 +107,25 @@ function EventCard({
   const fullDate = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const heartScale = useRef(new Animated.Value(1)).current;
 
+  // Optimistic local count — starts from what the server returned
+  const [localCount, setLocalCount] = useState(item.interested_count ?? 0);
+  useEffect(() => {
+    setLocalCount(item.interested_count ?? 0);
+  }, [item.interested_count]);
+
   const pressInterested = () => {
     Animated.sequence([
       Animated.spring(heartScale, { toValue: 1.25, useNativeDriver: true, tension: 300, friction: 8 }),
       Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 8 }),
     ]).start();
+    // Optimistic UI update
+    setLocalCount(prev => isInterested ? Math.max(prev - 1, 0) : prev + 1);
     onToggleInterested?.();
   };
+
+  const countLabel = localCount > 0
+    ? localCount === 1 ? '1 interested' : `${localCount} interested`
+    : null;
 
   return (
     <Animated.View style={[{
@@ -201,9 +214,10 @@ function EventCard({
           onPress={pressInterested}
           activeOpacity={0.85}
           style={{
-            height: 52, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+            minHeight: 52, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
             backgroundColor: isInterested ? 'rgba(8,80,65,0.1)' : TEAL,
             borderWidth: 1.5, borderColor: TEAL,
+            paddingVertical: 10, paddingHorizontal: 16,
           }}
           accessibilityRole="button"
           accessibilityLabel={isInterested ? "Remove interest in event" : "Mark interest in event"}
@@ -212,9 +226,16 @@ function EventCard({
           <Animated.View style={{ transform: [{ scale: heartScale }] }}>
             <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={19} color={isInterested ? '#E74C3C' : '#fff'} />
           </Animated.View>
-          <Text style={{ color: isInterested ? TEAL : '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 }}>
-            {isInterested ? "You're Interested" : "I'm Interested"}
-          </Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: isInterested ? TEAL : '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 }}>
+              {isInterested ? "You're Interested" : "I'm Interested"}
+            </Text>
+            {countLabel && (
+              <Text style={{ color: isInterested ? `${TEAL}99` : 'rgba(255,255,255,0.7)', fontSize: 10.5, fontWeight: '700', marginTop: 1 }}>
+                {countLabel}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -248,6 +269,8 @@ export default function EventsScreen({
   const { theme } = useAppTheme();
   C = buildC(theme);
   const insets = useSafeAreaInsets();
+  const { session } = useAuthStore();
+  const userId = session?.user?.id ?? null;
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,10 +281,24 @@ export default function EventsScreen({
   const lastScrollY = useRef(0);
   const navbarVisibleRef = useRef(true);
 
-  // Load persisted interested event IDs
+  // Load interested event IDs — from Supabase if logged in, AsyncStorage otherwise
+  const loadInterestedIds = useCallback(async () => {
+    if (userId) {
+      const { data } = await supabase
+        .from('event_interests')
+        .select('event_id')
+        .eq('user_id', userId);
+      setInterestedIds((data ?? []).map((r: { event_id: string }) => r.event_id));
+    } else {
+      const ids = await getStringArray(STORAGE_KEYS.interestedEvents);
+      setInterestedIds(ids);
+    }
+  }, [userId]);
+
+  // Load interested IDs whenever auth state changes
   useEffect(() => {
-    getStringArray(STORAGE_KEYS.interestedEvents).then(ids => setInterestedIds(ids));
-  }, []);
+    loadInterestedIds();
+  }, [loadInterestedIds]);
 
   const fetchEvents = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -269,7 +306,7 @@ export default function EventsScreen({
     try {
       const { data, error: fetchError } = await supabase
         .from('events')
-        .select('id, title, event_datetime, description, image_url, created_at')
+        .select('id, title, event_datetime, description, image_url, created_at, interested_count')
         .order('event_datetime', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -294,6 +331,33 @@ export default function EventsScreen({
 
     return () => { supabase.removeChannel(channel); };
   }, [fetchEvents]);
+
+  // Toggle interest — Supabase for logged-in users, local storage for guests
+  const handleToggleInterested = useCallback(async (eventId: string) => {
+    const isCurrentlyInterested = interestedIds.includes(eventId);
+
+    if (userId) {
+      if (isCurrentlyInterested) {
+        await supabase
+          .from('event_interests')
+          .delete()
+          .eq('event_id', eventId)
+          .eq('user_id', userId);
+        setInterestedIds(prev => prev.filter(id => id !== eventId));
+      } else {
+        await supabase
+          .from('event_interests')
+          .insert({ event_id: eventId, user_id: userId });
+        setInterestedIds(prev => [...prev, eventId]);
+      }
+      // Refresh counts from DB after toggling
+      fetchEvents(true);
+    } else {
+      // Guest — persist to AsyncStorage only (no count tracked)
+      const updated = await toggleInStringArray(STORAGE_KEYS.interestedEvents, eventId);
+      setInterestedIds(updated);
+    }
+  }, [userId, interestedIds, fetchEvents]);
 
   const handleScroll = (event: any) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -330,10 +394,7 @@ export default function EventsScreen({
       item={item}
       index={index}
       isInterested={interestedIds.includes(item.id)}
-      onToggleInterested={async () => {
-        const updated = await toggleInStringArray(STORAGE_KEYS.interestedEvents, item.id);
-        setInterestedIds(updated);
-      }}
+      onToggleInterested={() => handleToggleInterested(item.id)}
     />
   );
 

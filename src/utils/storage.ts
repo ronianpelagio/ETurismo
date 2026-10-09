@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const LEGACY_SAVED_ARTIFACTS_KEY = 'savedArtifacts';
 
 export const STORAGE_KEYS = {
-  favoriteArtifacts: 'favoriteArtifacts',
-  interestedEvents:  'interestedEvents',
-  cachedArtifacts:   'cachedArtifacts',
-  visitHistory:      'visitHistory',
-  artifactComments:  'artifactComments',
-  tourFeedback:      'tourFeedback',
+  favoriteArtifacts:    'favoriteArtifacts',
+  interestedEvents:     'interestedEvents',
+  cachedArtifacts:      'cachedArtifacts',
+  visitHistory:         'visitHistory',
+  artifactComments:     'artifactComments',
+  tourFeedback:         'tourFeedback',
+  feedbackSubmitted:    'feedbackSubmitted',
 } as const;
 
 // ── Visit history entry ────────────────────────────────────────────────────────
@@ -120,4 +121,17 @@ export async function saveTourFeedback(feedback: TourFeedback): Promise<void> {
 export async function getTourFeedbackList(): Promise<TourFeedback[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.tourFeedback);
   return safeParseJson<TourFeedback[]>(raw) ?? [];
+}
+
+// ── Feedback-submitted flag ────────────────────────────────────────────────────
+// Persisted locally so the modal is never shown again even before the Supabase
+// check resolves (offline, slow network, or app restart).
+
+export async function hasFeedbackBeenSubmitted(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.feedbackSubmitted);
+  return raw === 'true';
+}
+
+export async function markFeedbackSubmitted(): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.feedbackSubmitted, 'true');
 }

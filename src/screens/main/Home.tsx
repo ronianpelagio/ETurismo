@@ -11,7 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapLibreGL, {
+  Map as MapLibreMap,
+  Camera as MapLibreCamera,
+  Marker as MapLibreMarker,
+  GeoJSONSource,
+  Layer,
+  UserLocation as MapLibreUserLocation,
+} from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { Asset } from 'expo-asset';
 import { supabase } from '../../services/supabase';
@@ -1161,7 +1168,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const mapModalSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const mapModalOpacity = useRef(new Animated.Value(0)).current;
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapLibreMap>(null);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
   const lastScrollY = useRef(0);
@@ -3015,54 +3022,112 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
             {/* ── Map ── */}
             <View style={{ flex: 1, position: 'relative' }}>
-              <MapView
+              <MapLibreMap
                 ref={mapRef}
                 style={styles.mapView}
-                provider={PROVIDER_DEFAULT}
-                initialRegion={{
-                  latitude: MUSEUM_LOCATION.latitude,
-                  longitude: MUSEUM_LOCATION.longitude,
-                  latitudeDelta: 0.04,
-                  longitudeDelta: 0.04,
-                }}
-                showsUserLocation={!!userLocation}
-                showsMyLocationButton={false}
-                showsCompass
-                toolbarEnabled={false}
+                mapStyle="https://tiles.openfreemap.org/styles/liberty"
+                attributionEnabled={false}
+                logoEnabled={false}
               >
-                {/* Museum marker */}
-                <Marker
-                  coordinate={MUSEUM_LOCATION}
-                  title="National Shrine of Our Lady of Sorrows"
-                  description="Your destination"
-                  pinColor="#C9A84C"
+                {/* Camera — controls the initial viewport */}
+                <MapLibreCamera
+                  defaultSettings={{
+                    centerCoordinate: [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
+                    zoomLevel: 13,
+                  }}
                 />
-                {/* User marker */}
+
+                {/* User's live location dot */}
+                {!!userLocation && <MapLibreUserLocation visible renderMode="normal" />}
+
+                {/* Museum marker */}
+                <MapLibreMarker
+                  coordinate={[MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude]}
+                >
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: '#C9A84C',
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 3, borderColor: '#fff',
+                    shadowColor: '#000', shadowOpacity: 0.3,
+                    shadowOffset: { width: 0, height: 3 }, shadowRadius: 5, elevation: 6,
+                  }}>
+                    <Ionicons name="location" size={18} color="#fff" />
+                  </View>
+                </MapLibreMarker>
+
+                {/* User marker (static pin, shown in addition to UserLocation dot) */}
                 {userLocation && (
-                  <Marker
-                    coordinate={userLocation}
-                    title="Your Location"
-                    pinColor="#2ECC71"
-                  />
+                  <MapLibreMarker
+                    coordinate={[userLocation.longitude, userLocation.latitude]}
+                  >
+                    <View style={{
+                      width: 32, height: 32, borderRadius: 16,
+                      backgroundColor: '#2ECC71',
+                      alignItems: 'center', justifyContent: 'center',
+                      borderWidth: 3, borderColor: '#fff',
+                      shadowColor: '#000', shadowOpacity: 0.25,
+                      shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 5,
+                    }}>
+                      <Ionicons name="navigate" size={15} color="#fff" />
+                    </View>
+                  </MapLibreMarker>
                 )}
+
                 {/* OSRM route polyline */}
                 {routeCoords.length > 1 && (
-                  <Polyline
-                    coordinates={routeCoords}
-                    strokeColor="#C9A84C"
-                    strokeWidth={4}
-                  />
+                  <GeoJSONSource
+                    id="route"
+                    shape={{
+                      type: 'Feature',
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: routeCoords.map(c => [c.longitude, c.latitude]),
+                      },
+                      properties: {},
+                    }}
+                  >
+                    <Layer
+                      id="route-line"
+                      type="line"
+                      style={{
+                        lineColor: '#C9A84C',
+                        lineWidth: 4,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                      }}
+                    />
+                  </GeoJSONSource>
                 )}
+
                 {/* Fallback straight line while route is loading */}
                 {userLocation && routeCoords.length === 0 && !routeLoading && (
-                  <Polyline
-                    coordinates={[userLocation, MUSEUM_LOCATION]}
-                    strokeColor={C.border}
-                    strokeWidth={2}
-                    lineDashPattern={[6, 5]}
-                  />
+                  <GeoJSONSource
+                    id="fallback-line"
+                    shape={{
+                      type: 'Feature',
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: [
+                          [userLocation.longitude, userLocation.latitude],
+                          [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
+                        ],
+                      },
+                      properties: {},
+                    }}
+                  >
+                    <Layer
+                      id="fallback-line-layer"
+                      type="line"
+                      style={{
+                        lineColor: C.border,
+                        lineWidth: 2,
+                        lineDasharray: [2, 2],
+                      }}
+                    />
+                  </GeoJSONSource>
                 )}
-              </MapView>
+              </MapLibreMap>
 
               {/* Location / route loading overlay */}
               {(locationLoading || routeLoading) && (

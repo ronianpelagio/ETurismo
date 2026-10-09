@@ -395,30 +395,57 @@ export default function SignUp({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ───────────────────────────────────────────────────────────
-  // Google profile
+  // Google profile — prefill from AsyncStorage (written by SignIn)
+  // then fall back to supabase.auth.getUser() user_metadata
   // ───────────────────────────────────────────────────────────
+
+  const [googleAvatarUrl, setGoogleAvatarUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!googleMode) return;
 
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (data.user?.email) {
-          setEmail(data.user.email);
+    (async () => {
+      try {
+        // 1. Try the cached profile written by SignIn right after OAuth
+        const cached = await AsyncStorage.getItem('google_prefill_profile');
+        if (cached) {
+          const profile = JSON.parse(cached) as {
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            profilePicture: string;
+          };
+
+          if (profile.email)         setEmail(profile.email);
+          if (profile.firstName)     setFirstName(profile.firstName);
+          if (profile.lastName)      setLastName(profile.lastName);
+          if (profile.profilePicture) {
+            setGoogleAvatarUrl(profile.profilePicture);
+            // Do NOT set profilePicUri — Google avatar is treated as read-only URL
+          }
+          return;
         }
 
-        const metadata = data.user?.user_metadata ?? {};
+        // 2. Fallback — read directly from supabase session
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) return;
 
-        if (metadata.first_name) {
-          setFirstName(metadata.first_name);
-        }
+        const metadata = data.user.user_metadata ?? {};
+        const fullName = metadata.full_name ?? metadata.name ?? '';
 
-        if (metadata.last_name) {
-          setLastName(metadata.last_name);
-        }
-      })
-      .catch(() => {});
+        if (data.user.email)     setEmail(data.user.email);
+        if (metadata.given_name) setFirstName(metadata.given_name);
+        else if (fullName)       setFirstName(fullName.split(' ')[0] ?? '');
+        if (metadata.family_name) setLastName(metadata.family_name);
+        else if (fullName)        setLastName(fullName.split(' ').slice(1).join(' ') ?? '');
+
+        const avatarUrl = metadata.avatar_url ?? metadata.picture ?? '';
+        if (avatarUrl) setGoogleAvatarUrl(avatarUrl);
+      } catch (err) {
+        console.warn('[SignUp] Could not load Google prefill:', err);
+      }
+    })();
   }, [googleMode]);
 
   const clearError = (f: string) =>
@@ -640,13 +667,18 @@ export default function SignUp({
         );
       }
 
-      const profileUpdate = {
+      const profileUpdate: Record<string, any> = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         gender,
         age: parseInt(age, 10),
         ...buildProfileUpdate(),
       };
+
+      // Persist the Google avatar URL so the profile screen can display it
+      if (googleAvatarUrl && !profileUpdate.profile_picture) {
+        profileUpdate.profile_picture = googleAvatarUrl;
+      }
 
       const { error } = await supabase
         .from('users')
@@ -656,6 +688,9 @@ export default function SignUp({
       if (error) {
         throw error;
       }
+
+      // Clean up the cached prefill now that it's been used
+      await AsyncStorage.removeItem('google_prefill_profile').catch(() => {});
 
       onGoogleComplete?.();
     } catch (err: any) {
@@ -863,11 +898,31 @@ export default function SignUp({
 
             {step === 1 && (
               <View>
-                <ProfilePhoto
-                  uri={profilePicUri}
-                  onPick={pickPhoto}
-                  onRemove={removePhoto}
-                />
+                {/* Show read-only Google avatar in googleMode, picker otherwise */}
+                {googleMode && googleAvatarUrl ? (
+                  <View style={s.photoWrap}>
+                    <View style={s.photoRow}>
+                      <View style={s.avatarWrap}>
+                        <Image source={{ uri: googleAvatarUrl }} style={s.avatar} />
+                        <View style={[s.camBtn, { backgroundColor: '#4285F4' }]}>
+                          <Icon name="logo-google" size={12} color="#fff" />
+                        </View>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.photoTitle}>Google profile photo</Text>
+                        <Text style={s.photoDesc}>
+                          Your Google account photo will be used as your profile picture.
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <ProfilePhoto
+                    uri={profilePicUri}
+                    onPick={pickPhoto}
+                    onRemove={removePhoto}
+                  />
+                )}
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={{ flex: 1 }}>

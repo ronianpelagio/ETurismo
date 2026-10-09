@@ -1,0 +1,61 @@
+@startuml
+title ETurismo - Use Case Diagram
+
+left to right direction
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam actorStyle stickman
+
+actor "Tourist / User" as User
+
+rectangle "ETurismo System" {
+
+  package "User Functions" {
+    (Register / Login) as U1
+    (Manage Profile) as U2
+    (Browse Artifacts) as U3
+    (Scan QR Code) as U4
+    (View Artifact Details) as U5
+    (Save / Favorite) as U6
+    (Submit Feedback) as U7
+  }
+
+  package "Admin Functions" {
+    (View Dashboard) as A1
+    (Manage Artifacts) as A2
+    (Manage QR Codes) as A3
+    (Manage Users) as A4
+    (Manage Events) as A5
+    (Manage Announcements) as A6
+    (View Feedback) as A7
+  }
+}
+
+actor "Administrator" as Admin
+
+User --> U1
+User --> U2
+User --> U3
+User --> U4
+User --> U5
+User --> U6
+User --> U7
+
+A1 <-- Admin
+A2 <-- Admin
+A3 <-- Admin
+A4 <-- Admin
+A5 <-- Admin
+A6 <-- Admin
+A7 <-- Admin
+
+U1 -[hidden]-> A1
+U2 -[hidden]-> A2
+U3 -[hidden]-> A3
+U4 -[hidden]-> A4
+U5 -[hidden]-> A5
+U6 -[hidden]-> A6
+U7 -[hidden]-> A7
+
+@enduml
