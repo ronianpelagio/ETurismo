@@ -29,3 +29,12 @@ test('keeps generated native projects out of source control', () => {
   assert.match(gitignore, /^\/android\/$/m);
   assert.match(gitignore, /^\/ios\/$/m);
 });
+
+test('configures the signup confirmation email to use the custom OTP template', () => {
+  const supabaseConfig = fs.readFileSync('supabase/config.toml', 'utf8');
+  const emailTemplate = fs.readFileSync('src/services/emailTemplate.html', 'utf8');
+
+  assert.match(supabaseConfig, /\[auth\.email\.template\.confirmation\]/);
+  assert.match(supabaseConfig, /content_path = "\.\/src\/services\/emailTemplate\.html"/);
+  assert.match(emailTemplate, /\{\{\s*\.Token\s*\}\}/);
+});

@@ -65,6 +65,38 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 8;
 
+// Supabase artifacts use UUID primary keys.
+const isValidArtifactId = (id: unknown): id is string =>
+  typeof id === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+// Azure Speech voices, configured locally so the expired Railway API is not needed.
+const AZURE_VOICES: Record<
+  LangCode,
+  { name: string; description: string; gender: string }[]
+> = {
+  en: [
+    { name: "en-US-JennyNeural", description: "Jenny", gender: "Female" },
+    { name: "en-US-GuyNeural", description: "Guy", gender: "Male" },
+  ],
+  fil: [
+    { name: "fil-PH-BlessicaNeural", description: "Blessica", gender: "Female" },
+    { name: "fil-PH-AngeloNeural", description: "Angelo", gender: "Male" },
+  ],
+  ja: [
+    { name: "ja-JP-NanamiNeural", description: "Nanami", gender: "Female" },
+    { name: "ja-JP-KeitaNeural", description: "Keita", gender: "Male" },
+  ],
+  es: [
+    { name: "es-ES-ElviraNeural", description: "Elvira", gender: "Female" },
+    { name: "es-ES-AlvaroNeural", description: "Alvaro", gender: "Male" },
+  ],
+  ko: [
+    { name: "ko-KR-SunHiNeural", description: "SunHi", gender: "Female" },
+    { name: "ko-KR-InJoonNeural", description: "InJoon", gender: "Male" },
+  ],
+};
+
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
 const emptyForm = {
@@ -328,15 +360,9 @@ export default function ArtifactsPage() {
   }, [page]);
 
   useEffect(() => {
-    fetch(
-      `https://eturismoadminn.up.railway.app/available-voices/${activeLang}`,
-    )
-      .then((r) => r.json())
-      .then((d) => {
-        setAvailableVoices(d.voices || []);
-        setSelectedVoice(d.defaultVoice || "");
-      })
-      .catch(() => {});
+    const voices = AZURE_VOICES[activeLang];
+    setAvailableVoices(voices);
+    setSelectedVoice(voices[0].name);
   }, [activeLang]);
 
   useEffect(() => {
@@ -553,8 +579,9 @@ export default function ArtifactsPage() {
   };
 
   const handleSaveAudio = async (langCode: LangCode) => {
-    if (!editingId) {
-      alert("Save the artifact first.");
+    if (!isValidArtifactId(editingId)) {
+      console.error("Invalid artifact ID:", editingId);
+      alert("Invalid artifact ID. Save the artifact and reopen it.");
       return;
     }
     const text = form[`desc_${langCode}` as keyof AForm] as string;
@@ -595,8 +622,9 @@ export default function ArtifactsPage() {
   };
 
   const handleGenerateAllAudio = async () => {
-    if (!editingId) {
-      alert("Save the artifact first.");
+    if (!isValidArtifactId(editingId)) {
+      console.error("Invalid artifact ID:", editingId);
+      alert("Invalid artifact ID. Save the artifact and reopen it.");
       return;
     }
     const pairs: [LangCode, string][] = [
@@ -682,6 +710,10 @@ export default function ArtifactsPage() {
         artifactId = data.id;
       }
 
+      if (!isValidArtifactId(artifactId)) {
+        throw new Error("Artifact save returned an invalid UUID.");
+      }
+
       if (form.image_file) {
         setSaveStep("Uploading image…");
 
@@ -726,13 +758,18 @@ export default function ArtifactsPage() {
           (lang === "en" ? form.name : "");
         const desc = form[`desc_${lang}` as keyof AForm] as string;
         if (!name && !desc) continue;
-        await upsertTranslation(
+        const { error: translationError } = await upsertTranslation(
           artifactId,
           lang,
           name || form.name,
           desc,
           txIds[lang],
         );
+        if (translationError) {
+          throw new Error(
+            `Failed to save ${lang.toUpperCase()} translation: ${translationError.message}`,
+          );
+        }
       }
 
       // Generate audio for new artifacts

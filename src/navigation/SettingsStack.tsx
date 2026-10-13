@@ -19,7 +19,13 @@ import VisitHistory from '../screens/main/VisitHistory';
 
 const Stack = createNativeStackNavigator();
 
-export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?: (v: boolean) => void }) {
+export default function SettingsStack({
+  setNavbarVisible,
+  onMapVisibilityChange,
+}: {
+  setNavbarVisible?: (v: boolean) => void;
+  onMapVisibilityChange?: (visible: boolean) => void;
+}) {
   return (
     <Stack.Navigator
       id="settings-stack"
@@ -35,7 +41,14 @@ export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?:
         component={Settings}
       />
 
-      <Stack.Screen name="PersonalInfo" component={PersonalInfo} />
+      <Stack.Screen name="PersonalInfo">
+        {(props) => (
+          <PersonalInfo
+            {...props}
+            onMapVisibilityChange={onMapVisibilityChange}
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen name="PasswordSecurity" component={PasswordSecurity} />
 
       <Stack.Screen name="Language" component={Language} />

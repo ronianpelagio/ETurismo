@@ -1121,7 +1121,7 @@ export default function Profile({
   if (loading && !user) {
     return (
       <SafeAreaView style={s.safe}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
 
         <View style={s.center}>
           <ActivityIndicator
@@ -1145,7 +1145,7 @@ export default function Profile({
   if (loadError && !user) {
     return (
       <SafeAreaView style={s.safe}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
 
         <View style={s.center}>
           <View style={s.errorIcon}>
@@ -1188,7 +1188,7 @@ export default function Profile({
       style={s.safe}
       edges={['top']}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

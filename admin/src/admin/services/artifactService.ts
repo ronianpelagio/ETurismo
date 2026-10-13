@@ -1,9 +1,6 @@
 import { supabase } from "./supabase";
 import type { ArtifactLanguageCode } from "../features/artifacts/config";
 
-const AUDIO_API_URL =
-  (import.meta.env.VITE_AUDIO_API_URL as string | undefined) ||
-  "https://eturismoadminn.up.railway.app";
 
 export function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
@@ -30,6 +27,7 @@ export async function uploadArtifactImage(
     .publicUrl;
 }
 
+
 export async function generateArtifactAudio(
   artifactId: string,
   text: string,
@@ -37,23 +35,63 @@ export async function generateArtifactAudio(
   voiceName?: string,
   speakingRate?: number,
 ): Promise<{ success: boolean; audioUrl: string; error?: string }> {
-  const response = await fetch(`${AUDIO_API_URL}/generate-audio`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      artifactId,
-      text,
-      lang: language,
-      voiceName,
-      speakingRate: speakingRate || 1,
-    }),
-  });
-  if (!response.ok) {
-    const payload = await response.json();
-    throw new Error(payload.error || "Failed to generate audio");
+  // Diagnostic information
+  console.log("[AZURE TTS] Artifact ID:", artifactId);
+  console.log("[AZURE TTS] Language:", language);
+
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!artifactId || !uuidPattern.test(artifactId)) {
+    throw new Error(
+      `Invalid artifact ID: ${String(artifactId)}. Save the artifact before generating audio.`,
+    );
   }
-  return response.json();
+
+  if (!text.trim()) {
+    throw new Error("Narration text cannot be empty.");
+  }
+
+  const { data, error } = await supabase.functions.invoke(
+    "generate-artifact-audio",
+    {
+      body: {
+        artifactId,
+        language,
+        voiceName: voiceName || undefined,
+        speakingRate: speakingRate ?? 1,
+      },
+    },
+  );
+
+  if (error) {
+    let message = error.message;
+
+    if (error.context instanceof Response) {
+      try {
+        const payload = await error.context.json();
+        message = payload.error || payload.message || message;
+      } catch {
+        // Preserve the original error.
+      }
+    }
+
+    throw new Error(`Azure audio generation failed: ${message}`);
+  }
+
+  if (!data?.success || !data?.audioUrl) {
+    throw new Error(
+      data?.error || "The Edge Function did not return an audio URL.",
+    );
+  }
+
+  return {
+    success: true,
+    audioUrl: data.audioUrl,
+  };
+  
 }
+
 
 export async function upsertArtifactTranslation(
   artifactId: string,

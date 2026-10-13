@@ -188,17 +188,7 @@ export default function Notifications({ navigation }: any) {
           value={prefs.email}
           onChange={v => update('email', v)}
           disabled={loading || saving}
-        />
-        <TogglePreference
-          C={C}
-          icon="chatbubble-outline"
-          title="SMS notifications"
-          description="Urgent visit notices sent by text message"
-          value={prefs.sms}
-          onChange={v => update('sms', v)}
-          disabled={loading || saving}
-          isLast
-        />
+        />  
       </PreferenceCard>
     </SettingsPageShell>
   );

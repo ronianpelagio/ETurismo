@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,10 +13,17 @@ import {
 } from 'react-native';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import {
+  Camera as MapCamera,
+  Map as MapLibreMap,
+  type CameraRef,
+} from '@maplibre/maplibre-react-native';
+import * as Location from 'expo-location';
+import {
   getBarangays,
   getCitiesMunicipalities,
   getProvinces,
   LocationOption,
+  resolvePhilippineLocation,
 } from '../services/philippineLocations';
 
 // ─── World countries (ISO 3166-1 alpha-2) ─────────────────────────────────────
@@ -233,6 +240,165 @@ interface Props {
   value: LocationValue;
   onChange: (value: LocationValue) => void;
   error?: string;
+  onMapVisibilityChange?: (visible: boolean) => void;
+}
+
+type Coordinates = { latitude: number; longitude: number };
+
+function LocationMapModal({
+  visible,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (coordinates: Coordinates) => Promise<void>;
+}) {
+  const camera = useRef<CameraRef>(null);
+  const [coordinates, setCoordinates] = useState<Coordinates>({
+    latitude: 14.5995,
+    longitude: 120.9842,
+  });
+  const [locating, setLocating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const locateCurrentPosition = async () => {
+    setLocating(true);
+    setError('');
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        throw new Error('Allow location access to find your current position.');
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const next = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setCoordinates(next);
+      camera.current?.flyTo({
+        center: [next.longitude, next.latitude],
+        zoom: 15,
+        duration: 700,
+      });
+    } catch (locationError) {
+      setError(
+        locationError instanceof Error
+          ? locationError.message
+          : 'Could not find your current position. Try moving the map instead.',
+      );
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  const confirmPosition = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await onSelect(coordinates);
+      onClose();
+    } catch (selectionError) {
+      setError(
+        selectionError instanceof Error
+          ? selectionError.message
+          : 'Could not identify this location. Move the map and try again.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.mapModal}>
+        <View style={styles.mapHeader}>
+          <View style={styles.mapHeaderCopy}>
+            <Text style={styles.modalEyebrow}>PICK YOUR LOCATION</Text>
+            <Text style={styles.modalTitle}>Move the map pin</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close map"
+          >
+            <Icon name="close" size={22} color="#191611" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.mapWrap}>
+          <MapLibreMap
+            style={StyleSheet.absoluteFill}
+            mapStyle="https://tiles.openfreemap.org/styles/liberty"
+            attribution={false}
+            logo={false}
+            onRegionDidChange={event => {
+              const [longitude, latitude] = event.nativeEvent.center;
+              setCoordinates({ latitude, longitude });
+            }}
+          >
+            <MapCamera
+              ref={camera}
+              initialViewState={{
+                center: [coordinates.longitude, coordinates.latitude],
+                zoom: 12,
+              }}
+            />
+          </MapLibreMap>
+          <View pointerEvents="none" style={styles.centerPin}>
+            <Icon name="location" size={42} color="#B63B32" />
+          </View>
+          <TouchableOpacity
+            style={styles.locateButton}
+            onPress={locateCurrentPosition}
+            disabled={locating}
+            accessibilityRole="button"
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color="#191611" />
+            ) : (
+              <Icon name="locate" size={18} color="#191611" />
+            )}
+            <Text style={styles.locateButtonText}>
+              {locating ? 'Locating…' : 'Use my location'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.mapFooter}>
+          <Text style={styles.mapHint}>
+            Drag the map until the pin is over your home. We’ll fill in the nearby address.
+          </Text>
+          {error ? (
+            <View style={styles.mapError}>
+              <Icon name="alert-circle-outline" size={15} color="#B63B32" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={[styles.mapConfirmButton, saving && styles.mapConfirmDisabled]}
+            onPress={confirmPosition}
+            disabled={saving}
+            accessibilityRole="button"
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Icon name="checkmark" size={18} color="#FFFFFF" />
+            )}
+            <Text style={styles.mapConfirmText}>
+              {saving ? 'Finding address…' : 'Use this location'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
 }
 
 // ─── Country picker modal ─────────────────────────────────────────────────────
@@ -368,8 +534,9 @@ function SelectField({
 }
 
 // ─── Main LocationFields component ───────────────────────────────────────────
-export function LocationFields({ value, onChange, error }: Props) {
+export function LocationFields({ value, onChange, error, onMapVisibilityChange }: Props) {
   const [countryOpen, setCountryOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const [provinces, setProvinces]     = useState<LocationOption[]>([]);
   const [cities, setCities]           = useState<LocationOption[]>([]);
   const [barangays, setBarangays]     = useState<LocationOption[]>([]);
@@ -392,7 +559,11 @@ export function LocationFields({ value, onChange, error }: Props) {
   }, [isPH, retry]);
 
   useEffect(() => {
-    if (!value.province) return;
+    if (!value.province) {
+      setCities([]);
+      setBarangays([]);
+      return;
+    }
     let active = true;
     setCities([]);
     setLoading(p => ({ ...p, cities: true }));
@@ -405,7 +576,10 @@ export function LocationFields({ value, onChange, error }: Props) {
   }, [value.province, retry]);
 
   useEffect(() => {
-    if (!value.city) return;
+    if (!value.city) {
+      setBarangays([]);
+      return;
+    }
     let active = true;
     setBarangays([]);
     setLoading(p => ({ ...p, barangays: true }));
@@ -418,8 +592,65 @@ export function LocationFields({ value, onChange, error }: Props) {
   }, [value.city, retry]);
 
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
+  const openMap = () => {
+    setMapOpen(true);
+    onMapVisibilityChange?.(true);
+  };
+  const closeMap = () => {
+    setMapOpen(false);
+    onMapVisibilityChange?.(false);
+  };
 
   const selectedCountryName = value.country || 'Select country';
+  const selectedLocation = [
+    value.addressLine,
+    value.barangay?.name,
+    value.city?.name || value.cityText,
+    value.province?.name || value.stateRegion,
+  ].filter(Boolean).join(', ');
+
+  const applyMapLocation = async ({ latitude, longitude }: Coordinates) => {
+    let [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+    if (!place?.country) {
+      throw new Error('No address details were found here. Move the map and try again.');
+    }
+
+    const countryCode = place.isoCountryCode?.toUpperCase()
+      ?? WORLD_COUNTRIES.find(item => item.name.toLowerCase() === place.country?.toLowerCase())?.code
+      ?? '';
+    const country = WORLD_COUNTRIES.find(item => item.code === countryCode)?.name
+      ?? place.country;
+    const isPhilippines = countryCode === 'PH';
+    const street = [place.streetNumber, place.street].filter(Boolean).join(' ');
+    const addressLine = street || place.name || '';
+    const philippineLocation = isPhilippines
+      ? await resolvePhilippineLocation(
+          [place.subregion, place.region, place.district, place.city].filter(
+            (name): name is string => Boolean(name),
+          ),
+          [place.city, place.district, place.subregion, place.name].filter(
+            (name): name is string => Boolean(name),
+          ),
+        )
+      : null;
+
+    if (isPhilippines && !philippineLocation) {
+      throw new Error(
+        'Could not match this location to a Philippine city or municipality. Move the map pin or select your location manually.',
+      );
+    }
+
+    onChange({
+      countryCode,
+      country,
+      province: philippineLocation?.province ?? null,
+      city: philippineLocation?.city ?? null,
+      barangay: null,
+      stateRegion: isPhilippines ? '' : place.subregion || place.region || '',
+      cityText: isPhilippines ? '' : place.city || place.district || '',
+      addressLine,
+    });
+  };
 
   return (
     <View style={styles.section}>
@@ -430,6 +661,30 @@ export function LocationFields({ value, onChange, error }: Props) {
           <Text style={styles.sectionDescription}>Used to personalise nearby heritage content.</Text>
         </View>
       </View>
+
+      <View style={styles.mapShortcut}>
+        <View style={styles.mapShortcutCopy}>
+          <Text style={styles.mapShortcutTitle}>FIND YOUR ADDRESS</Text>
+          <Text style={styles.mapShortcutSummary} numberOfLines={2}>
+            {selectedLocation || 'Choose a spot on the map to fill this in'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.mapShortcutButton}
+          onPress={openMap}
+          accessibilityRole="button"
+          accessibilityLabel="Choose location on map"
+        >
+          <Icon name="map-outline" size={17} color="#FFFFFF" />
+          <Text style={styles.mapShortcutButtonText}>Map</Text>
+        </TouchableOpacity>
+      </View>
+
+      <LocationMapModal
+        visible={mapOpen}
+        onClose={closeMap}
+        onSelect={applyMapLocation}
+      />
 
       {/* Country selector */}
       <View style={styles.field}>
@@ -555,6 +810,12 @@ const styles = StyleSheet.create({
   sectionCopy:        { flex: 1 },
   sectionTitle:       { color: '#191611', fontSize: 13, fontWeight: '800' },
   sectionDescription: { color: '#6E665B', fontSize: 10, lineHeight: 15, marginTop: 2 },
+  mapShortcut:        { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, marginBottom: 13, borderRadius: 12, borderWidth: 1, borderColor: '#E8D9B8', backgroundColor: '#F8F1E3' },
+  mapShortcutCopy:    { flex: 1 },
+  mapShortcutTitle:   { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  mapShortcutSummary: { color: '#302A22', fontSize: 12, lineHeight: 16, marginTop: 4 },
+  mapShortcutButton:  { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#B99345' },
+  mapShortcutButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   field:              { marginBottom: 10 },
   label:              { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1.1, marginBottom: 6 },
   select:             { minHeight: 47, borderWidth: 1.3, borderColor: '#E5DED2', borderRadius: 10, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 9 },
@@ -577,4 +838,17 @@ const styles = StyleSheet.create({
   option:        { minHeight: 54, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5DED2', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   optionText:    { flex: 1, color: '#302A22', fontSize: 15, fontWeight: '600' },
   empty:         { color: '#6E665B', textAlign: 'center', marginTop: 40 },
+  mapModal:      { flex: 1, backgroundColor: '#F7F4EF' },
+  mapHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 13 },
+  mapHeaderCopy: { flex: 1 },
+  mapWrap:       { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: '#E9E6DF' },
+  centerPin:     { position: 'absolute', left: '50%', top: '50%', marginLeft: -21, marginTop: -42, shadowColor: '#000', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 5 },
+  locateButton:  { position: 'absolute', right: 14, bottom: 16, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 13, borderRadius: 22, backgroundColor: '#FFFFFF', elevation: 3 },
+  locateButtonText: { color: '#191611', fontSize: 12, fontWeight: '700' },
+  mapFooter:     { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14 },
+  mapHint:       { color: '#6E665B', fontSize: 12, lineHeight: 17 },
+  mapError:      { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  mapConfirmButton: { minHeight: 49, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 13, borderRadius: 12, backgroundColor: '#B99345' },
+  mapConfirmDisabled: { opacity: 0.65 },
+  mapConfirmText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

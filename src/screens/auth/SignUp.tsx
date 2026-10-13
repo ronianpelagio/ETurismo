@@ -63,6 +63,7 @@ function Field({
   secure = false,
   showToggle = false,
   error,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -73,6 +74,7 @@ function Field({
   secure?: boolean;
   showToggle?: boolean;
   error?: string;
+  maxLength?: number;
 }) {
   const [show, setShow] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -106,6 +108,7 @@ function Field({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
+          maxLength={maxLength}
           secureTextEntry={secure && !show}
           onFocus={() => animBorder(1)}
           onBlur={() => animBorder(0)}
@@ -554,8 +557,8 @@ export default function SignUp({
     } else {
       const n = parseInt(age, 10);
 
-      if (isNaN(n) || n < 1 || n > 120) {
-        e.age = 'Enter a valid age';
+      if (isNaN(n) || n < 1 || n > 100) {
+        e.age = 'Age must be between 1 and 100';
       }
     }
 
@@ -570,7 +573,11 @@ export default function SignUp({
     if (!location.countryCode) {
       e.location = 'Select your country';
     } else if (location.countryCode === 'PH') {
-      if (!location.province || !location.city || !location.barangay) {
+      if (
+        !location.province ||
+        !location.city ||
+        !location.barangay
+      ) {
         e.location = 'Select province, city/municipality, and barangay';
       }
     } else {
@@ -680,13 +687,20 @@ export default function SignUp({
         profileUpdate.profile_picture = googleAvatarUrl;
       }
 
-      const { error } = await supabase
+      const { data: updatedProfile, error } = await supabase
         .from('users')
         .update(profileUpdate)
-        .eq('id', authUser.id);
+        .eq('id', authUser.id)
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         throw error;
+      }
+      if (!updatedProfile) {
+        throw new Error(
+          'Your profile could not be found. Please sign in again or contact support.',
+        );
       }
 
       // Clean up the cached prefill now that it's been used
@@ -976,6 +990,7 @@ export default function SignUp({
                       }}
                       placeholder="Age"
                       keyboardType="numeric"
+                      maxLength={3}
                       error={errors.age}
                     />
                   </View>

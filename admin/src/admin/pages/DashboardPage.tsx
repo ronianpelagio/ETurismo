@@ -829,15 +829,18 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 Recent feedback
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex min-h-0 flex-col">
               {loading ? (
-                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-[320px] w-full rounded-xl" />
               ) : feedbackStats.recentFeedback.length === 0 ? (
                 <p className="py-6 text-center text-xs text-muted-foreground">
                   No feedback yet
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div
+                  className="max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1"
+                  aria-label="Recent feedback submissions"
+                >
                   {feedbackStats.recentFeedback.map((fb) => (
                     <div
                       key={fb.id}

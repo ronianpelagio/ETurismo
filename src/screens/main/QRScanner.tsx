@@ -1103,10 +1103,11 @@ export default function QRScanner({
   const [artifact, setArtifact]         = useState<Artifact | null>(null);
   const [scanError, setScanError]       = useState<string | null>(null);
   const [scannedArtifacts, setScannedArtifacts] = useState<Artifact[]>([]);
+  const [scannedArtifactsLoaded, setScannedArtifactsLoaded] = useState(false);
   const [toast, setToast]               = useState<string | null>(null);
   // ── Artifact rating ─────────────────────────────────────────────────────────
   // Holds the artifact that was just dismissed so we can prompt a rating.
-  // Set to null when "Scan Another" is tapped (skip the rating prompt in that case).
+  // Tour feedback takes priority once the visitor has scanned enough artifacts.
   const [pendingRatingArtifact, setPendingRatingArtifact] = useState<Artifact | null>(null);
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1122,12 +1123,10 @@ export default function QRScanner({
   // True once we confirm this user already submitted feedback (checked on mount)
   const [alreadySubmittedFeedback, setAlreadySubmittedFeedback] = useState(false);
   const alreadySubmittedFeedbackRef = useRef(false);
-  // Incremented each time a scan completes the tour — drives the feedback effect
-  const [tourCompletedCount, setTourCompletedCount] = useState(0);
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
-    if (isActive && !artifact && !pendingRatingArtifact) {
+    if (isActive && scannedArtifactsLoaded && !artifact && !pendingRatingArtifact && !showFeedback) {
       if (inCooldown.current) return; // still in cooldown — don't re-enable yet
       // Small delay so the swipe animation finishes before camera activates
       const t = setTimeout(() => {
@@ -1141,12 +1140,12 @@ export default function QRScanner({
       setCameraActive(false);
       setTorchOn(false);
     }
-  }, [isActive, artifact, pendingRatingArtifact]);
+  }, [isActive, scannedArtifactsLoaded, artifact, pendingRatingArtifact, showFeedback]);
 
-  // Hide navbar when artifact modal OR rating modal is open
+  // Hide navbar while any scanner modal is open
   useEffect(() => {
-    setNavbarVisible?.(!artifact && !pendingRatingArtifact);
-  }, [artifact, pendingRatingArtifact]);
+    setNavbarVisible?.(!artifact && !pendingRatingArtifact && !showFeedback);
+  }, [artifact, pendingRatingArtifact, showFeedback]);
 
   // Load scanned artifacts from storage
   useEffect(() => {
@@ -1154,7 +1153,8 @@ export default function QRScanner({
       .then(stored => {
         if (stored) setScannedArtifacts(JSON.parse(stored));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setScannedArtifactsLoaded(true));
   }, []);
 
   // Fetch total artifact count + check if this user already submitted feedback
@@ -1191,27 +1191,6 @@ export default function QRScanner({
     })();
     return () => { mounted = false; };
   }, [user?.id]);
-
-  // Tour-completion: show feedback when the user reaches the required artifact count.
-  useEffect(() => {
-    if (tourCompletedCount > 0 && !alreadySubmittedFeedback && !showFeedback) {
-      const t = setTimeout(() => setShowFeedback(true), 900);
-      return () => clearTimeout(t);
-    }
-  }, [tourCompletedCount]);
-
-  // Check tour completion whenever scannedArtifacts settle —
-  // users only need to scan 3 artifacts to unlock the feedback prompt.
-  useEffect(() => {
-    if (
-      scannedArtifacts.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD &&
-      !alreadySubmittedFeedback &&
-      !showFeedback
-    ) {
-      const t = setTimeout(() => setShowFeedback(true), 800);
-      return () => clearTimeout(t);
-    }
-  }, [scannedArtifacts.length, alreadySubmittedFeedback, showFeedback]);
 
   // Pulse animation loop
   useEffect(() => {
@@ -1284,16 +1263,11 @@ export default function QRScanner({
       setCameraActive(false);
       setArtifact(result); // ← modal opens immediately
 
-      // Persist to scan history and check for tour completion
+      // Persist this unique artifact in scan history.
       setScannedArtifacts(prev => {
         if (prev.find(a => a.id === result.id)) return prev;
         const updated = [...prev, result];
         AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
-        // Mark tour as just completed once the user reaches the feedback threshold.
-        if (updated.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD && !alreadySubmittedFeedbackRef.current) {
-          // Schedule outside the updater so it doesn't conflict with React state batching
-          setTimeout(() => setTourCompletedCount(c => c + 1), 0);
-        }
         return updated;
       });
     } catch (e: any) {
@@ -1305,8 +1279,8 @@ export default function QRScanner({
     }
   };
 
-  // Both dismiss paths (X/backdrop AND "Scan Another") show the rating modal,
-  // UNLESS the user already rated this artifact — in that case go straight to cooldown.
+  // Dismissing details unlocks tour feedback at the threshold; otherwise show the
+  // artifact rating prompt unless the user has already rated this artifact.
   // scanAgain drives the cooldown length after the rating is done/skipped:
   //   scanAgain=true  → 1s cooldown
   //   scanAgain=false → 5s cooldown
@@ -1319,6 +1293,14 @@ export default function QRScanner({
     setScanError(null);
 
     if (!closedArtifact) return;
+
+    if (
+      scannedArtifacts.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD &&
+      !alreadySubmittedFeedbackRef.current
+    ) {
+      setShowFeedback(true);
+      return;
+    }
 
     // Check whether this user has already rated this artifact.
     // If yes — skip the modal and go straight to cooldown.

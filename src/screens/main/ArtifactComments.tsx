@@ -11,7 +11,8 @@ import {
   Animated,
   Image,
   ScrollView,
-  Keyboard,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -173,6 +174,183 @@ function Avi({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// User Profile Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ProfileData {
+  id: string;
+  first_name: string;
+  last_name: string;
+  profile_picture: string | null;
+  country: string | null;
+  province: string | null;
+  city: string | null;
+  barangay: string | null;
+  Address: string | null;
+}
+
+function UserProfileModal({
+  userId,
+  visible,
+  onClose,
+}: {
+  userId: string | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [explorationCount, setExplorationCount] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  // Animate in/out
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 70, friction: 12 }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 300, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  // Fetch profile + exploration count when userId changes
+  useEffect(() => {
+    if (!userId || !visible) return;
+
+    setLoading(true);
+    setProfile(null);
+    setExplorationCount(0);
+
+    (async () => {
+      try {
+        const [{ data: profileData }, { count }] = await Promise.all([
+          supabase
+            .from('users')
+            .select('id, first_name, last_name, profile_picture, country, province, city, barangay, Address')
+            .eq('id', userId)
+            .maybeSingle(),
+          supabase
+            .from('artifact_ratings')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId),
+        ]);
+
+        setProfile(profileData ?? null);
+        setExplorationCount(count ?? 0);
+      } catch (e: any) {
+        console.warn('[UserProfileModal] fetch error:', e?.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [userId, visible]);
+
+  if (!visible && !profile) return null;
+
+  const fullName = profile
+    ? `${profile.first_name} ${profile.last_name}`.trim() || 'Visitor'
+    : '';
+
+  // Build a readable location string (no email, no address details)
+  const locationParts: string[] = [];
+  if (profile?.barangay)  locationParts.push(profile.barangay);
+  if (profile?.city)      locationParts.push(profile.city);
+  if (profile?.province)  locationParts.push(profile.province);
+  if (profile?.country)   locationParts.push(profile.country);
+  const locationText = locationParts.join(', ') || null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Animated.View style={[SP.backdrop, { opacity: fadeAnim }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+
+        <Animated.View style={[SP.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          {/* Handle */}
+          <View style={SP.handle} />
+
+          {/* Close button */}
+          <TouchableOpacity style={SP.closeBtn} onPress={onClose} activeOpacity={0.7}>
+            <Ionicons name="close" size={18} color="#6E665B" />
+          </TouchableOpacity>
+
+          {loading ? (
+            <View style={SP.center}>
+              <ActivityIndicator size="large" color="#B99345" />
+              <Text style={SP.loadingText}>Loading profile…</Text>
+            </View>
+          ) : profile ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={SP.scrollContent}
+              bounces={false}
+            >
+              {/* Avatar */}
+              <View style={SP.avatarWrap}>
+                {profile.profile_picture ? (
+                  <Image source={{ uri: profile.profile_picture }} style={SP.avatar} />
+                ) : (
+                  <View style={[SP.avatarFallback, { backgroundColor: avatarBg(profile.id) }]}>
+                    <Text style={[SP.avatarInitials, { color: avatarFg(profile.id) }]}>
+                      {((profile.first_name?.[0] ?? '') + (profile.last_name?.[0] ?? '')).toUpperCase() || 'V'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Name */}
+              <Text style={SP.name}>{fullName}</Text>
+
+              {/* Location */}
+              {locationText ? (
+                <View style={SP.locationRow}>
+                  <Ionicons name="location-outline" size={14} color="#B99345" />
+                  <Text style={SP.locationText}>{locationText}</Text>
+                </View>
+              ) : (
+                <Text style={SP.noLocation}>Location not set</Text>
+              )}
+
+              {/* Divider */}
+              <View style={SP.divider} />
+
+              {/* Exploration stat */}
+              <View style={SP.statCard}>
+                <View style={SP.statIconWrap}>
+                  <Ionicons name="scan-outline" size={22} color="#B99345" />
+                </View>
+                <View style={SP.statText}>
+                  <Text style={SP.statValue}>{explorationCount}</Text>
+                  <Text style={SP.statLabel}>
+                    {explorationCount === 1 ? 'Artifact Explored' : 'Artifacts Explored'}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          ) : (
+            <View style={SP.center}>
+              <Ionicons name="person-outline" size={36} color="#B99345" />
+              <Text style={SP.loadingText}>Profile not available</Text>
+            </View>
+          )}
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Comment Row
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -182,6 +360,7 @@ function CommentRow({
   onReply,
   onLike,
   onDelete,
+  onPressUser,
   isReply = false,
   C,
   fontScale,
@@ -191,6 +370,7 @@ function CommentRow({
   onReply: (c: ArtifactComment) => void;
   onLike: (c: ArtifactComment) => void;
   onDelete: (c: ArtifactComment) => void;
+  onPressUser: (userId: string) => void;
   isReply?: boolean;
   C: any;
   fontScale: number;
@@ -201,7 +381,7 @@ function CommentRow({
 
   const fullName =
     `${comment.user.first_name} ${comment.user.last_name}`.trim() ||
-    'Unknown User';
+    'Visitor';
 
   const gold = C.gold ?? '#B99345';
   const ink = C.ink ?? '#191611';
@@ -234,12 +414,19 @@ function CommentRow({
 
   return (
     <View style={[S.commentRow, isReply && S.replyRow]}>
-      {/* Avatar */}
+      {/* Avatar — tappable to open profile */}
       <View style={S.avatarColumn}>
-        <Avi
-          user={comment.user}
-          size={isReply ? 32 : 38}
-        />
+        <TouchableOpacity
+          onPress={() => onPressUser(comment.user_id)}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${fullName}'s profile`}
+        >
+          <Avi
+            user={comment.user}
+            size={isReply ? 32 : 38}
+          />
+        </TouchableOpacity>
 
         {isReply && (
           <View
@@ -266,18 +453,23 @@ function CommentRow({
           {/* Name + time */}
           <View style={S.commentHeader}>
             <View style={S.nameContainer}>
-              <Text
-                numberOfLines={1}
-                style={[
-                  S.userName,
-                  {
-                    color: ink,
-                    fontSize: 12.5 * fontScale,
-                  },
-                ]}
+              <TouchableOpacity
+                onPress={() => onPressUser(comment.user_id)}
+                activeOpacity={0.7}
               >
-                {fullName}
-              </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    S.userName,
+                    {
+                      color: ink,
+                      fontSize: 12.5 * fontScale,
+                    },
+                  ]}
+                >
+                  {fullName}
+                </Text>
+              </TouchableOpacity>
 
               {isOwn && (
                 <View
@@ -487,14 +679,32 @@ export default function ArtifactComments({
   const [replyTo, setReplyTo] =
     useState<ArtifactComment | null>(null);
 
+  // Profile modal state
+  const [profileUserId, setProfileUserId] =
+    useState<string | null>(null);
+
   const inputRef =
     useRef<TextInput>(null);
 
   const scrollRef =
     useRef<ScrollView>(null);
 
-  // Keyboard height — used to push the input row above the keyboard inside a modal
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Ref attached to the composer View so we can scroll it into view
+  const composerRef = useRef<View>(null);
+
+  // Scroll the outer modal ScrollView so the composer is fully visible above the keyboard
+  const scrollToComposer = useCallback(() => {
+    composerRef.current?.measureLayout(
+      scrollRef.current as any,
+      (_x, y) => {
+        scrollRef.current?.scrollTo({ y: y - 12, animated: true });
+      },
+      () => {
+        // fallback — scroll to end
+        scrollRef.current?.scrollToEnd({ animated: true });
+      },
+    );
+  }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Theme
@@ -574,12 +784,12 @@ export default function ArtifactComments({
         );
       }
 
-      const fallback: CommentUser = {
-        id: '',
-        first_name: 'Unknown',
+      const fallback = (userId: string): CommentUser => ({
+        id: userId,           // use the real user_id so avatar gets a deterministic colour
+        first_name: 'Visitor',
         last_name: '',
         profile_picture: null,
-      };
+      });
 
       const nested: ArtifactComment[] = rows
         .filter((r: any) => !r.parent_id)
@@ -588,7 +798,7 @@ export default function ArtifactComments({
 
           user:
             uMap.get(r.user_id) ??
-            fallback,
+            fallback(r.user_id),
 
           liked_by_me:
             likedSet.has(r.id),
@@ -603,7 +813,7 @@ export default function ArtifactComments({
 
               user:
                 uMap.get(reply.user_id) ??
-                fallback,
+                fallback(reply.user_id),
 
               liked_by_me:
                 likedSet.has(reply.id),
@@ -626,24 +836,6 @@ export default function ArtifactComments({
   useEffect(() => {
     load();
   }, [load]);
-
-  // ── Keyboard listener — push input above keyboard inside modal ──────────────
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Post comment
@@ -1054,10 +1246,12 @@ export default function ArtifactComments({
 
                       setTimeout(() => {
                         inputRef.current?.focus();
+                        scrollToComposer();
                       }, 120);
                     }}
                     onLike={like}
                     onDelete={del}
+                    onPressUser={(uid) => setProfileUserId(uid)}
                     C={C}
                     fontScale={
                       fontScale
@@ -1094,6 +1288,7 @@ export default function ArtifactComments({
                               setTimeout(
                                 () => {
                                   inputRef.current?.focus();
+                                  scrollToComposer();
                                 },
                                 120
                               );
@@ -1102,6 +1297,7 @@ export default function ArtifactComments({
                             onDelete={
                               del
                             }
+                            onPressUser={(uid) => setProfileUserId(uid)}
                             isReply
                             C={C}
                             fontScale={
@@ -1124,6 +1320,7 @@ export default function ArtifactComments({
       ───────────────────────────────────────────────────────────────────── */}
 
       <View
+        ref={composerRef}
         style={[
           S.composer,
           {
@@ -1213,7 +1410,7 @@ export default function ArtifactComments({
           </View>
         )}
 
-        <View style={[S.inputRow, { paddingBottom: keyboardHeight }]}>
+        <View style={S.inputRow}>
           {/* User avatar */}
           {currentUser ? (
             <Avi
@@ -1282,6 +1479,9 @@ export default function ArtifactComments({
                 multiline
                 maxLength={500}
                 returnKeyType="default"
+                onFocus={() => {
+                  setTimeout(scrollToComposer, 300);
+                }}
               />
 
               {text.length > 0 && (
@@ -1379,6 +1579,15 @@ export default function ArtifactComments({
           )}
         </View>
       </View>
+
+      {/* ─────────────────────────────────────────────────────────────────────
+          User Profile Modal
+      ───────────────────────────────────────────────────────────────────── */}
+      <UserProfileModal
+        userId={profileUserId}
+        visible={profileUserId !== null}
+        onClose={() => setProfileUserId(null)}
+      />
     </View>
   );
 }
@@ -1777,5 +1986,186 @@ const S = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UserProfileModal Styles
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SP = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(10,8,6,0.55)',
+    justifyContent: 'flex-end',
+  },
+
+  sheet: {
+    backgroundColor: '#FFFDF9',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    minHeight: 320,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 20,
+    elevation: 16,
+  },
+
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D8D2C8',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+
+  closeBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0EDE8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  scrollContent: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+
+  avatarWrap: {
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  avatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: '#B99345',
+  },
+
+  avatarFallback: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#B99345',
+  },
+
+  avatarInitials: {
+    fontSize: 32,
+    fontWeight: '900',
+  },
+
+  name: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#191611',
+    letterSpacing: -0.4,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
+
+  locationText: {
+    fontSize: 13,
+    color: '#6E665B',
+    fontWeight: '500',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+
+  noLocation: {
+    fontSize: 12,
+    color: '#A59C90',
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+
+  divider: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5DED2',
+    marginVertical: 18,
+  },
+
+  statCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#F7EEDC',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#E3D3B1',
+  },
+
+  statIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FFF8EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E3D3B1',
+  },
+
+  statText: {
+    flex: 1,
+  },
+
+  statValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#191611',
+    lineHeight: 32,
+    letterSpacing: -0.5,
+  },
+
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6E665B',
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+
+  loadingText: {
+    fontSize: 13,
+    color: '#A59C90',
+    fontWeight: '500',
   },
 });

@@ -11,7 +11,7 @@
       "fallbackToCacheTimeout": 0
     },
     "orientation": "portrait",
-    "icon": "./src/assets/icon.png",
+    "icon": "./src/assets/app-icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "com.ronian.eturismo",
     "ios": {
@@ -56,7 +56,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/icon.png",
+          "image": "./src/assets/app-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
@@ -95,7 +95,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/icon.png",
+          "icon": "./src/assets/app-icon.png",
           "color": "#C9A84C",
           "sounds": [],
           "androidMode": "default",

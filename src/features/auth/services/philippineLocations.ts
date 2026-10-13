@@ -47,6 +47,50 @@ export async function getProvinces(): Promise<LocationOption[]> {
   return [metroManila, ...provinces].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeLocationName(name: string): string {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/^(city|municipality|province) of /, '')
+    .replace(/ (city|municipality|province)$/, '')
+    .replace(/[^a-z0-9]/g, '');
+
+  return normalized === 'nationalcapitalregion' || normalized === 'ncr'
+    ? 'metromanila'
+    : normalized;
+}
+
+function findLocationOption(
+  options: LocationOption[],
+  names: string[],
+): LocationOption | undefined {
+  for (const name of names) {
+    if (!name) continue;
+    const normalizedName = normalizeLocationName(name);
+    const match = options.find(
+      option => normalizeLocationName(option.name) === normalizedName,
+    );
+    if (match) return match;
+  }
+
+  return undefined;
+}
+
+export async function resolvePhilippineLocation(
+  provinceNames: string[],
+  cityNames: string[],
+): Promise<{ province: LocationOption; city: LocationOption } | null> {
+  const province = findLocationOption(await getProvinces(), provinceNames);
+  if (!province) return null;
+
+  const city = findLocationOption(
+    await getCitiesMunicipalities(province.code),
+    cityNames,
+  );
+  return city ? { province, city } : null;
+}
+
 export function getCitiesMunicipalities(provinceCode: string) {
   if (provinceCode === 'NCR') {
     return fetchOptions('/regions/1300000000/cities-municipalities');

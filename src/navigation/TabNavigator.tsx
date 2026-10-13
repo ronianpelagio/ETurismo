@@ -10,6 +10,7 @@ import {
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../context/ThemeContext';
 import { AppTheme } from '../constants/themes';
@@ -94,6 +95,7 @@ export default function TabNavigator() {
 
   const [index, setIndex] = useState(0);
   const [navbarVisible, setNavbarVisible] = useState(true);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const effectiveNavbarVisible = navbarVisible;
 
@@ -115,6 +117,8 @@ export default function TabNavigator() {
   // NAVIGATION
   // ─────────────────────────────
   const goToPage = async (i: number) => {
+    if (mapOpen) return;
+
     pagerRef.current?.setPage(i);
     setIndex(i);
 
@@ -127,14 +131,17 @@ export default function TabNavigator() {
             ref={pagerRef}
             style={{ flex: 1 }}
             initialPage={0}
+            scrollEnabled={!mapOpen}
             onPageSelected={(e) => setIndex(e.nativeEvent.position)}
           >
-            <View key="0"><Home setNavbarVisible={setNavbarVisible} onOpenScanner={() => goToPage(2)} onGoAnnouncements={() => goToPage(1)} onGoEvents={() => goToPage(3)} /></View>
+            <View key="0"><Home setNavbarVisible={setNavbarVisible} onOpenScanner={() => goToPage(2)} onGoAnnouncements={() => goToPage(1)} onGoEvents={() => goToPage(3)} onMapVisibilityChange={setMapOpen} /></View>
             <View key="1"><Announcements setNavbarVisible={setNavbarVisible} /></View>
             <View key="2"><QRScanner setNavbarVisible={setNavbarVisible} isActive={index === 2} /></View>
             <View key="3"><Events setNavbarVisible={setNavbarVisible} /></View>
-            <View key="4"><SettingsStack setNavbarVisible={setNavbarVisible} /></View>
+            <View key="4"><SettingsStack setNavbarVisible={setNavbarVisible} onMapVisibilityChange={setMapOpen} /></View>
           </PagerView>
+
+          {index !== 0 && <StatusBar style="dark" />}
 
           <Animated.View
             pointerEvents={effectiveNavbarVisible ? 'auto' : 'none'}

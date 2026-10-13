@@ -19,7 +19,13 @@ import { supabase } from '../../../services/supabase';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { LocationFields, LocationValue } from '../../../features/auth/components/LocationFields';
 
-export default function PersonalInfo({ navigation }: any) {
+export default function PersonalInfo({
+  navigation,
+  onMapVisibilityChange,
+}: {
+  navigation: any;
+  onMapVisibilityChange?: (visible: boolean) => void;
+}) {
   const { theme } = useAppTheme();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -176,7 +182,11 @@ export default function PersonalInfo({ navigation }: any) {
               <EditField label="First name" value={firstName} onChangeText={setFirstName} colors={colors} autoFocus />
               <EditField label="Last name" value={lastName} onChangeText={setLastName} colors={colors} />
               <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>LOCATION</Text>
-              <LocationFields value={location} onChange={setLocation} />
+              <LocationFields
+                value={location}
+                onChange={setLocation}
+                onMapVisibilityChange={onMapVisibilityChange}
+              />
               <EditField label="Email address" value={profile?.email || ''} colors={colors} editable={false} />
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                 <TouchableOpacity onPress={closeEditor} disabled={saving} style={{ flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>

@@ -4,20 +4,21 @@ import {
   FlatList, Image, Animated, Dimensions,
   ActivityIndicator, TextInput,
   ImageBackground, Easing, Share, Alert, LayoutChangeEvent,
-  StyleSheet, AppState,
+  StyleSheet, AppState, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MapLibreGL, {
+import {
   Map as MapLibreMap,
   Camera as MapLibreCamera,
   Marker as MapLibreMarker,
   GeoJSONSource,
   Layer,
   UserLocation as MapLibreUserLocation,
+  type CameraRef,
 } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { Asset } from 'expo-asset';
@@ -1028,12 +1029,13 @@ function LoadingDot({ delay }: { delay: number }) {
 //                 state is re-read right after the user returns from the scanner.
 // onOpenScanner → called by "Scan to Discover"; the parent must switch to the
 //                 existing QR Scanner tab/screen.
-export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, onGoAnnouncements, onGoEvents }: {
+export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, onGoAnnouncements, onGoEvents, onMapVisibilityChange }: {
   setNavbarVisible?: (visible: boolean) => void;
   isActive?: boolean;
   onOpenScanner?: () => void;
   onGoAnnouncements?: () => void;
   onGoEvents?: () => void;
+  onMapVisibilityChange?: (visible: boolean) => void;
 }) {
   const { theme } = useAppTheme();
   C = buildC(theme);
@@ -1168,7 +1170,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const mapModalSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const mapModalOpacity = useRef(new Animated.Value(0)).current;
-  const mapRef = useRef<MapLibreMap>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
   const lastScrollY = useRef(0);
@@ -1716,8 +1718,22 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   }
 
   // ── Map helpers ──
+  function fitMapToPoints(
+    points: Array<{ latitude: number; longitude: number }>,
+    padding: { top: number; right: number; bottom: number; left: number },
+    duration = 500,
+  ) {
+    if (!points.length) return;
+    const west = Math.min(...points.map(p => p.longitude));
+    const south = Math.min(...points.map(p => p.latitude));
+    const east = Math.max(...points.map(p => p.longitude));
+    const north = Math.max(...points.map(p => p.latitude));
+    cameraRef.current?.fitBounds([west, south, east, north], { padding, duration });
+  }
+
   function openMapModal() {
     setShowMapModal(true);
+    onMapVisibilityChange?.(true);
     setLocationError(null);
     Animated.parallel([
       Animated.spring(mapModalSlide, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
@@ -1730,6 +1746,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       Animated.timing(mapModalOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start(() => {
       setShowMapModal(false);
+      onMapVisibilityChange?.(false);
       setUserLocation(null);
       setLocationError(null);
       setRouteCoords([]);
@@ -1748,9 +1765,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       setUserLocation(coords);
       setTimeout(() => {
-        mapRef.current?.fitToCoordinates([coords, MUSEUM_LOCATION], {
-          edgePadding: { top: 80, right: 60, bottom: 80, left: 60 }, animated: true,
-        });
+        fitMapToPoints([coords, MUSEUM_LOCATION], { top: 80, right: 60, bottom: 80, left: 60 });
       }, 500);
       // Auto-fetch route once we have the user's location
       await fetchRoute(coords, routeMode);
@@ -1796,10 +1811,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
       // Fit map to route
       setTimeout(() => {
-        mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 60, bottom: 120, left: 60 },
-          animated: true,
-        });
+        fitMapToPoints(coords, { top: 80, right: 60, bottom: 120, left: 60 });
       }, 300);
 
       // Parse turn-by-turn steps
@@ -2371,6 +2383,10 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       {selectedArtifact !== null && (
         <Animated.View style={[styles.modalWrap, { opacity: modalOpacity }]}>
           <TouchableOpacity style={styles.modalBackdrop} onPress={handleModalClose} activeOpacity={1} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={0}
+          >
           <Animated.View style={[styles.modalSheet, { transform: [{ translateY: modalSlide }] }]}>
             <View style={styles.modalHandle} />
             <TouchableOpacity
@@ -2716,6 +2732,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
               {!selectedDiscovered && <View style={{ height: 40 + insets.bottom }} />}
             </ScrollView>
           </Animated.View>
+          </KeyboardAvoidingView>
         </Animated.View>
       )}
 
@@ -3023,26 +3040,26 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
             {/* ── Map ── */}
             <View style={{ flex: 1, position: 'relative' }}>
               <MapLibreMap
-                ref={mapRef}
                 style={styles.mapView}
                 mapStyle="https://tiles.openfreemap.org/styles/liberty"
-                attributionEnabled={false}
-                logoEnabled={false}
+                attribution={false}
+                logo={false}
               >
                 {/* Camera — controls the initial viewport */}
                 <MapLibreCamera
-                  defaultSettings={{
-                    centerCoordinate: [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
-                    zoomLevel: 13,
+                  ref={cameraRef}
+                  initialViewState={{
+                    center: [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
+                    zoom: 13,
                   }}
                 />
 
                 {/* User's live location dot */}
-                {!!userLocation && <MapLibreUserLocation visible renderMode="normal" />}
+                {!!userLocation && <MapLibreUserLocation />}
 
                 {/* Museum marker */}
                 <MapLibreMarker
-                  coordinate={[MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude]}
+                  lngLat={[MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude]}
                 >
                   <View style={{
                     width: 36, height: 36, borderRadius: 18,
@@ -3059,7 +3076,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                 {/* User marker (static pin, shown in addition to UserLocation dot) */}
                 {userLocation && (
                   <MapLibreMarker
-                    coordinate={[userLocation.longitude, userLocation.latitude]}
+                    lngLat={[userLocation.longitude, userLocation.latitude]}
                   >
                     <View style={{
                       width: 32, height: 32, borderRadius: 16,
@@ -3078,7 +3095,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                 {routeCoords.length > 1 && (
                   <GeoJSONSource
                     id="route"
-                    shape={{
+                    data={{
                       type: 'Feature',
                       geometry: {
                         type: 'LineString',
@@ -3104,7 +3121,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                 {userLocation && routeCoords.length === 0 && !routeLoading && (
                   <GeoJSONSource
                     id="fallback-line"
-                    shape={{
+                    data={{
                       type: 'Feature',
                       geometry: {
                         type: 'LineString',

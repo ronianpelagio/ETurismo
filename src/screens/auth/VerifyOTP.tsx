@@ -7,8 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withSpring, withTiming,
-  withSequence, FadeIn, FadeOut, ZoomIn, SlideInDown,
+  useSharedValue, useAnimatedStyle, withSpring, withSequence,
+  FadeIn, FadeOut, ZoomIn, SlideInDown,
 } from 'react-native-reanimated';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
@@ -38,7 +38,7 @@ type Status =
   | 'verifying'
   | 'success'
   | 'expired'
-  | 'invalid'        // wrong code — shake + red, clears after 1.5 s
+  | 'invalid'        // wrong code — red highlight, clears after 1.5 s
   | 'locked'         // ≥ MAX_ATTEMPTS wrong codes — wait for expiry
   | 'profile_error';
 
@@ -79,7 +79,10 @@ function OtpBox({ digit, focused, hasError, locked }: {
 
   useEffect(() => {
     if (digit && !hasError && !locked) {
-      scale.value = withSequence(withSpring(1.15), withSpring(1));
+      scale.value = withSequence(
+        withSpring(1.08, { damping: 10, stiffness: 300 }), 
+        withSpring(1, { damping: 12, stiffness: 250 })
+      );
     }
   }, [digit]);
 
@@ -108,8 +111,8 @@ function OtpBox({ digit, focused, hasError, locked }: {
 // ─── Success overlay ──────────────────────────────────────────────────────────
 function SuccessScreen({ onContinue }: { onContinue: () => void }) {
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={styles.overlay}>
-      <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.successCard}>
+    <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)} style={styles.overlay}>
+      <Animated.View entering={FadeIn.duration(250)} style={styles.successCard}>
         <View style={styles.successIconWrap}>
           <Icon name="checkmark" size={48} color="#FFF" />
         </View>
@@ -128,8 +131,8 @@ function ExpiredScreen({ onResend, onChangeEmail }: {
   onResend: () => void; onChangeEmail: () => void;
 }) {
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={styles.overlay}>
-      <Animated.View entering={SlideInDown.springify().damping(14)} style={styles.expiredCard}>
+    <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)} style={styles.overlay}>
+      <Animated.View entering={SlideInDown.springify().damping(16).stiffness(160)} style={styles.expiredCard}>
         <View style={styles.expiredIconWrap}>
           <Icon name="time-outline" size={44} color={C.gold} />
         </View>
@@ -159,13 +162,10 @@ export default function VerifyOTP({ route, navigation }: any) {
   const [profileError, setProfileError] = useState('');
 
   // ── Attempt tracking ──────────────────────────────────────────────────────
-  // Counts wrong-code attempts this session (resets on resend).
   const [attempts, setAttempts] = useState(0);
-  // How many remaining attempts to show the user (derived, not stored).
   const remainingAttempts = MAX_ATTEMPTS - attempts;
 
   const inputRef = useRef<TextInput>(null);
-  const shakeX   = useSharedValue(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── On mount: restore remaining time from AsyncStorage ────────────────────
@@ -195,7 +195,6 @@ export default function VerifyOTP({ route, navigation }: any) {
   useEffect(() => {
     if (timeLeft === null || status === 'success' || status === 'profile_error') return;
     if (timeLeft <= 0) {
-      // If locked due to attempts, the expired overlay takes over — also clears lock.
       setStatus(prev => (prev === 'success' ? prev : 'expired'));
       clearOtpTimestamp(email).catch(() => {});
       return;
@@ -206,23 +205,8 @@ export default function VerifyOTP({ route, navigation }: any) {
     };
   }, [timeLeft, status]);
 
-  // ── Shake animation ───────────────────────────────────────────────────────
-  const shake = () => {
-    shakeX.value = withSequence(
-      withTiming(-12, { duration: 55 }), withTiming(12, { duration: 55 }),
-      withTiming(-9,  { duration: 55 }), withTiming(9,  { duration: 55 }),
-      withTiming(-6,  { duration: 55 }), withTiming(6,  { duration: 55 }),
-      withTiming(0,   { duration: 55 }),
-    );
-  };
-
-  const shakeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shakeX.value }],
-  }));
-
   // ── Input ─────────────────────────────────────────────────────────────────
   const handleChangeText = (text: string) => {
-    // Block input while locked, verifying, or in error flash
     if (status === 'locked' || status === 'verifying' || status === 'invalid') return;
     const cleaned = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setCode(cleaned);
@@ -243,7 +227,6 @@ export default function VerifyOTP({ route, navigation }: any) {
     });
 
     if (!error) {
-      // ── Success ────────────────────────────────────────────────────────
       await clearOtpTimestamp(email);
       try {
         if (!data.user) throw new Error('Verified user session was not returned.');
@@ -254,29 +237,19 @@ export default function VerifyOTP({ route, navigation }: any) {
         setStatus('profile_error');
       }
     } else if (
-      // Only treat as expired when Supabase explicitly says the token has
-      // expired AND there is no "invalid" qualifier — a wrong code comes
-      // back as "invalid" or "Token has expired or is invalid" which must
-      // NOT pop the expired overlay (just shake + red boxes instead).
       error.message?.toLowerCase().includes('expired') &&
       !error.message?.toLowerCase().includes('invalid')
     ) {
-      // ── OTP truly expired (server confirmed, timer ran out) ───────────
       setStatus('expired');
       await clearOtpTimestamp(email);
     } else {
-      // ── Wrong code ────────────────────────────────────────────────────
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
-      shake();
       setCode('');
 
       if (newAttempts >= MAX_ATTEMPTS) {
-        // Max attempts reached — lock the input until timer expires / resend
         setStatus('locked');
-        // No auto-focus, no auto-reset — user must wait for resend
       } else {
-        // Still have attempts left — flash red then let them try again
         setStatus('invalid');
         setTimeout(() => {
           setStatus('idle');
@@ -298,7 +271,7 @@ export default function VerifyOTP({ route, navigation }: any) {
     setResending(true);
     setCode('');
     setStatus('idle');
-    setAttempts(0); // reset the attempt counter for the fresh code
+    setAttempts(0);
     try {
       await supabase.auth.resend({ type: 'signup', email });
       await saveOtpTimestamp(email);
@@ -321,7 +294,6 @@ export default function VerifyOTP({ route, navigation }: any) {
 
   if (timeLeft === null) return null;
 
-  // Resend available after 30 s have elapsed (unless locked — then always available)
   const resendDisabled = resending || (!isLocked && (timeLeft ?? 0) > TIMER_SECONDS - 30);
 
   return (
@@ -346,12 +318,13 @@ export default function VerifyOTP({ route, navigation }: any) {
         <TouchableOpacity
           style={[styles.back, { paddingTop: insets.top + 16 }]}
           onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
         >
           <Icon name="arrow-back" size={22} color={C.ink} />
         </TouchableOpacity>
 
         <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-          <Animated.View entering={ZoomIn.springify()} style={styles.iconWrap}>
+          <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.iconWrap}>
             <Icon name="mail-outline" size={32} color={C.gold} />
           </Animated.View>
 
@@ -366,7 +339,7 @@ export default function VerifyOTP({ route, navigation }: any) {
             onPress={() => !isLocked && inputRef.current?.focus()}
             style={styles.boxesWrap}
           >
-            <Animated.View style={[styles.boxRow, shakeStyle]}>
+            <View style={styles.boxRow}>
               {digits.map((digit, i) => (
                 <OtpBox
                   key={i}
@@ -376,7 +349,7 @@ export default function VerifyOTP({ route, navigation }: any) {
                   locked={isLocked}
                 />
               ))}
-            </Animated.View>
+            </View>
           </Pressable>
 
           {/* Hidden real TextInput */}
@@ -396,7 +369,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
           {/* Attempt-based feedback messages */}
           {hasError && !isLocked && (
-            <Animated.Text entering={FadeIn} exiting={FadeOut} style={styles.errorTxt}>
+            <Animated.Text entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.errorTxt}>
               Incorrect code.{' '}
               {remainingAttempts > 1
                 ? `${remainingAttempts} attempts remaining.`
@@ -405,7 +378,7 @@ export default function VerifyOTP({ route, navigation }: any) {
           )}
 
           {isLocked && (
-            <Animated.View entering={FadeIn} style={styles.lockedBanner}>
+            <Animated.View entering={FadeIn.duration(200)} style={styles.lockedBanner}>
               <Icon name="lock-closed-outline" size={15} color={C.error} style={{ marginTop: 1 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.lockedTitle}>Too many incorrect attempts</Text>
@@ -449,7 +422,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
           {/* Profile error retry card */}
           {status === 'profile_error' && (
-            <View style={styles.profileErrorCard}>
+            <Animated.View entering={FadeIn.duration(200)} style={styles.profileErrorCard}>
               <Icon name="cloud-offline-outline" size={18} color={C.error} />
               <View style={styles.profileErrorCopy}>
                 <Text style={styles.profileErrorTitle}>Profile setup needs another try</Text>
@@ -470,10 +443,11 @@ export default function VerifyOTP({ route, navigation }: any) {
                   }
                 }}
                 style={styles.retryButton}
+                activeOpacity={0.8}
               >
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
 
           {/* Resend row */}
@@ -481,7 +455,7 @@ export default function VerifyOTP({ route, navigation }: any) {
             <Text style={styles.resendLabel}>
               {isLocked ? 'Locked out? ' : "Didn't receive it? "}
             </Text>
-            <TouchableOpacity onPress={handleResend} disabled={resendDisabled}>
+            <TouchableOpacity onPress={handleResend} disabled={resendDisabled} activeOpacity={0.7}>
               {resending
                 ? <ActivityIndicator size="small" color={C.gold} />
                 : <Text style={[styles.resendLink, resendDisabled && styles.resendDisabled]}>
@@ -491,9 +465,9 @@ export default function VerifyOTP({ route, navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {/* Attempt dots — only shown while unlocked and at least 1 attempt used */}
+          {/* Attempt dots */}
           {!isLocked && attempts > 0 && (
-            <Animated.View entering={FadeIn} style={styles.attemptDots}>
+            <Animated.View entering={FadeIn.duration(200)} style={styles.attemptDots}>
               {Array.from({ length: MAX_ATTEMPTS }, (_, i) => (
                 <View
                   key={i}
@@ -550,6 +524,7 @@ const styles = StyleSheet.create({
     width: BOX_SIZE, height: BOX_SIZE + 8, borderRadius: 12,
     borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#1A1612', shadowOpacity: 0.03, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4,
   },
   otpBoxFocused: { borderColor: C.gold, backgroundColor: '#FFFDF6' },
   otpBoxFilled:  { borderColor: C.ink },
@@ -590,8 +565,8 @@ const styles = StyleSheet.create({
   verifyBtn: {
     width: '100%', backgroundColor: C.ink,
     paddingVertical: 17, borderRadius: 14, alignItems: 'center',
-    shadowColor: C.ink, shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 4,
+    shadowColor: C.ink, shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 4,
   },
   btnOff: { opacity: 0.45 },
   verifyBtnTxt: { color: '#FFF', fontSize: 16, fontWeight: '700' },
@@ -630,6 +605,7 @@ const styles = StyleSheet.create({
   successCard: {
     backgroundColor: C.surface, borderRadius: 24,
     padding: 36, alignItems: 'center', width: '100%',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowOffset: { width: 0, height: 10 }, shadowRadius: 20,
   },
   successIconWrap: {
     width: 88, height: 88, borderRadius: 44,
@@ -645,6 +621,7 @@ const styles = StyleSheet.create({
   expiredCard: {
     backgroundColor: C.surface, borderRadius: 24,
     padding: 36, alignItems: 'center', width: '100%',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowOffset: { width: 0, height: 10 }, shadowRadius: 20,
   },
   expiredIconWrap: {
     width: 88, height: 88, borderRadius: 44,
