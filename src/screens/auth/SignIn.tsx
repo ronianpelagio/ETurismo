@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -110,7 +110,7 @@ function InputField({
       >
         <Icon
           name={icon}
-          size={19}
+          size={17}
           color={
             focused
               ? COLORS.gold
@@ -153,7 +153,7 @@ function InputField({
                   ? 'eye-outline'
                   : 'eye-off-outline'
               }
-              size={19}
+              size={17}
               color={COLORS.muted}
             />
           </TouchableOpacity>
@@ -634,12 +634,14 @@ export default function SignIn({
             contentContainerStyle={[
               styles.scrollContent,
               {
-                minHeight: height,
-                paddingTop: Math.max(24, insets.top + 16),
-                paddingBottom: insets.bottom + 25,
+                minHeight: Math.max(0, height - insets.top - insets.bottom),
+                paddingTop: Math.max(20, insets.top + 12),
+                paddingBottom: insets.bottom + 20,
+                justifyContent: isSmallPhone ? 'flex-start' : 'center',
               },
             ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
 
@@ -657,7 +659,7 @@ export default function SignIn({
               <View style={styles.brandIcon}>
                 <Icon
                   name="map-outline"
-                  size={22}
+                  size={18}
                   color={COLORS.goldLight}
                 />
               </View>
@@ -700,7 +702,7 @@ export default function SignIn({
               </Text>
 
               <Text style={styles.title}>
-                
+                ETurismo
               </Text>
 
               <Text
@@ -868,7 +870,7 @@ export default function SignIn({
 
                     <Icon
                       name="arrow-forward"
-                      size={18}
+                      size={16}
                       color="#FFF"
                     />
                   </>
@@ -933,12 +935,12 @@ export default function SignIn({
                 </Text>
 
                 <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate(
-                      'SignUp'
-                    )
-                  }
+                  style={styles.signupLinkButton}
+                  onPress={() => navigation.navigate('SignUp')}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create an account"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text
                     style={styles.signupLink}
@@ -1022,9 +1024,11 @@ const styles = StyleSheet.create({
 
     alignItems: 'center',
 
-    paddingHorizontal: 22,
-    paddingTop: 45,
-    paddingBottom: 25,
+    justifyContent: 'center',
+
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 20,
   },
 
   /* ==========================================================================
@@ -1038,22 +1042,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
 
-    marginBottom: 24,
+    justifyContent: 'center',
+    marginBottom: 16,
   },
 
   headerDesktop: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
 
   brandIcon: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
 
     borderWidth: 1,
     borderColor:
       'rgba(212,181,106,0.65)',
 
-    borderRadius: 22,
+    borderRadius: 18,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1061,27 +1066,27 @@ const styles = StyleSheet.create({
     backgroundColor:
       'rgba(20,17,12,0.45)',
 
-    marginRight: 12,
+    marginRight: 10,
   },
 
   brand: {
     color: COLORS.white,
 
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: '800',
 
-    letterSpacing: 3.2,
+    letterSpacing: 2.6,
   },
 
   brandSubtitle: {
     color: COLORS.goldLight,
 
-    fontSize: 7.5,
+    fontSize: 7,
     fontWeight: '700',
 
-    letterSpacing: 1.7,
+    letterSpacing: 1.5,
 
-    marginTop: 3,
+    marginTop: 2,
   },
 
   /* ==========================================================================
@@ -1093,25 +1098,26 @@ const styles = StyleSheet.create({
     maxWidth: 430,
 
     backgroundColor:
-      'rgba(246, 242, 234, 0.97)',
+      'rgba(255, 255, 255, 0.97)',
 
-    borderRadius: 18,
+    borderRadius: 16,
+    overflow: 'hidden',
 
-    paddingHorizontal: 25,
-    paddingTop: 24,
-    paddingBottom: 22,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
 
     shadowColor: '#000',
 
     shadowOffset: {
       width: 0,
-      height: 15,
+      height: 10,
     },
 
-    shadowOpacity: 0.32,
-    shadowRadius: 28,
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
 
-    elevation: 14,
+    elevation: 12,
   },
 
   loginCardDesktop: {
@@ -1119,27 +1125,24 @@ const styles = StyleSheet.create({
   },
 
   topAccent: {
-    width: 34,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     height: 3,
 
     backgroundColor: COLORS.gold,
-
-    borderRadius: 2,
-
-    marginBottom: 19,
-
-    alignSelf: 'center',
   },
 
   welcome: {
     color: COLORS.gold,
 
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
 
-    letterSpacing: 2.3,
+    letterSpacing: 2,
 
-    marginBottom: 7,
+    marginBottom: 4,
 
     textAlign: 'center',
   },
@@ -1147,7 +1150,7 @@ const styles = StyleSheet.create({
   title: {
     color: COLORS.text,
 
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
 
     letterSpacing: -0.5,
@@ -1158,47 +1161,47 @@ const styles = StyleSheet.create({
   description: {
     color: COLORS.textLight,
 
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
 
-    marginTop: 6,
-    marginBottom: 22,
+    marginTop: 2,
+    marginBottom: 14,
 
     textAlign: 'center',
   },
 
   benefitRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, paddingHorizontal: 12, marginBottom: 20,
+    paddingVertical: 8, paddingHorizontal: 10, marginBottom: 14,
     borderRadius: 10, backgroundColor: '#F5ECD9',
   },
   benefit: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  benefitText: { color: COLORS.dark, fontSize: 10.5, fontWeight: '700' },
-  benefitDivider: { width: 1, height: 16, backgroundColor: '#DDCBA6', marginHorizontal: 12 },
+  benefitText: { color: COLORS.dark, fontSize: 10, fontWeight: '700' },
+  benefitDivider: { width: 1, height: 14, backgroundColor: '#DDCBA6', marginHorizontal: 10 },
 
   /* ==========================================================================
      INPUTS
   ========================================================================== */
 
   fieldWrapper: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   fieldLabel: {
     color: COLORS.text,
 
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
 
     textTransform: 'uppercase',
 
     letterSpacing: 1,
 
-    marginBottom: 6,
+    marginBottom: 4,
   },
 
   inputContainer: {
-    height: 49,
+    height: 44,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -1209,11 +1212,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
 
-    borderRadius: 9,
+    borderRadius: 10,
 
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
 
-    gap: 9,
+    gap: 8,
   },
 
   inputContainerFocused: {
@@ -1230,13 +1233,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
 
-    height: 47,
+    height: 42,
 
     paddingVertical: 0,
 
     color: COLORS.text,
 
-    fontSize: 13.5,
+    fontSize: 13,
 
     includeFontPadding: false,
   },
@@ -1270,8 +1273,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
 
-    marginTop: 1,
-    marginBottom: 17,
+    marginTop: 0,
+    marginBottom: 12,
   },
 
   rememberRow: {
@@ -1334,7 +1337,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
 
-    marginBottom: 13,
+    marginBottom: 10,
 
     gap: 7,
   },
@@ -1353,9 +1356,9 @@ const styles = StyleSheet.create({
   ========================================================================== */
 
   signInButton: {
-    height: 49,
+    height: 44,
 
-    borderRadius: 9,
+    borderRadius: 10,
 
     backgroundColor:
       COLORS.dark,
@@ -1386,7 +1389,7 @@ const styles = StyleSheet.create({
   signInText: {
     color: COLORS.white,
 
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
 
     letterSpacing: 0.4,
@@ -1400,7 +1403,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
 
-    marginVertical: 18,
+    marginVertical: 13,
   },
 
   dividerLine: {
@@ -1436,9 +1439,9 @@ const styles = StyleSheet.create({
   socialButton: {
     flex: 1,
 
-    height: 43,
+    height: 40,
 
-    borderRadius: 8,
+    borderRadius: 10,
 
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1482,7 +1485,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginTop: 19,
+    marginTop: 14,
   },
 
   signupText: {
@@ -1500,6 +1503,10 @@ const styles = StyleSheet.create({
 
     marginLeft: 5,
   },
+  signupLinkButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
 
   /* ==========================================================================
      SECURITY
@@ -1511,8 +1518,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginTop: 17,
-    paddingTop: 12,
+    marginTop: 12,
+    paddingTop: 10,
 
     borderTopWidth: 1,
     borderTopColor:
@@ -1537,15 +1544,11 @@ const styles = StyleSheet.create({
 
     fontSize: 7.5,
     fontWeight: '700',
-
     letterSpacing: 2,
-
-    marginTop: 20,
-
+    marginTop: 14,
     textAlign: 'center',
   },
-
   footerDesktop: {
-    marginTop: 23,
+    marginTop: 18,
   },
 });

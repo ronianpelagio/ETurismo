@@ -69,9 +69,16 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   return (
-    <View>
+    <View style={{ width: '100%', alignSelf: 'stretch' }}>
       <Text
-        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid, textAlign: 'justify' }}
+        style={{
+          width: '100%',
+          alignSelf: 'stretch',
+          fontSize: 12,
+          lineHeight: 18,
+          color: C.inkMid,
+          textAlign: 'justify',
+        }}
         numberOfLines={expanded ? undefined : lines}
         onTextLayout={e => {
           if (!expanded) setTruncated(e.nativeEvent.lines.length >= lines);
@@ -83,10 +90,10 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
         <TouchableOpacity
           onPress={() => setExpanded(v => !v)}
           activeOpacity={0.7}
-          style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
+          style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
         >
-          <Text style={{ fontSize: 12, fontWeight: '800', color }}>{expanded ? 'Show less' : 'Read more'}</Text>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={color} />
+          <Text style={{ fontSize: 11, fontWeight: '800', color }}>{expanded ? 'Show less' : 'Read more'}</Text>
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={color} />
         </TouchableOpacity>
       )}
     </View>
@@ -103,16 +110,16 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
   if (featured) {
     return (
       <Animated.View style={[{
-        backgroundColor: C.surface, borderRadius: 26, overflow: 'hidden',
+        backgroundColor: C.surface, borderRadius: 18, overflow: 'hidden',
         borderWidth: 1, borderColor: C.border,
-        shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 8 }, shadowRadius: 18, elevation: 5,
+        shadowColor: '#000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 4,
       }, anim]}>
-        <View style={{ height: 230 }}>
+        <View style={{ height: 170 }}>
           {item.image_url ? (
             <FadeInImage uri={item.image_url} style={{ width: '100%', height: '100%' }} />
           ) : (
             <LinearGradient colors={[AMBER, '#5C3A06']} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="megaphone" size={54} color="rgba(255,255,255,0.35)" />
+              <Ionicons name="megaphone" size={40} color="rgba(255,255,255,0.35)" />
             </LinearGradient>
           )}
           <LinearGradient
@@ -120,30 +127,30 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
             locations={[0, 0.4, 1]}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
-          <View style={{ position: 'absolute', top: 14, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
             <View style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
-              backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 30,
+              backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 30,
             }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: AMBER }} />
-              <Text style={{ fontSize: 10, fontWeight: '900', color: AMBER, letterSpacing: 1.2 }}>LATEST NEWS</Text>
+              <Text style={{ fontSize: 9, fontWeight: '900', color: AMBER, letterSpacing: 1.2 }}>LATEST NEWS</Text>
             </View>
-            <View style={{ backgroundColor: 'rgba(10,8,5,0.6)', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 30 }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>{getTimeAgo(date)}</Text>
+            <View style={{ backgroundColor: 'rgba(10,8,5,0.6)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 30 }}>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>{getTimeAgo(date)}</Text>
             </View>
           </View>
-          <View style={{ position: 'absolute', left: 18, right: 18, bottom: 16 }}>
-            <Text style={{ color: '#fff', fontSize: 23, lineHeight: 28, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={3}>
+          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
+            <Text style={{ color: '#fff', fontSize: 18, lineHeight: 23, fontWeight: '900', letterSpacing: -0.3 }} numberOfLines={3}>
               {item.title}
             </Text>
           </View>
         </View>
 
-        <View style={{ padding: 18, gap: 12 }}>
+        <View style={{ padding: 14, gap: 10 }}>
           {!!desc && <ExpandableText text={desc} lines={4} color={AMBER} />}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border }}>
-            <Ionicons name="calendar-outline" size={13} color={C.inkDim} />
-            <Text style={{ fontSize: 11.5, color: C.inkDim, fontWeight: '600' }}>{formatDate(item.announcement_datetime)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border }}>
+            <Ionicons name="calendar-outline" size={12} color={C.inkDim} />
+            <Text style={{ fontSize: 10.5, color: C.inkDim, fontWeight: '600' }}>{formatDate(item.announcement_datetime)}</Text>
           </View>
         </View>
       </Animated.View>
@@ -152,25 +159,25 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
 
   return (
     <Animated.View style={[{
-      backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border,
+      backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border,
       overflow: 'hidden', flexDirection: 'row',
-      shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 3 }, shadowRadius: 10, elevation: 2,
+      shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 1,
     }, anim]}>
-      <View style={{ width: 4, backgroundColor: AMBER }} />
-      <View style={{ flex: 1, padding: 14, gap: 8 }}>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ width: 3, backgroundColor: AMBER }} />
+      <View style={{ flex: 1, padding: 11, gap: 6 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
           {item.image_url ? (
-            <FadeInImage uri={item.image_url} style={{ width: 84, height: 84, borderRadius: 14 }} />
+            <FadeInImage uri={item.image_url} style={{ width: 68, height: 68, borderRadius: 11 }} />
           ) : (
             <View style={{
-              width: 84, height: 84, borderRadius: 14, backgroundColor: 'rgba(160,100,10,0.1)',
+              width: 68, height: 68, borderRadius: 11, backgroundColor: 'rgba(160,100,10,0.1)',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Ionicons name="megaphone-outline" size={26} color={`${AMBER}99`} />
+              <Ionicons name="megaphone-outline" size={22} color={`${AMBER}99`} />
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 4,
                 backgroundColor: 'rgba(160,100,10,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
@@ -180,7 +187,7 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
               </View>
               <Text style={{ fontSize: 10, color: C.inkDim, fontWeight: '600' }}>{getTimeAgo(date)}</Text>
             </View>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: C.ink, lineHeight: 20, letterSpacing: -0.2 }} numberOfLines={3}>
+            <Text style={{ fontSize: 13.5, fontWeight: '800', color: C.ink, lineHeight: 18, letterSpacing: -0.2 }} numberOfLines={3}>
               {item.title}
             </Text>
           </View>
@@ -188,7 +195,7 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
         {!!desc && <ExpandableText text={desc} lines={2} color={AMBER} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <Ionicons name="calendar-outline" size={11} color={C.inkDim} />
-          <Text style={{ fontSize: 10.5, color: C.inkDim }}>{formatDate(item.announcement_datetime)}</Text>
+          <Text style={{ fontSize: 10, color: C.inkDim }}>{formatDate(item.announcement_datetime)}</Text>
         </View>
       </View>
     </Animated.View>
@@ -198,15 +205,15 @@ function AnnouncementCard({ item, index = 0 }: { item: Announcement; index?: num
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyState() {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 70, gap: 10 }}>
+    <View style={{ alignItems: 'center', paddingVertical: 50, gap: 8 }}>
       <View style={{
-        width: 72, height: 72, borderRadius: 36, backgroundColor: `${AMBER}14`,
+        width: 58, height: 58, borderRadius: 29, backgroundColor: `${AMBER}14`,
         alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${AMBER}30`,
       }}>
-        <Ionicons name="megaphone-outline" size={30} color={AMBER} />
+        <Ionicons name="megaphone-outline" size={25} color={AMBER} />
       </View>
-      <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink }}>No announcements yet</Text>
-      <Text style={{ fontSize: 12.5, color: C.inkDim, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 }}>
+      <Text style={{ fontSize: 14, fontWeight: '800', color: C.ink }}>No announcements yet</Text>
+      <Text style={{ fontSize: 11.5, color: C.inkDim, textAlign: 'center', paddingHorizontal: 40, lineHeight: 17 }}>
         Check back soon — new updates from the shrine will appear here.
       </Text>
     </View>
@@ -288,7 +295,7 @@ export default function AnnouncementsScreen({
       <StatusBar style="dark" />
 
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 14, borderBottomColor: C.border }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: C.border }]}>
         <View>
           <Text style={[styles.headerEyebrow, { color: AMBER }]}>STAY CONNECTED</Text>
           <Text style={[styles.headerTitle, { color: C.ink }]}>Announcements</Text>
@@ -309,7 +316,7 @@ export default function AnnouncementsScreen({
       ) : error ? (
         <View style={styles.centerContent}>
           <View style={[styles.errorIconWrap, { backgroundColor: `${AMBER}14`, borderColor: `${AMBER}30` }]}>
-            <Ionicons name="cloud-offline-outline" size={28} color={AMBER} />
+            <Ionicons name="cloud-offline-outline" size={24} color={AMBER} />
           </View>
           <Text style={[styles.errorTitle, { color: C.ink }]}>Couldn't load</Text>
           <Text style={[styles.errorBody, { color: C.inkDim }]}>{error}</Text>
@@ -327,8 +334,8 @@ export default function AnnouncementsScreen({
           data={announcements}
           keyExtractor={i => i.id}
           contentContainerStyle={{
-            padding: 16,
-            gap: 14,
+            padding: 14,
+            gap: 12,
             paddingBottom: 90 + insets.bottom,
           }}
           showsVerticalScrollIndicator={false}
@@ -353,31 +360,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerEyebrow: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 2,
+    letterSpacing: 2.5,
+    marginBottom: 1,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   countBadge: {
     minWidth: 28,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 50,
     borderWidth: 1,
     alignItems: 'center',
     marginBottom: 4,
   },
   countBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   centerContent: {
@@ -388,39 +395,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     marginTop: 4,
   },
   errorIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: 4,
   },
   errorTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
   },
   errorBody: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 50,
     marginTop: 4,
   },
   retryText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#fff',
   },

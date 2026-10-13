@@ -69,9 +69,16 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   return (
-    <View>
+    <View style={{ width: '100%', alignSelf: 'stretch' }}>
       <Text
-        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid, textAlign: 'justify' }}
+        style={{
+          width: '100%',
+          alignSelf: 'stretch',
+          fontSize: 12,
+          lineHeight: 18,
+          color: C.inkMid,
+          textAlign: 'justify',
+        }}
         numberOfLines={expanded ? undefined : lines}
         onTextLayout={e => {
           if (!expanded) setTruncated(e.nativeEvent.lines.length >= lines);
@@ -83,10 +90,10 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
         <TouchableOpacity
           onPress={() => setExpanded(v => !v)}
           activeOpacity={0.7}
-          style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
+          style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
         >
-          <Text style={{ fontSize: 12, fontWeight: '800', color }}>{expanded ? 'Show less' : 'Read more'}</Text>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={color} />
+          <Text style={{ fontSize: 11, fontWeight: '800', color }}>{expanded ? 'Show less' : 'Read more'}</Text>
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={color} />
         </TouchableOpacity>
       )}
     </View>
@@ -129,17 +136,17 @@ function EventCard({
 
   return (
     <Animated.View style={[{
-      backgroundColor: C.surface, borderRadius: 26, overflow: 'hidden',
+      backgroundColor: C.surface, borderRadius: 18, overflow: 'hidden',
       borderWidth: 1, borderColor: C.border,
-      shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 8 }, shadowRadius: 18, elevation: 5,
+      shadowColor: '#000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 4,
       opacity: isPast ? 0.92 : 1,
     }, anim]}>
-      <View style={{ height: 190 }}>
+      <View style={{ height: 150 }}>
         {item.image_url ? (
           <FadeInImage uri={item.image_url} style={{ width: '100%', height: '100%' }} />
         ) : (
           <LinearGradient colors={[TEAL, '#032B22']} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="calendar" size={54} color="rgba(255,255,255,0.3)" />
+            <Ionicons name="calendar" size={40} color="rgba(255,255,255,0.3)" />
           </LinearGradient>
         )}
         <LinearGradient
@@ -149,36 +156,36 @@ function EventCard({
         />
 
         <View style={{
-          position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6,
-          backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 30,
+          position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
+          backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 30,
         }}>
-          <Ionicons name="calendar-outline" size={12} color={TEAL} />
-          <Text style={{ fontSize: 10, fontWeight: '900', color: TEAL, letterSpacing: 1.2 }}>EVENT</Text>
+          <Ionicons name="calendar-outline" size={11} color={TEAL} />
+          <Text style={{ fontSize: 9, fontWeight: '900', color: TEAL, letterSpacing: 1.2 }}>EVENT</Text>
         </View>
 
         <View style={{
-          position: 'absolute', top: 14, right: 14,
+          position: 'absolute', top: 10, right: 10,
           backgroundColor: isPast ? 'rgba(10,8,5,0.6)' : TEAL,
-          paddingHorizontal: 12, paddingVertical: 7, borderRadius: 30,
+          paddingHorizontal: 10, paddingVertical: 5, borderRadius: 30,
         }}>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.4 }}>
+          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 }}>
             {isPast ? 'ENDED' : countdown ?? 'UPCOMING'}
           </Text>
         </View>
 
         <View style={{
-          position: 'absolute', left: 16, bottom: -26, width: 62, height: 66, borderRadius: 16,
+          position: 'absolute', left: 14, bottom: -22, width: 50, height: 54, borderRadius: 13,
           backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center',
           borderWidth: 1, borderColor: C.border,
           shadowColor: '#000', shadowOpacity: 0.15, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 6,
         }}>
-          <Text style={{ fontSize: 10, fontWeight: '900', color: TEAL, letterSpacing: 1.4 }}>{month}</Text>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: C.ink, lineHeight: 30 }}>{day}</Text>
+          <Text style={{ fontSize: 9, fontWeight: '900', color: TEAL, letterSpacing: 1.2 }}>{month}</Text>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: C.ink, lineHeight: 24 }}>{day}</Text>
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 18, paddingTop: 38, paddingBottom: 18, gap: 14 }}>
-        <Text style={{ fontSize: 20, lineHeight: 26, fontWeight: '900', color: C.ink, letterSpacing: -0.4 }}>
+      <View style={{ paddingHorizontal: 14, paddingTop: 32, paddingBottom: 14, gap: 10 }}>
+        <Text style={{ fontSize: 16, lineHeight: 21, fontWeight: '900', color: C.ink, letterSpacing: -0.3 }}>
           {item.title}
         </Text>
 
@@ -186,24 +193,24 @@ function EventCard({
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: 6,
             backgroundColor: C.raised, borderWidth: 1, borderColor: C.border,
-            paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12,
+            paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
           }}>
-            <Ionicons name="today-outline" size={13} color={TEAL} />
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: C.inkMid }}>{weekday}, {fullDate}</Text>
+            <Ionicons name="today-outline" size={12} color={TEAL} />
+            <Text style={{ fontSize: 10.5, fontWeight: '700', color: C.inkMid }}>{weekday}, {fullDate}</Text>
           </View>
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: 6,
             backgroundColor: 'rgba(8,80,65,0.08)', borderWidth: 1, borderColor: 'rgba(8,80,65,0.18)',
-            paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12,
+            paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10,
           }}>
-            <Ionicons name="time-outline" size={13} color={TEAL} />
-            <Text style={{ fontSize: 11.5, fontWeight: '800', color: TEAL }}>{formatEventTime(date)}</Text>
+            <Ionicons name="time-outline" size={12} color={TEAL} />
+            <Text style={{ fontSize: 10.5, fontWeight: '800', color: TEAL }}>{formatEventTime(date)}</Text>
           </View>
         </View>
 
         {!!item.description && (
           <View>
-            <Text style={{ fontSize: 10, color: C.inkDim, fontWeight: '800', letterSpacing: 1.4, marginBottom: 6 }}>
+            <Text style={{ fontSize: 9, color: C.inkDim, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 }}>
               ABOUT THIS EVENT
             </Text>
             <ExpandableText text={item.description} lines={3} color={TEAL} />
@@ -214,24 +221,24 @@ function EventCard({
           onPress={pressInterested}
           activeOpacity={0.85}
           style={{
-            minHeight: 52, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+            minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
             backgroundColor: isInterested ? 'rgba(8,80,65,0.1)' : TEAL,
-            borderWidth: 1.5, borderColor: TEAL,
-            paddingVertical: 10, paddingHorizontal: 16,
+            borderWidth: 1.3, borderColor: TEAL,
+            paddingVertical: 7, paddingHorizontal: 14,
           }}
           accessibilityRole="button"
           accessibilityLabel={isInterested ? "Remove interest in event" : "Mark interest in event"}
           accessibilityState={{ selected: isInterested }}
         >
           <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={19} color={isInterested ? '#E74C3C' : '#fff'} />
+            <Ionicons name={isInterested ? 'heart' : 'heart-outline'} size={17} color={isInterested ? '#E74C3C' : '#fff'} />
           </Animated.View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: isInterested ? TEAL : '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 }}>
+            <Text style={{ color: isInterested ? TEAL : '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 0.2 }}>
               {isInterested ? "You're Interested" : "I'm Interested"}
             </Text>
             {countLabel && (
-              <Text style={{ color: isInterested ? `${TEAL}99` : 'rgba(255,255,255,0.7)', fontSize: 10.5, fontWeight: '700', marginTop: 1 }}>
+              <Text style={{ color: isInterested ? `${TEAL}99` : 'rgba(255,255,255,0.7)', fontSize: 9.5, fontWeight: '700', marginTop: 0 }}>
                 {countLabel}
               </Text>
             )}
@@ -245,15 +252,15 @@ function EventCard({
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyState() {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 70, gap: 10 }}>
+    <View style={{ alignItems: 'center', paddingVertical: 50, gap: 8 }}>
       <View style={{
-        width: 72, height: 72, borderRadius: 36, backgroundColor: `${TEAL}14`,
+        width: 58, height: 58, borderRadius: 29, backgroundColor: `${TEAL}14`,
         alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${TEAL}30`,
       }}>
-        <Ionicons name="calendar-outline" size={30} color={TEAL} />
+        <Ionicons name="calendar-outline" size={25} color={TEAL} />
       </View>
-      <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink }}>No events scheduled</Text>
-      <Text style={{ fontSize: 12.5, color: C.inkDim, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 }}>
+      <Text style={{ fontSize: 14, fontWeight: '800', color: C.ink }}>No events scheduled</Text>
+      <Text style={{ fontSize: 11.5, color: C.inkDim, textAlign: 'center', paddingHorizontal: 40, lineHeight: 17 }}>
         Check back soon — upcoming museum events will appear here.
       </Text>
     </View>
@@ -403,7 +410,7 @@ export default function EventsScreen({
       <StatusBar style="dark" />
 
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 14, borderBottomColor: C.border }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: C.border }]}>
         <View>
           <Text style={[styles.headerEyebrow, { color: TEAL }]}>STAY CONNECTED</Text>
           <Text style={[styles.headerTitle, { color: C.ink }]}>Events</Text>
@@ -424,7 +431,7 @@ export default function EventsScreen({
       ) : error ? (
         <View style={styles.centerContent}>
           <View style={[styles.errorIconWrap, { backgroundColor: `${TEAL}14`, borderColor: `${TEAL}30` }]}>
-            <Ionicons name="cloud-offline-outline" size={28} color={TEAL} />
+            <Ionicons name="cloud-offline-outline" size={24} color={TEAL} />
           </View>
           <Text style={[styles.errorTitle, { color: C.ink }]}>Couldn't load</Text>
           <Text style={[styles.errorBody, { color: C.inkDim }]}>{error}</Text>
@@ -442,8 +449,8 @@ export default function EventsScreen({
           data={events}
           keyExtractor={i => i.id}
           contentContainerStyle={{
-            padding: 16,
-            gap: 14,
+            padding: 14,
+            gap: 12,
             paddingBottom: 90 + insets.bottom,
           }}
           showsVerticalScrollIndicator={false}
@@ -503,31 +510,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerEyebrow: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 2,
+    letterSpacing: 2.5,
+    marginBottom: 1,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   countBadge: {
     minWidth: 28,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 50,
     borderWidth: 1,
     alignItems: 'center',
     marginBottom: 4,
   },
   countBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   centerContent: {
@@ -538,39 +545,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     marginTop: 4,
   },
   errorIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     marginBottom: 4,
   },
   errorTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
   },
   errorBody: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 50,
     marginTop: 4,
   },
   retryText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#fff',
   },

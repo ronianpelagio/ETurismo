@@ -385,7 +385,14 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     feedCardCompactBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.6 },
     feedCardCompactDate: { fontSize: 9, color: C.inkDim },
     feedCardCompactTitle: { fontSize: 13, fontWeight: '700', color: C.ink, lineHeight: 18 },
-    feedCardCompactDesc: { fontSize: 11, color: C.inkMid, lineHeight: 15 },
+    feedCardCompactDesc: {
+      width: '100%',
+      alignSelf: 'stretch',
+      fontSize: 11,
+      color: C.inkMid,
+      lineHeight: 15,
+      textAlign: 'justify',
+    },
     feedCardCompactFooter: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
     feedCardCompactFooterText: { fontSize: 9, color: C.inkDim },
     feedCardCompactDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: C.inkDim, opacity: 0.5 },
@@ -571,7 +578,14 @@ export function getStyles(C: ReturnType<typeof buildC>) {
     modalSectionUnderline: {
       width: 24, height: 1.5, backgroundColor: C.gold, opacity: 0.5, borderRadius: 1, marginBottom: 14,
     },
-    modalDesc: { fontSize: 14.5, color: C.inkMid, lineHeight: 24, textAlign: 'justify' },
+    modalDesc: {
+      width: '100%',
+      alignSelf: 'stretch',
+      fontSize: 14.5,
+      color: C.inkMid,
+      lineHeight: 24,
+      textAlign: 'justify',
+    },
 
     // Audio
     audioLangRow: { flexDirection: 'row', gap: 8 },

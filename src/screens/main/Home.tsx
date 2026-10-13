@@ -545,7 +545,11 @@ function CompactFeedCard({ item, type, onPress }: { item: any; type: 'announceme
           <Text style={styles.feedCardCompactDate}>{timeLabel}</Text>
         </View>
         <Text style={styles.feedCardCompactTitle} numberOfLines={2}>{item.title}</Text>
-        {item.description && <Text style={styles.feedCardCompactDesc} numberOfLines={2}>{item.description}</Text>}
+        {item.description && (
+          <Text style={styles.feedCardCompactDesc} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
         <View style={styles.feedCardCompactFooter}>
           <Ionicons name={isEvent ? 'time-outline' : 'chatbubble-outline'} size={10} color={C.inkDim} />
           <Text style={styles.feedCardCompactFooterText}>{isEvent ? formatEventTime(date) : 'Tap to read more'}</Text>
@@ -601,9 +605,16 @@ function ExpandableText({ text, lines = 3, color }: { text: string; lines?: numb
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   return (
-    <View>
+    <View style={{ width: '100%', alignSelf: 'stretch' }}>
       <Text
-        style={{ fontSize: 13.5, lineHeight: 21, color: C.inkMid, textAlign: 'justify' }}
+        style={{
+          width: '100%',
+          alignSelf: 'stretch',
+          fontSize: 13.5,
+          lineHeight: 21,
+          color: C.inkMid,
+          textAlign: 'justify',
+        }}
         numberOfLines={expanded ? undefined : lines}
         onTextLayout={e => {
           if (!expanded) setTruncated(e.nativeEvent.lines.length >= lines);
@@ -1801,12 +1812,35 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
       const route = json.routes[0];
 
-      // Decode GeoJSON LineString → [{latitude, longitude}]
-      const coords: { latitude: number; longitude: number }[] =
-        route.geometry.coordinates.map(([lng, lat]: [number, number]) => ({
-          latitude: lat,
-          longitude: lng,
-        }));
+      const coordinates: unknown = route.geometry?.coordinates;
+      if (!Array.isArray(coordinates)) {
+        throw new Error('The route service returned invalid map geometry.');
+      }
+
+      const coords = coordinates
+        .filter((coordinate): coordinate is [number, number] =>
+          Array.isArray(coordinate) &&
+          coordinate.length >= 2 &&
+          typeof coordinate[0] === 'number' &&
+          typeof coordinate[1] === 'number' &&
+          Number.isFinite(coordinate[0]) &&
+          Number.isFinite(coordinate[1]) &&
+          coordinate[0] >= -180 &&
+          coordinate[0] <= 180 &&
+          coordinate[1] >= -90 &&
+          coordinate[1] <= 90,
+        )
+        .map(([longitude, latitude]) => ({ latitude, longitude }))
+        .filter((coordinate, index, validCoordinates) =>
+          index === 0 ||
+          coordinate.latitude !== validCoordinates[index - 1].latitude ||
+          coordinate.longitude !== validCoordinates[index - 1].longitude,
+        );
+
+      if (coords.length < 2) {
+        throw new Error('The route service returned no usable route geometry.');
+      }
+
       setRouteCoords(coords);
 
       // Fit map to route
@@ -3045,7 +3079,6 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                 attribution={false}
                 logo={false}
               >
-                {/* Camera — controls the initial viewport */}
                 <MapLibreCamera
                   ref={cameraRef}
                   initialViewState={{
@@ -3054,10 +3087,8 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                   }}
                 />
 
-                {/* User's live location dot */}
                 {!!userLocation && <MapLibreUserLocation />}
 
-                {/* Museum marker */}
                 <MapLibreMarker
                   lngLat={[MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude]}
                 >
@@ -3073,7 +3104,6 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                   </View>
                 </MapLibreMarker>
 
-                {/* User marker (static pin, shown in addition to UserLocation dot) */}
                 {userLocation && (
                   <MapLibreMarker
                     lngLat={[userLocation.longitude, userLocation.latitude]}
@@ -3091,7 +3121,6 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                   </MapLibreMarker>
                 )}
 
-                {/* OSRM route polyline */}
                 {routeCoords.length > 1 && (
                   <GeoJSONSource
                     id="route"
@@ -3107,18 +3136,23 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                     <Layer
                       id="route-line"
                       type="line"
-                      style={{
-                        lineColor: '#C9A84C',
-                        lineWidth: 4,
-                        lineCap: 'round',
-                        lineJoin: 'round',
+                      paint={{
+                        'line-color': '#C9A84C',
+                        'line-width': 4,
+                      }}
+                      layout={{
+                        'line-cap': 'round',
+                        'line-join': 'round',
                       }}
                     />
                   </GeoJSONSource>
                 )}
 
-                {/* Fallback straight line while route is loading */}
-                {userLocation && routeCoords.length === 0 && !routeLoading && (
+                {userLocation &&
+                  routeCoords.length === 0 &&
+                  !routeLoading &&
+                  (userLocation.latitude !== MUSEUM_LOCATION.latitude ||
+                    userLocation.longitude !== MUSEUM_LOCATION.longitude) && (
                   <GeoJSONSource
                     id="fallback-line"
                     data={{
@@ -3136,10 +3170,10 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                     <Layer
                       id="fallback-line-layer"
                       type="line"
-                      style={{
-                        lineColor: C.border,
-                        lineWidth: 2,
-                        lineDasharray: [2, 2],
+                      paint={{
+                        'line-color': C.border,
+                        'line-width': 2,
+                        'line-dasharray': [2, 2],
                       }}
                     />
                   </GeoJSONSource>

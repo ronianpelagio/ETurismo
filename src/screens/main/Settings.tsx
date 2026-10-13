@@ -45,27 +45,27 @@ function Row({ icon, iconBg, iconColor, label, sublabel, value, badge, onPress, 
       activeOpacity={0.7}
       style={{
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 14,
+        paddingHorizontal: 14, paddingVertical: 11,
         borderBottomWidth: isLast ? 0 : 1,
         borderBottomColor: C.border,
-        gap: 14,
+        gap: 12,
       }}
     >
-      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon as any} size={18} color={ic} />
+      <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icon as any} size={16} color={ic} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: danger ? C.crimson : C.ink, lineHeight: 19 }}>{label}</Text>
-        {sublabel && <Text style={{ fontSize: 11, color: C.inkDim, marginTop: 1 }}>{sublabel}</Text>}
+        <Text style={{ fontSize: 13, fontWeight: '600', color: danger ? C.crimson : C.ink, lineHeight: 18 }}>{label}</Text>
+        {sublabel && <Text style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1 }}>{sublabel}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {value && <Text style={{ fontSize: 12, color: C.inkDim, fontWeight: '500' }}>{value}</Text>}
+        {value && <Text style={{ fontSize: 11, color: C.inkDim, fontWeight: '600' }}>{value}</Text>}
         {badge && (
           <View style={{ backgroundColor: C.gold, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
-            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>{badge}</Text>
+            <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#fff' }}>{badge}</Text>
           </View>
         )}
-        <Ionicons name="chevron-forward" size={15} color={danger ? C.crimson : C.inkDim} />
+        <Ionicons name="chevron-forward" size={14} color={danger ? C.crimson : C.inkDim} />
       </View>
     </TouchableOpacity>
   );
@@ -73,17 +73,17 @@ function Row({ icon, iconBg, iconColor, label, sublabel, value, badge, onPress, 
 
 function SectionCard({ title, icon, children, C }: { title: string; icon: string; children: React.ReactNode; C: ReturnType<typeof buildC> }) {
   return (
-    <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
+    <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
       {/* Section header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon as any} size={12} color={C.gold} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icon as any} size={11} color={C.gold} />
         </View>
-        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 2.5, color: C.gold }}>{title}</Text>
+        <Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 2, color: C.gold }}>{title}</Text>
         <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
       </View>
       {/* Card */}
-      <View style={{ backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' }}>
         {children}
       </View>
     </View>
@@ -121,30 +121,31 @@ export default function Settings({ navigation }: any) {
 
   const s = StyleSheet.create({
     safe:       { flex: 1, backgroundColor: C.bg },
-    header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-    backBtn:    { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-    pageTitle:  { fontSize: 17, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
-    heroContent:{ paddingHorizontal: 24, paddingTop: 4, paddingBottom: 28 },
-    heroEyebrow:{ fontSize: 9, letterSpacing: 4, color: C.gold, fontWeight: '700', marginBottom: 8 },
-    heroTitle:  { fontSize: 36, fontWeight: '900', color: C.ink, letterSpacing: -1.5, lineHeight: 40 },
-    heroRule:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+    hero:       { paddingBottom: 4, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: C.border },
+    header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
+    backBtn:    { width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+    pageTitle:  { fontSize: 15, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
+    heroContent:{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 16 },
+    heroEyebrow:{ fontSize: 8.5, letterSpacing: 3, color: C.gold, fontWeight: '800', marginBottom: 4 },
+    heroTitle:  { fontSize: 24, fontWeight: '900', color: C.ink, letterSpacing: -0.6, lineHeight: 29 },
+    heroRule:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
     heroRuleLine: { flex: 1, height: 1, backgroundColor: C.gold, opacity: 0.25 },
     heroRuleDot:  { fontSize: 7, color: C.gold },
-    logoutSection:{ paddingHorizontal: 20, marginTop: 28 },
-    logoutBtn:  { flexDirection: 'row', backgroundColor: 'rgba(231,76,60,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(231,76,60,0.3)', paddingVertical: 15, alignItems: 'center', justifyContent: 'center', gap: 8 },
-    logoutTxt:  { fontSize: 14, fontWeight: '700', color: C.crimson, letterSpacing: 0.3 },
-    version:    { textAlign: 'center', fontSize: 11, color: C.inkDim, letterSpacing: 1, paddingTop: 24, paddingBottom: 16 },
+    logoutSection:{ paddingHorizontal: 16, marginTop: 20 },
+    logoutBtn:  { flexDirection: 'row', backgroundColor: 'rgba(231,76,60,0.08)', borderRadius: 12, borderWidth: 1.3, borderColor: 'rgba(231,76,60,0.3)', height: 44, alignItems: 'center', justifyContent: 'center', gap: 7 },
+    logoutTxt:  { fontSize: 13, fontWeight: '800', color: C.crimson, letterSpacing: 0.3 },
+    version:    { textAlign: 'center', fontSize: 10, color: C.inkDim, letterSpacing: 1, paddingTop: 18, paddingBottom: 10 },
   });
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
 
         {/* ── Hero Header ── */}
         <ImageBackground
           source={require('../../assets/Signin.jpg')}
-          style={{ paddingBottom: 8 }}
+          style={s.hero}
           imageStyle={{ opacity: 0.1, resizeMode: 'cover' }}
         >
           <LinearGradient
@@ -152,15 +153,20 @@ export default function Settings({ navigation }: any) {
             style={StyleSheet.absoluteFill}
           />
           <View style={s.header}>
-            <TouchableOpacity onPress={() => navigation?.goBack()} style={s.backBtn} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={20} color={C.ink} />
+            <TouchableOpacity
+              onPress={() => navigation?.goBack()}
+              style={s.backBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="chevron-back" size={18} color={C.ink} />
             </TouchableOpacity>
             <Text style={s.pageTitle}>Settings</Text>
-            <View style={{ width: 40 }} />
+            <View style={{ width: 34 }} />
           </View>
           <View style={s.heroContent}>
             <Text style={s.heroEyebrow}>PREFERENCES & CONFIGURATION</Text>
-            <Text style={s.heroTitle}>Your{'\n'}Settings</Text>
+            <Text style={s.heroTitle}>Your Settings</Text>
             <View style={s.heroRule}>
               <View style={s.heroRuleLine} />
               <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: C.gold }} />
@@ -172,7 +178,7 @@ export default function Settings({ navigation }: any) {
         {/* ── ACCOUNT ── */}
         <SectionCard title="ACCOUNT" icon="person-outline" C={C}>
           <Row C={C} icon="person-outline" label="Personal Information" sublabel="Name, phone number" onPress={() => nav('PersonalInfo')} />
-          <Row C={C} icon="shield-outline" label="Password & Security" sublabel="Change your password" onPress={() => nav('PasswordSecurity')} />
+          <Row C={C} icon="shield-outline" label="Password & Security" sublabel="Change your password" onPress={() => nav('PasswordSecurity')} isLast />
         </SectionCard>
 
         {/* ── APPEARANCE ── */}
@@ -211,7 +217,7 @@ export default function Settings({ navigation }: any) {
         {/* ── Logout ── */}
         <View style={s.logoutSection}>
           <TouchableOpacity onPress={handleLogout} style={s.logoutBtn} activeOpacity={0.8}>
-            <Ionicons name="log-out-outline" size={20} color={C.crimson} />
+            <Ionicons name="log-out-outline" size={18} color={C.crimson} />
             <Text style={s.logoutTxt}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -220,4 +226,4 @@ export default function Settings({ navigation }: any) {
       </ScrollView>
     </SafeAreaView>
   );
-}
+} 

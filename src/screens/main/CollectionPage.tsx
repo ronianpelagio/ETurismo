@@ -77,11 +77,14 @@ const getPreviewDescription = (description?: string | null): string => {
 
 // ─── Full-screen artifact detail modal ───────────────────────────────────────
 function ArtifactModal({
-  artifact, onClose, onNext, isFavorite, onToggleFavorite, discovered, onScan,
+  artifact, onClose, onNext, onPrev, position, total, isFavorite, onToggleFavorite, discovered, onScan,
 }: {
   artifact: Artifact | null;
   onClose: () => void;
   onNext?: () => void;
+  onPrev?: () => void;
+  position: number;
+  total: number;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   discovered: boolean;
@@ -171,7 +174,7 @@ function ArtifactModal({
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={dismiss} activeOpacity={1} />
       </Animated.View>
 
-      <Animated.View style={[ms.sheet, { transform: [{ translateY: slideAnim }] }]}> 
+      <Animated.View style={[ms.sheet, { backgroundColor: C.bg, transform: [{ translateY: slideAnim }] }]}>
         {/* Hero image */}
         <View style={ms.heroWrap}>
           <Image source={{ uri: imgUrl }} style={ms.heroImg} resizeMode="contain" />
@@ -187,16 +190,16 @@ function ArtifactModal({
             <Ionicons name="close" size={18} color="#fff" />
           </TouchableOpacity>
           <View style={ms.imgCounter}>
-            <Text style={ms.imgCounterText}>1 / 1</Text>
+            <Text style={ms.imgCounterText}>{position} / {total}</Text>
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 36 }}>
+        <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 16 }}>
           {/* Title */}
           <View style={ms.titleRow}>
             <View style={{ flex: 1 }}>
               <View style={ms.goldBar} />
-              <Text style={ms.name}>{artifact.name}</Text>
+              <Text style={[ms.name, { color: C.ink }]}>{artifact.name}</Text>
               {discovered && artifact.creator && (
                 <Text style={ms.meta}>
                   {artifact.creator}
@@ -247,11 +250,11 @@ function ArtifactModal({
               <>
                 {/* Description */}
                 <Text style={ms.sectionLabel}>ABOUT THIS PIECE</Text>
-                <Text style={ms.desc}>{loadingData ? 'Loading…' : desc}</Text>
+                <Text style={[ms.desc, { color: C.inkMid }]}>{loadingData ? 'Loading…' : desc}</Text>
 
                 {/* Audio */}
                 {(audioUrl || loadingData) && (
-                  <View style={ms.audioCard}>
+                  <View style={[ms.audioCard, { backgroundColor: C.surface, borderColor: C.border }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <View style={[ms.playBtn, playingUrl === audioUrl && ms.playBtnActive]}>
                         <TouchableOpacity
@@ -261,12 +264,12 @@ function ArtifactModal({
                         >
                           {loadingData
                             ? <ActivityIndicator size="small" color={C.gold} />
-                            : <Ionicons name={playingUrl === audioUrl ? 'pause' : 'play'} size={20} color={playingUrl === audioUrl ? C.ink : '#fff'} />
+                            : <Ionicons name={playingUrl === audioUrl ? 'pause' : 'play'} size={18} color={playingUrl === audioUrl ? C.ink : '#fff'} />
                           }
                         </TouchableOpacity>
                       </View>
                       <View>
-                        <Text style={ms.audioLabel}>Audio Narration</Text>
+                        <Text style={[ms.audioLabel, { color: C.ink }]}>Audio Narration</Text>
                         <Text style={ms.audioSub}>{LANG_LABELS[selectedLang] ?? selectedLang} narration</Text>
                       </View>
                     </View>
@@ -278,15 +281,15 @@ function ArtifactModal({
               <>
                 {/* Preview only */}
                 <Text style={ms.sectionLabel}>PREVIEW</Text>
-                <Text style={ms.desc}>{preview}</Text>
+                <Text style={[ms.desc, { color: C.inkMid }]}>{preview}</Text>
 
                 {/* Locked panel */}
-                <View style={ms.lockedWrap}>
+                <View style={[ms.lockedWrap, { backgroundColor: C.surface, borderColor: C.border }]}>
                   <View style={ms.lockedIconWrap}>
                     <Ionicons name="lock-closed-outline" size={20} color="#C9A84C" />
                   </View>
-                  <Text style={ms.lockedTitle}>Discover this artifact</Text>
-                  <Text style={ms.lockedBody}>
+                  <Text style={[ms.lockedTitle, { color: C.ink }]}>Discover this artifact</Text>
+                  <Text style={[ms.lockedBody, { color: C.inkMid }]}>
                     Visit the museum and scan the QR code beside this artifact to unlock its full story, audio guide, and historical details.
                   </Text>
                   <TouchableOpacity
@@ -303,20 +306,37 @@ function ArtifactModal({
               </>
             )}
 
-            {/* Buttons */}
-            <View style={{ gap: 10, marginTop: 8 }}>
-              {onNext && (
-                <TouchableOpacity style={ms.nextBtn} onPress={() => { stopAudio(); onNext(); }} activeOpacity={0.85}>
-                  <Ionicons name="arrow-forward-circle-outline" size={18} color="#fff" />
-                  <Text style={ms.nextBtnText}>Next Artifact</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={ms.closeBtn} onPress={dismiss} activeOpacity={0.85}>
-                <Text style={ms.closeBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
+
+        {/* Footer: pagination between artifacts */}
+        <View style={[ms.footer, { borderTopColor: C.border, backgroundColor: C.surface }]}>
+          <TouchableOpacity
+            style={[ms.pageBtn, { borderColor: onPrev ? C.gold : C.border, backgroundColor: onPrev ? C.goldSoft : C.bg }]}
+            onPress={() => { stopAudio(); onPrev?.(); }}
+            disabled={!onPrev}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Previous artifact"
+          >
+            <Ionicons name="chevron-back" size={18} color={onPrev ? C.gold : C.inkLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[ms.closeBtn, { borderColor: C.border }]} onPress={dismiss} activeOpacity={0.85}>
+            <Text style={[ms.closeBtnText, { color: C.inkMid }]}>Close</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[ms.pageBtn, { borderColor: onNext ? C.ink : C.border, backgroundColor: onNext ? C.ink : C.bg }]}
+            onPress={() => { stopAudio(); onNext?.(); }}
+            disabled={!onNext}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Next artifact"
+          >
+            <Ionicons name="chevron-forward" size={18} color={onNext ? '#fff' : C.inkLight} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -327,66 +347,68 @@ const ms = StyleSheet.create({
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: '#F7F4EF',
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: H * 0.93,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    maxHeight: H * 0.9,
     overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.28, shadowOffset: { width: 0, height: -6 }, shadowRadius: 22, elevation: 26,
   },
-  heroWrap: { width: '100%', height: 320, position: 'relative', backgroundColor: '#0E0C09' },
+  heroWrap: { width: '100%', height: 260, position: 'relative', backgroundColor: '#0E0C09' },
   heroImg:  { width: '100%', height: '100%' },
-  heroScrim:{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.32)' },
+  heroScrim:{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(10,8,5,0.12)' },
   handle: { position: 'absolute', top: 10, alignSelf: 'center', left: '50%', marginLeft: -20, width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.55)' },
-  catBadge: { position: 'absolute', top: 16, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,8,5,0.72)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
-  catBadgeText: { fontSize: 12, fontWeight: '700', color: '#C9A84C' },
-  closeX: { position: 'absolute', top: 12, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  imgCounter: { position: 'absolute', bottom: 14, right: 16, backgroundColor: 'rgba(10,8,5,0.65)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  imgCounterText: { fontSize: 12, color: '#fff', fontWeight: '600' },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 12 },
-  favoriteBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.25)' },
+  catBadge: { position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(10,8,5,0.72)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
+  catBadgeText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
+  closeX: { position: 'absolute', top: 10, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(30,27,23,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounter: { position: 'absolute', bottom: 12, right: 14, backgroundColor: 'rgba(10,8,5,0.65)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imgCounterText: { fontSize: 11, color: '#fff', fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 2, gap: 12 },
+  favoriteBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.25)' },
   favoriteBtnActive: { backgroundColor: 'rgba(201,168,76,0.16)', borderColor: '#C9A84C' },
-  goldBar:  { width: 32, height: 3, backgroundColor: '#C9A84C', borderRadius: 2, marginBottom: 10 },
-  name:     { fontSize: 26, fontWeight: '900', color: '#1A1612', letterSpacing: -0.6, lineHeight: 32 },
-  meta:     { fontSize: 13, color: '#A59C90', marginTop: 4, fontStyle: 'italic' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  statusTxt: { fontSize: 11.5, fontWeight: '600', color: '#A59C90' },
+  goldBar:  { width: 28, height: 3, backgroundColor: '#C9A84C', borderRadius: 2, marginBottom: 8 },
+  name:     { fontSize: 21, fontWeight: '900', color: '#1A1612', letterSpacing: -0.5, lineHeight: 26 },
+  meta:     { fontSize: 12, color: '#A59C90', marginTop: 4, fontStyle: 'italic' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  statusTxt: { fontSize: 11, fontWeight: '600', color: '#A59C90' },
   statusTxtDiscovered: { color: '#C9A84C', fontWeight: '700' },
-  langBar:  { marginTop: 14, marginBottom: 2 },
-  langPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 50, backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)' },
+  langBar:  { marginTop: 12, marginBottom: 0, flexGrow: 0 },
+  langPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, backgroundColor: 'rgba(201,168,76,0.08)', borderWidth: 1.2, borderColor: 'rgba(201,168,76,0.25)' },
   langPillActive: { backgroundColor: 'rgba(201,168,76,0.15)', borderColor: '#C9A84C' },
-  langPillText:       { fontSize: 12, fontWeight: '700', color: '#6E665B' },
+  langPillText:       { fontSize: 11.5, fontWeight: '700', color: '#6E665B' },
   langPillTextActive: { color: '#C9A84C' },
-  body:     { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
-  sectionLabel: { fontSize: 9, fontWeight: '800', color: '#C9A84C', letterSpacing: 2.5, marginBottom: 6 },
-  desc:     { fontSize: 15, color: '#6E665B', lineHeight: 26 },
-  audioCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.2)' },
-  playBtn:  { width: 46, height: 46, borderRadius: 23, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center', marginRight: 2 },
+  body:     { paddingHorizontal: 18, paddingTop: 14, gap: 12 },
+  sectionLabel: { fontSize: 9, fontWeight: '800', color: '#C9A84C', letterSpacing: 2.2, marginBottom: 5 },
+  desc:     { fontSize: 13.5, color: '#6E665B', lineHeight: 21, textAlign: 'justify' },
+  audioCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.2)' },
+  playBtn:  { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center', marginRight: 2 },
   playBtnActive: { backgroundColor: '#C9A84C' },
-  audioLabel: { fontSize: 14, fontWeight: '700', color: '#1A1612' },
-  audioSub:   { fontSize: 11, color: '#A59C90', marginTop: 1 },
+  audioLabel: { fontSize: 13, fontWeight: '700', color: '#1A1612' },
+  audioSub:   { fontSize: 10.5, color: '#A59C90', marginTop: 1 },
   nextBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1A1612', borderRadius: 50, paddingVertical: 15 },
   nextBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  closeBtn: { alignItems: 'center', paddingVertical: 14, borderRadius: 50, borderWidth: 1.5, borderColor: 'rgba(26,22,18,0.15)' },
-  closeBtnText: { fontSize: 15, fontWeight: '700', color: '#6E665B' },
+  closeBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1.2, borderColor: 'rgba(26,22,18,0.15)' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 28 : 16, borderTopWidth: 1 },
+  pageBtn: { width: 44, height: 44, borderRadius: 14, borderWidth: 1.2, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText: { fontSize: 14, fontWeight: '700', color: '#6E665B' },
 
   // Locked panel
   lockedWrap: {
-    backgroundColor: '#fff', borderRadius: 18,
+    backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: 'rgba(201,168,76,0.2)',
-    padding: 20, alignItems: 'center', gap: 10,
+    padding: 16, alignItems: 'center', gap: 8,
   },
   lockedIconWrap: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(201,168,76,0.12)', borderWidth: 1, borderColor: 'rgba(201,168,76,0.35)',
     alignItems: 'center', justifyContent: 'center',
   },
-  lockedTitle: { fontSize: 16, fontWeight: '800', color: '#1A1612', letterSpacing: -0.2 },
-  lockedBody:  { fontSize: 13, color: '#6E665B', lineHeight: 20, textAlign: 'center' },
+  lockedTitle: { fontSize: 15, fontWeight: '800', color: '#1A1612', letterSpacing: -0.2 },
+  lockedBody:  { fontSize: 12.5, color: '#6E665B', lineHeight: 19, textAlign: 'center' },
   lockedBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#1A1612', borderRadius: 50,
-    paddingVertical: 13, paddingHorizontal: 24, marginTop: 6,
+    paddingVertical: 11, paddingHorizontal: 22, marginTop: 4,
   },
-  lockedBtnText: { fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  lockedBtnText: { fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
 });
 
 // ─── Artifact Card (grid) ─────────────────────────────────────────────────────
@@ -440,7 +462,7 @@ function ArtifactCard({ artifact, scanned, favorite, onPress }: { artifact: Arti
 
 const cs = StyleSheet.create({
   card: {
-    width: CARD_W, borderRadius: 16,
+    width: CARD_W, borderRadius: 14,
     backgroundColor: '#fff',
     overflow: 'hidden',
     borderWidth: 1, borderColor: 'rgba(26,22,18,0.08)',
@@ -455,8 +477,8 @@ const cs = StyleSheet.create({
   lockCircle:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,8,5,0.6)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)' },
   scannedBadge:{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 3, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)' },
   favoriteBadge:{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(10,8,5,0.65)', borderRadius: 50, padding: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-  info:    { padding: 12, gap: 3 },
-  cardName:{ fontSize: 13, fontWeight: '700', color: '#1A1612', lineHeight: 18 },
+  info:    { padding: 10, gap: 2 },
+  cardName:{ fontSize: 12.5, fontWeight: '700', color: '#1A1612', lineHeight: 18 },
   cardCat: { fontSize: 10, color: '#C9A84C', fontWeight: '600' },
   viewRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   viewTxt: { fontSize: 11, color: '#C9A84C', fontWeight: '700' },
@@ -464,6 +486,7 @@ const cs = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+const PAGE_SIZE = 8;
 const CATEGORIES = ['Sacred Vessels', 'Vestments', 'Altar Furnishings', 'Devotional Objects', 'Sacramentals'];
 
 // onOpenScanner → called by "Scan to Discover"; the parent must open the existing QR Scanner.
@@ -478,6 +501,8 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState<string | null>(null);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
+  const [page, setPage] = useState(0);
+  const listRef = useRef<FlatList<Artifact>>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -513,6 +538,16 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
     ? allArtifacts.filter(a => a.category === activeCategory)
     : allArtifacts;
 
+  // Pagination — back to page 1 whenever the filter changes
+  useEffect(() => { setPage(0); }, [activeCategory]);
+  const totalPages = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages - 1);
+  const pagedArtifacts = displayed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const goToPage = (p: number) => {
+    setPage(Math.max(0, Math.min(totalPages - 1, p)));
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   // Only count ids that still exist in the artifact list
   const scannedCount = allArtifacts.filter(a => scannedIds.includes(a.id)).length;
   const totalCount   = allArtifacts.length;
@@ -521,11 +556,19 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
     if (!selectedArtifact) return;
     const idx  = displayed.findIndex(a => a.id === selectedArtifact.id);
     const next = displayed[idx + 1];
-    if (next) setSelectedArtifact(next);
+    if (next) { setSelectedArtifact(next); setPage(Math.floor((idx + 1) / PAGE_SIZE)); }
   };
   const hasNext = selectedArtifact
     ? displayed.findIndex(a => a.id === selectedArtifact.id) < displayed.length - 1
     : false;
+  const goPrev = () => {
+    if (!selectedArtifact) return;
+    const idx  = displayed.findIndex(a => a.id === selectedArtifact.id);
+    const prev = displayed[idx - 1];
+    if (prev) { setSelectedArtifact(prev); setPage(Math.floor((idx - 1) / PAGE_SIZE)); }
+  };
+  const selectedIndex = selectedArtifact ? displayed.findIndex(a => a.id === selectedArtifact.id) : -1;
+  const hasPrev = selectedIndex > 0;
 
   const toggleFavorite = async (artifactId: string) => {
     const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifactId);
@@ -629,13 +672,58 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
         </View>
       ) : (
         <FlatList
-          data={displayed}
+          ref={listRef}
+          data={pagedArtifacts}
           extraData={{ scannedIds, favoriteIds }}
           keyExtractor={a => a.id}
           numColumns={2}
           columnWrapperStyle={st.row}
           contentContainerStyle={st.grid}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={totalPages > 1 ? (
+            <View style={st.pager}>
+              <View style={st.pagerRow}>
+                <TouchableOpacity
+                  onPress={() => goToPage(safePage - 1)}
+                  disabled={safePage === 0}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous page"
+                  style={[st.pagerBtn, { borderColor: safePage === 0 ? C.border : C.gold, backgroundColor: safePage === 0 ? C.surface : C.goldSoft }]}
+                >
+                  <Ionicons name="chevron-back" size={16} color={safePage === 0 ? C.inkLight : C.gold} />
+                </TouchableOpacity>
+                <View style={st.pagerDots}>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => goToPage(i)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 3, right: 3 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Page ${i + 1}`}
+                      accessibilityState={{ selected: i === safePage }}
+                    >
+                      <View style={[st.pagerDot, { width: i === safePage ? 20 : 7, backgroundColor: i === safePage ? C.gold : C.border }]} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  onPress={() => goToPage(safePage + 1)}
+                  disabled={safePage === totalPages - 1}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next page"
+                  style={[st.pagerBtn, { borderColor: safePage === totalPages - 1 ? C.border : C.gold, backgroundColor: safePage === totalPages - 1 ? C.surface : C.goldSoft }]}
+                >
+                  <Ionicons name="chevron-forward" size={16} color={safePage === totalPages - 1 ? C.inkLight : C.gold} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[st.pagerLabel, { color: C.inkLight }]}>
+                Page {safePage + 1} of {totalPages} · {displayed.length} artifacts
+              </Text>
+            </View>
+          ) : null}
           renderItem={({ item }) => (
             <ArtifactCard
               artifact={item}
@@ -652,6 +740,9 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
         artifact={selectedArtifact}
         onClose={() => setSelectedArtifact(null)}
         onNext={hasNext ? goNext : undefined}
+        onPrev={hasPrev ? goPrev : undefined}
+        position={selectedIndex + 1}
+        total={displayed.length}
         isFavorite={selectedArtifact ? favoriteIds.includes(selectedArtifact.id) : false}
         onToggleFavorite={() => selectedArtifact && toggleFavorite(selectedArtifact.id)}
         discovered={selectedArtifact ? scannedIds.includes(selectedArtifact.id) : false}
@@ -672,23 +763,29 @@ const st = StyleSheet.create({
   backRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 16 },
   backTxt:     { fontSize: 15, fontWeight: '600' },
 
-  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, borderBottomWidth: 1, gap: 12 },
-  backBtn:     { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 10, borderBottomWidth: 1, gap: 8 },
+  backBtn:     { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   eyebrow:     { fontSize: 9, fontWeight: '800', letterSpacing: 2.5, marginBottom: 2 },
-  pageTitle:   { fontSize: 26, fontWeight: '900', letterSpacing: -0.6 },
-  progressPill:{ flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50, borderWidth: 1 },
-  progressTxt: { fontSize: 16, fontWeight: '900' },
-  progressOf:  { fontSize: 12, fontWeight: '600' },
+  pageTitle:   { fontSize: 21, fontWeight: '900', letterSpacing: -0.5 },
+  progressPill:{ flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, borderWidth: 1 },
+  progressTxt: { fontSize: 14, fontWeight: '900' },
+  progressOf:  { fontSize: 11, fontWeight: '600' },
 
   progressBarTrack: { height: 3, marginHorizontal: 0 },
   progressBarFill:  { height: '100%' as any },
 
   filterBar:     { borderBottomWidth: 1, flexGrow: 0, flexShrink: 0 },
-  filterContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  filterPill:    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50, borderWidth: 1.5 },
-  filterPillTxt: { fontSize: 13, fontWeight: '700' },
+  filterContent: { paddingHorizontal: 14, paddingVertical: 9, gap: 7 },
+  filterPill:    { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 50, borderWidth: 1.2 },
+  filterPillTxt: { fontSize: 12, fontWeight: '700' },
 
-  grid:    { padding: 16, gap: 12 },
+  grid:    { padding: 16, gap: 12, paddingBottom: 28 },
+  pager:     { alignItems: 'center', gap: 8, paddingTop: 8 },
+  pagerRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pagerBtn:  { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pagerDots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  pagerDot:  { height: 7, borderRadius: 4 },
+  pagerLabel:{ fontSize: 11, fontWeight: '600' },
   row:     { gap: 12 },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTxt:  { marginTop: 14, fontSize: 15, fontWeight: '600', textAlign: 'center' },

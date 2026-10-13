@@ -61,9 +61,9 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     backgroundColor: C.bg,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -79,17 +79,17 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '800',
     color: C.ink,
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   goldLine: {
-    width: 40,
-    height: 3,
+    width: 32,
+    height: 2,
     backgroundColor: C.gold,
-    borderRadius: 2,
-    marginTop: 8,
+    borderRadius: 1,
+    marginTop: 6,
   },
   
   // Collection Icon Button
@@ -127,11 +127,11 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     color: C.ink,
   },
   tourProgressPill: {
-    marginTop: 4,
-    minWidth: 92,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 16,
+    marginTop: 2,
+    minWidth: 84,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
     backgroundColor: C.goldSoft,
     borderWidth: 1,
     borderColor: C.borderGold,
@@ -161,10 +161,10 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 
   // ── Camera Container ──
   cameraContainer: {
-    height: SCREEN_HEIGHT * 0.45,
-    marginHorizontal: 20,
-    marginVertical: 12,
-    borderRadius: 24,
+    height: SCREEN_HEIGHT * 0.42,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#000',
     shadowColor: C.ink,
@@ -312,10 +312,10 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     backgroundColor: C.bg,
   },
   statusArea: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 28,
-    minHeight: 100,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
+    minHeight: 72,
   },
   statusRow: {
     flexDirection: 'row',
@@ -393,25 +393,25 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
   hintTxt: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: C.inkMid,
-    lineHeight: 22,
+    lineHeight: 19,
   },
 
   // ── Permission Screen ──
   permIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: C.goldSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: C.borderGold,
   },
   permTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     color: C.ink,
     marginBottom: 8,
@@ -427,8 +427,8 @@ function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
   permBtn: {
     backgroundColor: C.ink,
-    paddingHorizontal: 36,
-    paddingVertical: 16,
+    paddingHorizontal: 32,
+    paddingVertical: 13,
     borderRadius: 50,
     width: '100%',
     alignItems: 'center',
@@ -666,6 +666,7 @@ function ArtifactModal({
   const isCurrentlyPlaying = playingLang === selectedLanguage;
   const selectedLangLabel  = langMeta[selectedLanguage] ?? selectedLanguage.toUpperCase();
 
+
   return (
     <Modal transparent animationType="none" visible={!!artifact} onRequestClose={() => dismiss()} statusBarTranslucent>
       {/* Backdrop */}
@@ -694,13 +695,9 @@ function ArtifactModal({
             <Ionicons name="close" size={18} color="#fff" />
           </TouchableOpacity>
 
-          {/* 1/1 counter — bottom right */}
-          <View style={ams.imgCounter}>
-            <Text style={ams.imgCounterText}>1 / 1</Text>
-          </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false} style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 12 }}>
           {/* ── Title + Favorite ── */}
           <View style={ams.titleSection}>
             <View style={{ flex: 1 }}>
@@ -886,15 +883,16 @@ function ArtifactModal({
               )}
             </View>
 
-            {/* ── Bottom action button ── */}
-            <View style={ams.bottomBtns}>
-              <TouchableOpacity style={ams.scanAgainBtn} onPress={() => dismiss(true)} activeOpacity={0.85}>
-                <Ionicons name="qr-code-outline" size={18} color="#fff" />
-                <Text style={ams.scanAgainBtnText}>Scan Another Artifact</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
+
+        {/* ── Footer ── */}
+        <View style={ams.footer}>
+          <TouchableOpacity style={ams.scanAgainBtn} onPress={() => dismiss(true)} activeOpacity={0.85}>
+            <Ionicons name="qr-code-outline" size={17} color="#fff" />
+            <Text style={ams.scanAgainBtnText}>Scan Another Artifact</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -905,19 +903,19 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: C.surface,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: SCREEN_HEIGHT * 0.93,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: SCREEN_HEIGHT * 0.9,
     overflow: 'hidden',
     shadowColor: C.ink, shadowOpacity: 0.28,
     shadowOffset: { width: 0, height: -6 }, shadowRadius: 22, elevation: 26,
   },
 
   // ── Hero ──
-  heroWrap: { width: '100%', height: 320, position: 'relative', backgroundColor: '#0E0C09' },
+  heroWrap: { width: '100%', height: 250, position: 'relative', backgroundColor: '#0E0C09' },
   heroImg:  { width: '100%', height: '100%' },
   heroScrim: {
     position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
-    backgroundColor: 'rgba(10,8,5,0.32)',
+    backgroundColor: 'rgba(10,8,5,0.12)',
   },
   handle: {
     position: 'absolute', top: 10, alignSelf: 'center', left: '50%',
@@ -926,39 +924,39 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.55)',
   },
   catPill: {
-    position: 'absolute', top: 16, left: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    position: 'absolute', top: 14, left: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(10,8,5,0.72)',
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
     borderWidth: 1, borderColor: C.borderGold,
   },
-  catPillText: { fontSize: 12, fontWeight: '700', color: C.gold },
+  catPillText: { fontSize: 11, fontWeight: '700', color: C.gold },
   closeBtn: {
-    position: 'absolute', top: 12, right: 14,
-    width: 36, height: 36, borderRadius: 18,
+    position: 'absolute', top: 10, right: 12,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(30,27,23,0.65)',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
   imgCounter: {
-    position: 'absolute', bottom: 14, right: 16,
+    position: 'absolute', bottom: 12, right: 14,
     backgroundColor: 'rgba(10,8,5,0.65)',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 50,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  imgCounterText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  imgCounterText: { fontSize: 11, color: '#fff', fontWeight: '600' },
 
   // ── Title ──
   titleSection: {
     flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 12,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 0, gap: 12,
   },
-  name:   { fontSize: 28, fontWeight: '900', color: C.ink, letterSpacing: -0.8, lineHeight: 34, marginBottom: 4 },
-  shrine: { fontSize: 13, color: C.inkMid },
+  name:   { fontSize: 20, fontWeight: '900', color: C.ink, letterSpacing: -0.5, lineHeight: 25, marginBottom: 2 },
+  shrine: { fontSize: 11.5, color: C.inkMid },
 
   iconBtn: {
-    alignItems: 'center', gap: 4, marginTop: 4,
-    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', gap: 4, marginTop: 2,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.border,
     justifyContent: 'center',
   },
@@ -967,24 +965,24 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   iconBtnLabelActive: { color: C.gold },
 
   // ── Tab bar ──
-  tabBar:        { marginTop: 16, paddingLeft: 20 },
-  tabBarContent: { flexDirection: 'row', gap: 8, paddingRight: 20, paddingBottom: 4 },
+  tabBar:        { marginTop: 10, paddingLeft: 16, flexGrow: 0 },
+  tabBarContent: { flexDirection: 'row', gap: 8, paddingRight: 16, paddingBottom: 2 },
   tabChip: {
-    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 50,
-    backgroundColor: C.goldLight, borderWidth: 1.5, borderColor: C.border,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 50,
+    backgroundColor: C.goldLight, borderWidth: 1.2, borderColor: C.border,
   },
   tabChipActive:    { backgroundColor: C.ink, borderColor: C.ink },
-  tabChipText:      { fontSize: 13, fontWeight: '700', color: C.inkMid },
+  tabChipText:      { fontSize: 11.5, fontWeight: '700', color: C.inkMid },
   tabChipTextActive:{ color: '#fff' },
 
   // ── Body ──
-  body: { paddingHorizontal: 20, paddingTop: 16 },
-  tabContent: { fontSize: 15, color: C.inkMid, lineHeight: 26, marginBottom: 20 },
+  body: { paddingHorizontal: 16, paddingTop: 12 },
+  tabContent: { fontSize: 13, color: C.inkMid, lineHeight: 20, marginBottom: 12, textAlign: 'justify' },
 
   // ── Metadata grid ──
   metaGrid: {
-    borderRadius: 16, borderWidth: 1, borderColor: C.border,
-    overflow: 'hidden', marginBottom: 24,
+    borderRadius: 14, borderWidth: 1, borderColor: C.border,
+    overflow: 'hidden', marginBottom: 12,
   },
   metaRow: {
     flexDirection: 'row',
@@ -994,8 +992,8 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   },
   metaCell: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 11,
-    backgroundColor: C.bg, gap: 10,
+    paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: C.bg, gap: 8,
   },
   metaCellRight: {
     borderLeftWidth: 1, borderLeftColor: C.border,
@@ -1010,28 +1008,28 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
 
   // ── Audio section ──
   audioSection: {
-    backgroundColor: C.bg, borderRadius: 16,
+    backgroundColor: C.bg, borderRadius: 14,
     borderWidth: 1, borderColor: C.border,
-    padding: 16, marginBottom: 24, gap: 12,
+    padding: 12, marginBottom: 4, gap: 10,
   },
   audioHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   audioHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  audioHeaderText: { fontSize: 15, fontWeight: '700', color: C.ink },
+  audioHeaderText: { fontSize: 13, fontWeight: '700', color: C.ink },
 
   // Language dropdown
   langDropdown: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: C.goldLight, borderWidth: 1, borderColor: C.borderGold,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50,
   },
-  langDropdownText: { fontSize: 13, fontWeight: '700', color: C.inkMid },
+  langDropdownText: { fontSize: 12, fontWeight: '700', color: C.inkMid },
   langOptions: {
     backgroundColor: C.surface, borderRadius: 12,
     borderWidth: 1, borderColor: C.border, overflow: 'hidden',
   },
   langOption: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 14, paddingVertical: 9,
     borderBottomWidth: 1, borderColor: C.border,
   },
   langOptionActive:     { backgroundColor: C.goldSoft },
@@ -1039,9 +1037,9 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   langOptionTextActive: { color: C.gold, fontWeight: '700' },
 
   // Player row
-  playerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   playCircle: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: C.ink,
     justifyContent: 'center', alignItems: 'center',
   },
@@ -1071,18 +1069,27 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 8,
   },
-  noAudioText: { flex: 1, fontSize: 13, color: C.inkMid, lineHeight: 20 },
+  noAudioText: { flex: 1, fontSize: 12, color: C.inkMid, lineHeight: 18 },
 
   // ── Bottom buttons ──
-  bottomBtns: { gap: 12, marginTop: 4 },
-  scanAgainBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: C.ink, borderRadius: 50,
-    paddingVertical: 16,
-    shadowColor: C.ink, shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 5,
+  footer: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
   },
-  scanAgainBtnText: { fontSize: 15, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
+  pageBtn: {
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: C.goldSoft, borderWidth: 1.2, borderColor: C.gold,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pageBtnOff: { backgroundColor: C.bg, borderColor: C.border },
+  scanAgainBtn: {
+    flex: 1, height: 44,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: C.ink, borderRadius: 14,
+  },
+  scanAgainBtnText: { fontSize: 13.5, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
 });
 }
 

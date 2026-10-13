@@ -672,26 +672,26 @@ export default function Profile({
     // ── Error ────────────────────────────────────────────────────────────────
 
     errorIcon: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: C.goldSoft,
-      marginBottom: 18,
+      marginBottom: 14,
     },
 
     errorTitle: {
       color: C.ink,
-      fontSize: 20,
+      fontSize: 17,
       fontWeight: '800',
       textAlign: 'center',
     },
 
     errorMessage: {
       color: C.inkMid,
-      fontSize: 13,
-      lineHeight: 20,
+      fontSize: 12,
+      lineHeight: 18,
       textAlign: 'center',
       marginTop: 7,
       marginBottom: 20,
@@ -699,52 +699,54 @@ export default function Profile({
 
     retryBtn: {
       backgroundColor: C.ink,
-      paddingHorizontal: 28,
-      paddingVertical: 13,
+      paddingHorizontal: 24,
+      paddingVertical: 11,
       borderRadius: 50,
     },
 
     retryText: {
       color: '#FFF',
       fontWeight: '700',
-      fontSize: 13,
+      fontSize: 12,
     },
 
     // ── Hero ─────────────────────────────────────────────────────────────────
 
     hero: {
-      paddingBottom: 30,
+      borderBottomRightRadius: 28,
+      borderBottomLeftRadius: 28,
+      paddingBottom: 40,
       overflow: 'hidden',
       position: 'relative',
     },
 
     heroOrb1: {
       position: 'absolute',
-      top: -60,
-      right: -60,
-      width: 180,
-      height: 180,
-      borderRadius: 90,
+      top: -50,
+      right: -50,
+      width: 150,
+      height: 150,
+      borderRadius: 75,
       backgroundColor:
         'rgba(199,168,75,0.07)',
     },
 
     heroOrb2: {
       position: 'absolute',
-      bottom: -50,
-      left: -50,
-      width: 150,
-      height: 150,
-      borderRadius: 75,
+      bottom: -40,
+      left: -40,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
       backgroundColor:
         'rgba(199,168,75,0.04)',
     },
 
     heroInner: {
       alignItems: 'center',
-      paddingTop: 30,
+      paddingTop: 16,
       paddingHorizontal: 24,
-      paddingBottom: 5,
+      paddingBottom: 0,
     },
 
     heroGoldLine: {
@@ -761,11 +763,11 @@ export default function Profile({
 
     settingsBtn: {
       position: 'absolute',
-      top: 16,
-      right: 20,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      top: 12,
+      right: 16,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor:
         'rgba(255,255,255,0.07)',
       alignItems: 'center',
@@ -779,22 +781,22 @@ export default function Profile({
 
     avatarWrap: {
       position: 'relative',
-      marginBottom: 18,
+      marginBottom: 12,
     },
 
     avatarRing: {
-      width: 112,
-      height: 112,
-      borderRadius: 56,
+      width: 92,
+      height: 92,
+      borderRadius: 46,
       padding: 3,
       alignItems: 'center',
       justifyContent: 'center',
     },
 
     avatarInner: {
-      width: 106,
-      height: 106,
-      borderRadius: 53,
+      width: 86,
+      height: 86,
+      borderRadius: 43,
       backgroundColor: '#2C2720',
       overflow: 'hidden',
       alignItems: 'center',
@@ -807,7 +809,7 @@ export default function Profile({
     },
 
     avatarInitials: {
-      fontSize: 38,
+      fontSize: 30,
       fontWeight: '800',
       color: C.gold,
     },
@@ -816,18 +818,18 @@ export default function Profile({
       position: 'absolute',
       bottom: 0,
       right: 0,
-      width: 34,
-      height: 34,
-      borderRadius: 17,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
       backgroundColor: C.gold,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 3,
+      borderWidth: 2.5,
       borderColor: '#1E1B17',
     },
 
     avatarUploadOverlay: { 
-      borderRadius: 53,
+      borderRadius: 43,
       backgroundColor:
         'rgba(0,0,0,0.50)',
       alignItems: 'center',
@@ -846,9 +848,9 @@ export default function Profile({
       borderColor:
         'rgba(199,168,75,0.22)',
       borderRadius: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      marginBottom: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      marginBottom: 8,
     },
 
     heroBadgeDot: {
@@ -859,36 +861,36 @@ export default function Profile({
     },
 
     heroBadgeTxt: {
-      fontSize: 9,
+      fontSize: 8.5,
       fontWeight: '700',
-      letterSpacing: 2,
+      letterSpacing: 1.8,
       color: C.gold,
     },
 
     heroName: {
-      fontSize: 30,
+      fontSize: 24,
       fontWeight: '900',
       color: '#FFFCF8',
       letterSpacing: -0.5,
-      lineHeight: 36,
+      lineHeight: 30,
       textAlign: 'center',
     },
 
     heroSub: {
-      fontSize: 12,
+      fontSize: 11,
       color:
         'rgba(255,252,248,0.48)',
-      marginTop: 5,
+      marginTop: 3,
     },
 
     // ── Stats ────────────────────────────────────────────────────────────────
 
     statsRow: {
       flexDirection: 'row',
-      marginHorizontal: 20,
-      marginTop: 16,
+      marginHorizontal: 16,
+      marginTop: -26,
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: C.border,
       overflow: 'hidden',
@@ -907,20 +909,20 @@ export default function Profile({
     statCell: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 17,
-      gap: 4,
+      paddingVertical: 12,
+      gap: 3,
     },
 
     statDivider: {
       width: 1,
       backgroundColor: C.border,
-      marginVertical: 14,
+      marginVertical: 12,
     },
 
     statIconBox: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
+      width: 28,
+      height: 28,
+      borderRadius: 8,
       backgroundColor: C.goldSoft,
       alignItems: 'center',
       justifyContent: 'center',
@@ -928,30 +930,30 @@ export default function Profile({
     },
 
     statNum: {
-      fontSize: 21,
+      fontSize: 17,
       fontWeight: '900',
       color: C.ink,
     },
 
     statLbl: {
-      fontSize: 8.5,
+      fontSize: 8,
       fontWeight: '700',
-      letterSpacing: 1.2,
+      letterSpacing: 1,
       color: C.inkDim,
     },
 
     // ── Section ──────────────────────────────────────────────────────────────
 
     section: {
-      paddingHorizontal: 20,
-      paddingTop: 24,
+      paddingHorizontal: 16,
+      paddingTop: 18,
     },
 
     sectionHead: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 12,
+      marginBottom: 8,
     },
 
     sectionDot: {
@@ -962,9 +964,9 @@ export default function Profile({
     },
 
     sectionLbl: {
-      fontSize: 9,
+      fontSize: 8.5,
       fontWeight: '800',
-      letterSpacing: 2.5,
+      letterSpacing: 2,
       color: C.gold,
     },
 
@@ -978,12 +980,12 @@ export default function Profile({
 
     journeyCard: {
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: tourComplete
         ? C.borderGold
         : C.border,
-      padding: 18,
+      padding: 14,
 
       shadowColor: C.ink,
       shadowOpacity: 0.04,
@@ -1001,9 +1003,9 @@ export default function Profile({
     },
 
     achievementIcon: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       backgroundColor: C.goldSoft,
       borderWidth: 1,
       borderColor: C.borderGold,
@@ -1017,34 +1019,34 @@ export default function Profile({
 
     journeyTitle: {
       color: C.ink,
-      fontSize: 15,
+      fontSize: 13.5,
       fontWeight: '800',
     },
 
     journeySub: {
       color: C.inkMid,
-      fontSize: 11.5,
-      marginTop: 3,
-      lineHeight: 17,
+      fontSize: 10.5,
+      marginTop: 2,
+      lineHeight: 15,
     },
 
     percentage: {
       color: C.gold,
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '900',
     },
 
     progressTrack: {
-      height: 8,
-      borderRadius: 4,
+      height: 6,
+      borderRadius: 3,
       backgroundColor: C.border,
       overflow: 'hidden',
-      marginTop: 18,
+      marginTop: 12,
     },
 
     progressFill: {
       height: '100%',
-      borderRadius: 4,
+      borderRadius: 3,
       backgroundColor: C.gold,
     },
 
@@ -1052,12 +1054,12 @@ export default function Profile({
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 11,
+      marginTop: 8,
     },
 
     journeyProgressText: {
       color: C.inkDim,
-      fontSize: 10.5,
+      fontSize: 10,
       fontWeight: '600',
     },
 
@@ -1069,7 +1071,7 @@ export default function Profile({
 
     journeyActionText: {
       color: C.gold,
-      fontSize: 11,
+      fontSize: 10.5,
       fontWeight: '700',
     },
 
@@ -1080,14 +1082,14 @@ export default function Profile({
       backgroundColor: C.goldSoft,
       borderRadius: 12,
       paddingHorizontal: 11,
-      paddingVertical: 8,
-      marginTop: 15,
+      paddingVertical: 6,
+      marginTop: 11,
       alignSelf: 'flex-start',
     },
 
     completedText: {
       color: C.gold,
-      fontSize: 10,
+      fontSize: 9.5,
       fontWeight: '800',
       letterSpacing: 0.5,
     },
@@ -1096,7 +1098,7 @@ export default function Profile({
 
     menuCard: {
       backgroundColor: C.surface,
-      borderRadius: 18,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: C.border,
       overflow: 'hidden',
@@ -1106,9 +1108,9 @@ export default function Profile({
 
     version: {
       textAlign: 'center',
-      fontSize: 10,
+      fontSize: 9.5,
       color: C.inkDim,
-      marginTop: 30,
+      marginTop: 22,
       letterSpacing: 0.5,
     },
   });
@@ -1248,7 +1250,7 @@ export default function Profile({
           >
             <Ionicons
               name="settings-outline"
-              size={20}
+              size={17}
               color="rgba(255,255,255,0.75)"
             />
           </TouchableOpacity>
@@ -1315,7 +1317,7 @@ export default function Profile({
               <View style={s.avatarEditBtn}>
                 <Ionicons
                   name="camera"
-                  size={15}
+                  size={13}
                   color="#1A1510"
                 />
               </View>
@@ -1344,7 +1346,7 @@ export default function Profile({
                 s.heroName,
                 {
                   fontSize:
-                    30 * fontScale,
+                    24 * fontScale,
                 },
               ]}
             >
@@ -1494,7 +1496,7 @@ export default function Profile({
                       ? 'ribbon'
                       : 'map-outline'
                   }
-                  size={23}
+                  size={19}
                   color={C.gold}
                 />
               </View>
@@ -1825,9 +1827,9 @@ function MenuRow({
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 15,
-      gap: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      gap: 12,
 
       borderBottomWidth:
         isLast ? 0 : 1,
@@ -1837,9 +1839,9 @@ function MenuRow({
     },
 
     menuIconBox: {
-      width: 38,
-      height: 38,
-      borderRadius: 11,
+      width: 32,
+      height: 32,
+      borderRadius: 9,
 
       backgroundColor:
         C.goldSoft,
@@ -1853,14 +1855,14 @@ function MenuRow({
     },
 
     menuTitle: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: C.ink,
       marginBottom: 1,
     },
 
     menuSub: {
-      fontSize: 11,
+      fontSize: 10.5,
       color: C.inkDim,
     },
 
@@ -1880,7 +1882,7 @@ function MenuRow({
     },
 
     menuBadgeText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
       color: '#FFF',
     },
@@ -1909,7 +1911,7 @@ function MenuRow({
         >
           <Ionicons
             name={icon as any}
-            size={19}
+            size={17}
             color={C.gold}
           />
         </View>
