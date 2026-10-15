@@ -25,6 +25,7 @@ import {
   LocationOption,
   resolvePhilippineLocation,
 } from '../services/philippineLocations';
+import { MAPS_ENABLED } from '../../maps/config';
 
 // ─── World countries (ISO 3166-1 alpha-2) ─────────────────────────────────────
 // Full list — sorted alphabetically. Philippines is listed normally (not special-cased).
@@ -593,6 +594,8 @@ export function LocationFields({ value, onChange, error, onMapVisibilityChange }
 
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
   const openMap = () => {
+    if (!MAPS_ENABLED) return;
+
     setMapOpen(true);
     onMapVisibilityChange?.(true);
   };
@@ -662,26 +665,30 @@ export function LocationFields({ value, onChange, error, onMapVisibilityChange }
         </View>
       </View>
 
-      <View style={styles.mapShortcut}>
+      <View style={[styles.mapShortcut, !MAPS_ENABLED && styles.mapShortcutDisabled]}>
         <View style={styles.mapShortcutCopy}>
-          <Text style={styles.mapShortcutTitle}>FIND YOUR ADDRESS</Text>
+          <Text style={styles.mapShortcutTitle}>
+            {MAPS_ENABLED ? 'FIND YOUR ADDRESS' : 'MAP DISABLED FOR TESTING'}
+          </Text>
           <Text style={styles.mapShortcutSummary} numberOfLines={2}>
-            {selectedLocation || 'Choose a spot on the map to fill this in'}
+            {selectedLocation || (MAPS_ENABLED ? 'Choose a spot on the map to fill this in' : 'Select your location manually below.')}
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.mapShortcutButton}
+          style={[styles.mapShortcutButton, !MAPS_ENABLED && styles.mapShortcutButtonDisabled]}
           onPress={openMap}
+          disabled={!MAPS_ENABLED}
           accessibilityRole="button"
-          accessibilityLabel="Choose location on map"
+          accessibilityLabel={MAPS_ENABLED ? 'Choose location on map' : 'Map disabled for testing'}
+          accessibilityState={{ disabled: !MAPS_ENABLED }}
         >
           <Icon name="map-outline" size={17} color="#FFFFFF" />
-          <Text style={styles.mapShortcutButtonText}>Map</Text>
+          <Text style={styles.mapShortcutButtonText}>{MAPS_ENABLED ? 'Map' : 'Off'}</Text>
         </TouchableOpacity>
       </View>
 
       <LocationMapModal
-        visible={mapOpen}
+        visible={MAPS_ENABLED && mapOpen}
         onClose={closeMap}
         onSelect={applyMapLocation}
       />
@@ -811,10 +818,12 @@ const styles = StyleSheet.create({
   sectionTitle:       { color: '#191611', fontSize: 13, fontWeight: '800' },
   sectionDescription: { color: '#6E665B', fontSize: 10, lineHeight: 15, marginTop: 2 },
   mapShortcut:        { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, marginBottom: 13, borderRadius: 12, borderWidth: 1, borderColor: '#E8D9B8', backgroundColor: '#F8F1E3' },
+  mapShortcutDisabled: { opacity: 0.65 },
   mapShortcutCopy:    { flex: 1 },
   mapShortcutTitle:   { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
   mapShortcutSummary: { color: '#302A22', fontSize: 12, lineHeight: 16, marginTop: 4 },
   mapShortcutButton:  { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#B99345' },
+  mapShortcutButtonDisabled: { backgroundColor: '#8B8479' },
   mapShortcutButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   field:              { marginBottom: 10 },
   label:              { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1.1, marginBottom: 6 },

@@ -7,14 +7,12 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@supabase/supabase-js';
-
 import AppIntro from '../screens/auth/AppIntro';
 import GetStarted from '../screens/auth/GetStarted';
 import SignIn from '../screens/auth/SignIn';
 import SignUp from '../screens/auth/SignUp';
 import VerifyOTP from '../screens/auth/VerifyOTP';
 import TabNavigator from './TabNavigator';
-
 import NotifPermissionPrimer from '../components/NotifPermissionPrimer';
 import { supabase } from '../services/supabase';
 import { touchLastSeen } from '../services/authService';
@@ -43,19 +41,16 @@ const Stack = createNativeStackNavigator();
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function isGoogleUser(user: User): boolean {
+function isSocialUser(user: User): boolean {
+  const providers = ['google', 'facebook'];
+
   return (
-    user.app_metadata?.provider === 'google' ||
-    !!user.identities?.some(
-      (identity) => identity.provider === 'google',
+    providers.includes(user.app_metadata?.provider ?? '') ||
+    !!user.identities?.some((identity) =>
+      providers.includes(identity.provider)
     )
   );
 }
-
-/**
- * Where a fully set-up user goes:
- * onboarding once, then the main application.
- */
 async function defaultDestination(): Promise<Phase> {
   const seen = await AsyncStorage.getItem(
     GET_STARTED_SEEN_KEY,
@@ -71,7 +66,7 @@ async function defaultDestination(): Promise<Phase> {
 async function resolveDestination(
   user: User,
 ): Promise<Phase> {
-  if (!isGoogleUser(user)) {
+ if (!isSocialUser(user)) {
     return defaultDestination();
   }
 
@@ -229,6 +224,26 @@ async function getUserAccountStatus(
 export default function AuthNavigator() {
   const [phase, setPhase] =
     useState<Phase>('splash');
+
+  const [introVisible, setIntroVisible] =
+    useState(true);
+
+  const startupSessionRef = useRef<{
+    promise: Promise<User | null>;
+    resolve: (user: User | null) => void;
+  } | null>(null);
+
+  if (!startupSessionRef.current) {
+    let resolveStartupSession!: (user: User | null) => void;
+    const promise = new Promise<User | null>((resolve) => {
+      resolveStartupSession = resolve;
+    });
+
+    startupSessionRef.current = {
+      promise,
+      resolve: resolveStartupSession,
+    };
+  }
 
   const [
     showNotifPrimer,
@@ -508,9 +523,7 @@ export default function AuthNavigator() {
     const canRoute =
       phaseRef.current === 'auth';
 
-    const google =
-      isGoogleUser(user);
-
+    const social = isSocialUser(user);
     /**
      * Ensure public.users exists before checking
      * the account status.
@@ -543,16 +556,16 @@ export default function AuthNavigator() {
     /**
      * Email/password users.
      */
-    if (canRoute && !google) {
+    if (canRoute && !social) {
       transitionTo(
         await defaultDestination(),
       );
     }
 
     /**
-     * Google users.
+     * Social users.
      */
-    if (canRoute && google) {
+    if (canRoute && social) {
       transitionTo(
         await resolveDestination(user),
       );
@@ -605,6 +618,13 @@ export default function AuthNavigator() {
             return;
           }
 
+          if (event === 'INITIAL_SESSION') {
+            startupSessionRef.current?.resolve(
+              session?.user ?? null,
+            );
+            return;
+          }
+
           // ───────────────────────────────────────────────────────────────────
           // Signed out
           // ───────────────────────────────────────────────────────────────────
@@ -628,19 +648,7 @@ export default function AuthNavigator() {
             return;
           }
 
-          /**
-           * INITIAL_SESSION is handled by
-           * handleIntroDone so AppIntro still plays.
-           *
-           * TOKEN_REFRESHED does not need to
-           * reroute the user.
-           */
-          if (
-            event ===
-              'INITIAL_SESSION' ||
-            event ===
-              'TOKEN_REFRESHED'
-          ) {
+          if (event === 'TOKEN_REFRESHED') {
             return;
           }
 
@@ -761,17 +769,24 @@ export default function AuthNavigator() {
   }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // AppIntro Finished / Restore Session
+  // Restore the destination before the intro reveals it
   // ───────────────────────────────────────────────────────────────────────────
 
-  const handleIntroDone =
+  const handleIntroReveal =
     async () => {
       try {
-        const { data } =
+        const initialUser =
+          await startupSessionRef.current!.promise;
+
+        const { data, error } =
           await supabase.auth.getSession();
 
+        if (error) {
+          throw error;
+        }
+
         const user =
-          data?.session?.user;
+          data?.session?.user ?? initialUser;
 
         if (
           !user ||
@@ -811,10 +826,13 @@ export default function AuthNavigator() {
           user.id,
         ).catch(() => {});
 
+        const destination =
+          await resolveDestination(user);
+
         transitionTo(
-          await resolveDestination(
-            user,
-          ),
+          destination === 'getstarted'
+            ? 'main'
+            : destination,
         );
 
         prepareNotifications(
@@ -833,6 +851,10 @@ export default function AuthNavigator() {
         transitionTo('auth');
       }
     };
+
+  const handleIntroDone = () => {
+    setIntroVisible(false);
+  };
 
   // ───────────────────────────────────────────────────────────────────────────
   // GetStarted Finished
@@ -896,18 +918,8 @@ export default function AuthNavigator() {
           animation: 'fade',
         }}
       >
-        {phase === 'splash' ? (
-          <Stack.Screen name="AppIntro">
-            {(props) => (
-              <AppIntro
-                {...props}
-                onDone={
-                  handleIntroDone
-                }
-              />
-            )}
-          </Stack.Screen>
-        ) : phase === 'auth' ? (
+        {phase === 'splash' ||
+        phase === 'auth' ? (
           <>
             <Stack.Screen
               name="SignIn"
@@ -956,6 +968,13 @@ export default function AuthNavigator() {
           />
         )}
       </Stack.Navigator>
+
+      {introVisible && (
+        <AppIntro
+          onReveal={handleIntroReveal}
+          onDone={handleIntroDone}
+        />
+      )}
 
       {/*
         Notification permission explanation.

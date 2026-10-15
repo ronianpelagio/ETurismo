@@ -278,6 +278,9 @@ export default function SignIn({
   const [googleLoading, setGoogleLoading] =
     useState(false);
 
+  const [facebookLoading, setFacebookLoading] =
+  useState(false);
+
   const [forgotLoading, setForgotLoading] =
     useState(false);
 
@@ -571,9 +574,141 @@ export default function SignIn({
      FACEBOOK
   ========================================================================== */
 
-  const handleFacebook = () => {
-    Alert.alert('Coming Soon', 'Facebook sign in will be available soon.');
-  };
+ const handleFacebook = async () => {
+  if (facebookLoading || googleLoading || loading) return;
+
+  setFacebookLoading(true);
+  setAuthError('');
+
+  try {
+    const redirectUri = AuthSession.makeRedirectUri({
+      native: 'com.ronian.eturismo://auth/callback',
+    });
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'facebook',
+      options: {
+        redirectTo: redirectUri,
+        skipBrowserRedirect: true,
+        scopes: 'public_profile,email',
+      },
+    });
+
+    if (error) throw error;
+
+    if (!data.url) {
+      throw new Error('Facebook OAuth URL was not returned.');
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectUri,
+    );
+
+    if (result.type !== 'success') {
+      return;
+    }
+
+    const callbackUrl = new URL(result.url);
+
+    const queryParams = callbackUrl.searchParams;
+    const hashParams = new URLSearchParams(
+      callbackUrl.hash.replace(/^#/, ''),
+    );
+
+    const callbackError =
+      queryParams.get('error_description') ||
+      hashParams.get('error_description') ||
+      queryParams.get('error') ||
+      hashParams.get('error');
+
+    if (callbackError) {
+      throw new Error(callbackError);
+    }
+
+    const code = queryParams.get('code');
+
+    const accessToken =
+      queryParams.get('access_token') ||
+      hashParams.get('access_token');
+
+    const refreshToken =
+      queryParams.get('refresh_token') ||
+      hashParams.get('refresh_token');
+
+    if (code) {
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
+
+      if (exchangeError) throw exchangeError;
+    } else if (accessToken && refreshToken) {
+      const { error: sessionError } =
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+      if (sessionError) throw sessionError;
+    } else {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (!sessionData.session) {
+        throw new Error(
+          'Facebook authentication returned without a session.',
+        );
+      }
+    }
+
+    const { data: userData, error: userError } =
+      await supabase.auth.getUser();
+
+    if (userError || !userData.user) {
+      throw userError || new Error('Unable to retrieve Facebook account.');
+    }
+
+    const user = userData.user;
+    const metadata = user.user_metadata ?? {};
+
+    const fullName = String(
+      metadata.full_name ?? metadata.name ?? '',
+    ).trim();
+
+    const facebookProfile = {
+      userId: user.id,
+      email: user.email ?? '',
+      firstName:
+        metadata.given_name ??
+        metadata.first_name ??
+        fullName.split(' ')[0] ??
+        '',
+      lastName:
+        metadata.family_name ??
+        metadata.last_name ??
+        fullName.split(' ').slice(1).join(' '),
+      profilePicture:
+        metadata.avatar_url ??
+        metadata.picture ??
+        '',
+    };
+
+    await AsyncStorage.setItem(
+      'facebook_prefill_profile',
+      JSON.stringify(facebookProfile),
+    );
+
+    // Your AuthNavigator should handle the signed-in session.
+  } catch (err: any) {
+    Alert.alert(
+      'Facebook Sign In',
+      err?.message || 'Unable to sign in with Facebook.',
+    );
+  } finally {
+    setFacebookLoading(false);
+  }
+};
 
   /* ==========================================================================
      CHANGE INPUT
@@ -917,7 +1052,7 @@ export default function SignIn({
                   type="facebook"
                   label="Facebook"
                   onPress={handleFacebook}
-                  loading={false}
+                  loading={facebookLoading}
                 />
               </View>
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated, Modal, ScrollView, Image,
@@ -734,6 +734,16 @@ function ArtifactModal({
             {/* ── Tab content ── */}
             <Text style={ams.tabContent}>{getTabContent(activeTab)}</Text>
 
+            {activeTab === 'Details' && artifact.Historical_Significance?.trim() ? (
+              <View style={ams.historicalSection}>
+                <View style={ams.historicalHeader}>
+                  <Ionicons name="time-outline" size={14} color={C.gold} />
+                  <Text style={ams.metaLabel}>HISTORICAL SIGNIFICANCE</Text>
+                </View>
+                <Text style={ams.historicalText}>{artifact.Historical_Significance}</Text>
+              </View>
+            ) : null}
+
             {/* ── Metadata grid (2 rows × 2 cols) ── */}
             {activeTab === 'Details' && (
               <View style={ams.metaGrid}>
@@ -978,6 +988,21 @@ function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   // ── Body ──
   body: { paddingHorizontal: 16, paddingTop: 12 },
   tabContent: { fontSize: 13, color: C.inkMid, lineHeight: 20, marginBottom: 12, textAlign: 'justify' },
+  historicalSection: {
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  historicalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  historicalText: { fontSize: 13, color: C.inkMid, lineHeight: 20, textAlign: 'justify' },
 
   // ── Metadata grid ──
   metaGrid: {

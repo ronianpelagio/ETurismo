@@ -76,6 +76,13 @@ test('tour feedback waits until the third artifact details are dismissed', () =>
   assert.doesNotMatch(qrScanner, /tourCompletedCount/);
 });
 
+test('Home audio narration does not display unsynced word markers', () => {
+  const home = readFileSync('src/screens/main/Home.tsx', 'utf8');
+
+  assert.doesNotMatch(home, /HighlightedText|highlightedIndex|audioWords/);
+  assert.match(home, /<Text style=\{styles\.modalDesc\}>[\s\S]*?fullDesc/);
+});
+
 test('avatar storage policies restrict writes to the authenticated user folder', () => {
   assert.match(migration, /to authenticated/);
   assert.match(migration, /\(storage\.foldername\(name\)\)\[1\] = \(select auth\.uid\(\)\)::text/);

@@ -29,7 +29,6 @@ import { useAppContext } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
-import HighlightedText from '../../components/HighlightedText';
 import ArtifactComments from './ArtifactComments';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system';
@@ -41,6 +40,7 @@ import {
   ARTIFACT_TAB_ICONS,
   type ArtifactTab,
 } from '../../features/artifacts/constants';
+import { MAPS_ENABLED } from '../../features/maps/config';
 import type { Announcement, Event, UserProfile } from '../../features/home/types';
 import {
   formatDate,
@@ -1196,15 +1196,13 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
     }
   }, [loading, error]);
 
-  // ── Word-highlighting for audio guide ──
+  // ── Audio guide playback timing ──
   const currentAudioDesc: string = (() => {
     if (!selectedArtifact) return '';
     const t = selectedArtifact.translations?.find(tr => tr.language_code === selectedLanguage);
     return t?.description || selectedArtifact.description || '';
   })();
   const {
-    words: audioWords,
-    highlightedIndex,
     currentTime: audioCurrentTime,
     startHighlight,
     stopHighlight,
@@ -1743,6 +1741,8 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   }
 
   function openMapModal() {
+    if (!MAPS_ENABLED) return;
+
     setShowMapModal(true);
     onMapVisibilityChange?.(true);
     setLocationError(null);
@@ -2379,12 +2379,14 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
-                    style={[styles.visitBtn, { flex: 1, backgroundColor: C.gold }]}
+                    style={[styles.visitBtn, { flex: 1, backgroundColor: C.gold, opacity: MAPS_ENABLED ? 1 : 0.5 }]}
                     onPress={openMapModal}
+                    disabled={!MAPS_ENABLED}
                     activeOpacity={0.85}
+                    accessibilityState={{ disabled: !MAPS_ENABLED }}
                   >
                     <Ionicons name="navigate" size={16} color="#1A1510" />
-                    <Text style={styles.visitBtnText}>Directions</Text>
+                    <Text style={styles.visitBtnText}>{MAPS_ENABLED ? 'Directions' : 'Maps disabled for testing'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.visitBtn, { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}
@@ -2536,19 +2538,11 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                       const isCurrentlyPlaying = !!playingLang;
                       return (
                         <>
-                          {isCurrentlyPlaying ? (
-                            // Word-highlighted text while audio plays
-                            <HighlightedText
-                              words={audioWords}
-                              highlightedIndex={highlightedIndex}
-                              textStyle={styles.modalDesc}
-                              highlightColor="rgba(201,168,76,0.28)"
-                            />
-                          ) : (
-                            <Text style={styles.modalDesc}>
-                              {needsTrunc && !descExpanded ? fullDesc.slice(0, LIMIT).trimEnd() + '…' : fullDesc}
-                            </Text>
-                          )}
+                          <Text style={styles.modalDesc}>
+                            {needsTrunc && !descExpanded && !isCurrentlyPlaying
+                              ? fullDesc.slice(0, LIMIT).trimEnd() + '…'
+                              : fullDesc}
+                          </Text>
                           {needsTrunc && !isCurrentlyPlaying && (
                             <TouchableOpacity
                               onPress={() => setDescExpanded(v => !v)}
@@ -2560,18 +2554,6 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                               </Text>
                               <Ionicons name={descExpanded ? 'chevron-up' : 'chevron-down'} size={13} color={C.gold} />
                             </TouchableOpacity>
-                          )}
-                          {isCurrentlyPlaying && (
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 6,
-                              marginTop: 10, backgroundColor: C.goldSoft,
-                              borderRadius: 10, padding: 10, borderWidth: 1, borderColor: C.borderGold,
-                            }}>
-                              <Ionicons name="information-circle-outline" size={14} color={C.gold} />
-                              <Text style={{ flex: 1, fontSize: 11, color: C.inkMid, lineHeight: 16 }}>
-                                Words are highlighted as the narration plays.
-                              </Text>
-                            </View>
                           )}
                         </>
                       );
@@ -3014,7 +2996,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       {/* ══════════════════════════════════════════════════════
           MAP / DIRECTIONS MODAL  — fully in-app routing
       ══════════════════════════════════════════════════════ */}
-      {showMapModal && (
+      {MAPS_ENABLED && showMapModal && (
         <Animated.View style={[styles.modalWrap, { opacity: mapModalOpacity }]}>
           <TouchableOpacity style={styles.modalBackdrop} onPress={closeMapModal} activeOpacity={1} />
           <Animated.View style={[styles.mapModalSheet, { transform: [{ translateY: mapModalSlide }] }]}>
