@@ -330,6 +330,12 @@ export default function ArtifactsPage() {
   const [audioStep, setAudioStep] = useState("");
   const [generatingAll, setGeneratingAll] = useState(false);
   const [audioStatus, setAudioStatus] = useState<Record<string, string>>({});
+  const audioLanguagesReady = LANGUAGES.every((language) =>
+    String(form[`desc_${language.code}` as keyof AForm] || "").trim(),
+  );
+  const missingAudioLanguages = LANGUAGES.filter(
+    (language) => !String(form[`desc_${language.code}` as keyof AForm] || "").trim(),
+  ).map((language) => language.label);
 
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [selectedVoice, setSelectedVoice] = useState("");
@@ -627,17 +633,19 @@ export default function ArtifactsPage() {
       alert("Invalid artifact ID. Save the artifact and reopen it.");
       return;
     }
-    const pairs: [LangCode, string][] = [
-      ["en", form.desc_en],
-      ["fil", form.desc_fil],
-      ["ja", form.desc_ja],
-      ["es", form.desc_es],
-      ["ko", form.desc_ko],
-    ].filter(([, t]) => (t as string).trim()) as [LangCode, string][];
-    if (!pairs.length) {
-      alert("No descriptions to generate audio from.");
+    if (!audioLanguagesReady) {
+      alert(
+        `Add descriptions for all languages first: ${missingAudioLanguages.join(", ")}.`,
+      );
       return;
     }
+    const pairs = LANGUAGES.map(
+      ({ code }) =>
+        [code, form[`desc_${code}` as keyof AForm] as string] as [
+          LangCode,
+          string,
+        ],
+    );
     setGeneratingAll(true);
     let ok = 0,
       fail = 0;
@@ -1537,29 +1545,45 @@ export default function ArtifactsPage() {
                       ? "Hide Voice Settings"
                       : "Voice Settings"}
                   </Button>
-                  {editingId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateAllAudio}
-                      disabled={generatingAll || audioSaving}
-                      className="rounded-xl text-xs"
-                    >
-                      {generatingAll || audioSaving ? (
-                        <>
-                          <Spinner className="mr-1.5" />
-                          {audioStep || "Generating…"}
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 className="mr-1.5 h-3.5 w-3.5" />
-                          Generate All Audio
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={
+                      editingId ? handleGenerateAllAudio : handleSaveArtifact
+                    }
+                    disabled={
+                      generatingAll ||
+                      audioSaving ||
+                      saving ||
+                      translating ||
+                      !audioLanguagesReady
+                    }
+                    className="rounded-xl text-xs"
+                  >
+                    {generatingAll || audioSaving || saving ? (
+                      <>
+                        <Spinner className="mr-1.5" />
+                        {audioStep || saveStep || "Generating…"}
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="mr-1.5 h-3.5 w-3.5" />
+                        {editingId
+                          ? "Generate All Audio"
+                          : "Create & Generate All Audio"}
+                      </>
+                    )}
+                  </Button>
                 </div>
+                {!audioLanguagesReady && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {
+                      "Complete every language description to enable all-language audio generation. Missing: "
+                    }
+                    {missingAudioLanguages.join(", ")}.
+                  </p>
+                )}
 
                 {/* Voice controls */}
                 <AnimatePresence>
