@@ -140,7 +140,7 @@ export default function Badge({
         <Ionicons
           name={icon}
           size={getIconSize()}
-          color={getTextStyle().color}
+          color={getTextStyle().color as string}
           style={{ marginRight: 4 }}
         />
       )}

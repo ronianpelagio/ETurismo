@@ -3,14 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'appLanguage';
 
-export type AppLanguage = 'en' | 'fil' | 'ja' | 'es' | 'ko';
+export type AppLanguage = 'en' | 'fil' | 'ja' | 'es' | 'ko' | 'ceb' | 'ilo' | 'hil';
 
 export const LANGUAGE_META: Record<AppLanguage, { name: string; nativeName: string; icon: string }> = {
-  en:  { name: 'English',  nativeName: 'English',  icon: 'language-outline' },
-  fil: { name: 'Filipino', nativeName: 'Filipino', icon: 'language-outline' },
-  ja:  { name: 'Japanese', nativeName: '日本語',   icon: 'language-outline' },
-  es:  { name: 'Spanish',  nativeName: 'Español',  icon: 'language-outline' },
-  ko:  { name: 'Korean',   nativeName: '한국어',   icon: 'language-outline' },
+  en:  { name: 'English',    nativeName: 'English',    icon: 'language-outline' },
+  fil: { name: 'Filipino',   nativeName: 'Filipino',   icon: 'language-outline' },
+  ja:  { name: 'Japanese',   nativeName: '日本語',     icon: 'language-outline' },
+  es:  { name: 'Spanish',    nativeName: 'Español',    icon: 'language-outline' },
+  ko:  { name: 'Korean',     nativeName: '한국어',     icon: 'language-outline' },
+  ceb: { name: 'Bisaya',     nativeName: 'Bisaya',     icon: 'language-outline' },
+  ilo: { name: 'Ilocano',    nativeName: 'Ilokano',    icon: 'language-outline' },
+  hil: { name: 'Hiligaynon', nativeName: 'Ilonggo',   icon: 'language-outline' },
 };
 
 type LanguageContextType = {

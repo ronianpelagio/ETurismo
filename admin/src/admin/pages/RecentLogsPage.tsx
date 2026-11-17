@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,40 +25,42 @@ type LogEntry = {
   created_at: string;
 };
 
-const TYPE_META: Record<
+function getTypeMeta(t: (key: string) => string): Record<
   LogEntry["type"],
   { icon: React.ReactNode; label: string; color: string }
-> = {
-  user: {
-    icon: <Users className="h-3.5 w-3.5" />,
-    label: "New User",
-    color: "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
-  },
-  artifact: {
-    icon: <Boxes className="h-3.5 w-3.5" />,
-    label: "New Artifact",
-    color:
-      "bg-violet-500/10 text-violet-600 border-violet-200 dark:border-violet-800",
-  },
-  rating: {
-    icon: <Star className="h-3.5 w-3.5" />,
-    label: "New Rating",
-    color:
-      "bg-yellow-500/10 text-yellow-600 border-yellow-200 dark:border-yellow-800",
-  },
-  event: {
-    icon: <Calendar className="h-3.5 w-3.5" />,
-    label: "New Event",
-    color:
-      "bg-green-500/10 text-green-600 border-green-200 dark:border-green-800",
-  },
-  announcement: {
-    icon: <Megaphone className="h-3.5 w-3.5" />,
-    label: "Announcement",
-    color:
-      "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800",
-  },
-};
+> {
+  return {
+    user: {
+      icon: <Users className="h-3.5 w-3.5" />,
+      label: t("logs.types.user"),
+      color: "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
+    },
+    artifact: {
+      icon: <Boxes className="h-3.5 w-3.5" />,
+      label: t("logs.types.artifact"),
+      color:
+        "bg-violet-500/10 text-violet-600 border-violet-200 dark:border-violet-800",
+    },
+    rating: {
+      icon: <Star className="h-3.5 w-3.5" />,
+      label: t("logs.types.rating"),
+      color:
+        "bg-yellow-500/10 text-yellow-600 border-yellow-200 dark:border-yellow-800",
+    },
+    event: {
+      icon: <Calendar className="h-3.5 w-3.5" />,
+      label: t("logs.types.event"),
+      color:
+        "bg-green-500/10 text-green-600 border-green-200 dark:border-green-800",
+    },
+    announcement: {
+      icon: <Megaphone className="h-3.5 w-3.5" />,
+      label: t("logs.types.announcement"),
+      color:
+        "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800",
+    },
+  };
+}
 
 const LOGS_PER_PAGE = 10;
 
@@ -158,6 +161,8 @@ async function fetchLogs(limit = 50): Promise<LogEntry[]> {
 }
 
 export default function RecentLogsPage() {
+  const { t } = useTranslation();
+  const TYPE_META = getTypeMeta(t);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,9 +209,9 @@ export default function RecentLogsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Activity"
-        title="Recent Logs"
-        description="Latest activity across users, artifacts, ratings, events, and announcements."
+        eyebrow={t("logs.eyebrow")}
+        title={t("logs.title")}
+        description={t("logs.description")}
         actions={
           <Button
             variant="outline"
@@ -218,7 +223,7 @@ export default function RecentLogsPage() {
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
             />{" "}
-            Refresh
+            {t("logs.refresh")}
           </Button>
         }
       />
@@ -253,19 +258,19 @@ export default function RecentLogsPage() {
 
       {/* Filter tabs */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {(["all", ...Object.keys(TYPE_META)] as const).map((t) => (
+        {(["all", ...Object.keys(TYPE_META)] as const).map((tab) => (
           <button
-            key={t}
+            key={tab}
             onClick={() => {
-              setFilter(t as any);
+              setFilter(tab as any);
               setCurrentPage(1);
             }}
             className={`rounded-full border px-3 py-1 text-xs transition
-              ${filter === t ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}
+              ${filter === tab ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}
           >
-            {t === "all"
-              ? `All (${logs.length})`
-              : `${TYPE_META[t as LogEntry["type"]].label} (${counts[t] ?? 0})`}
+            {tab === "all"
+              ? t("logs.filterAll", { count: logs.length })
+              : t("logs.filterType", { label: TYPE_META[tab as LogEntry["type"]].label, count: counts[tab] ?? 0 })}
           </button>
         ))}
       </div>
@@ -292,7 +297,7 @@ export default function RecentLogsPage() {
           </div>
         ) : displayed.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
-            No activity yet.
+            {t("logs.noActivity")}
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -337,9 +342,7 @@ export default function RecentLogsPage() {
         {!loading && displayed.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <span className="text-xs tabular-nums text-muted-foreground">
-              Showing {(page - 1) * LOGS_PER_PAGE + 1}–
-              {Math.min(page * LOGS_PER_PAGE, displayed.length)} of{" "}
-              {displayed.length} activities
+              {t("logs.showing", { from: (page - 1) * LOGS_PER_PAGE + 1, to: Math.min(page * LOGS_PER_PAGE, displayed.length), total: displayed.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -354,7 +357,7 @@ export default function RecentLogsPage() {
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  Page {page} of {totalPages}
+                  {t("logs.page", { page, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"

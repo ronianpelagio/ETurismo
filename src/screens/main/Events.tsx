@@ -469,7 +469,7 @@ export default function EventsScreen({
                   UPCOMING · {upcoming.length}
                 </Text>
               </View>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item, index }) => {
             // Insert a "Past Events" separator before the first past event

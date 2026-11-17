@@ -723,7 +723,7 @@ export default function CollectionPage({ onBack, onOpenScanner }: { onBack: () =
                 Page {safePage + 1} of {totalPages} · {displayed.length} artifacts
               </Text>
             </View>
-          ) : null}
+          ) : undefined}
           renderItem={({ item }) => (
             <ArtifactCard
               artifact={item}

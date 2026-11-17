@@ -5,6 +5,7 @@ import React, {
   useState,
   useRef,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar as CalIcon,
@@ -350,6 +351,7 @@ function AnnouncementRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const isPast = new Date(item.announcement_datetime) < new Date();
 
   return (
@@ -385,7 +387,7 @@ function AnnouncementRow({
                 : "border-primary/30 bg-primary/5 text-primary",
             )}
           >
-            {isPast ? "Past" : "Active"}
+            {isPast ? t("announcements.badges.past") : t("announcements.badges.active")}
           </Badge>
           {item.image_url && (
             <Badge
@@ -393,7 +395,7 @@ function AnnouncementRow({
               className="rounded-full border-border text-[10px] bg-muted/40"
             >
               <ImageIcon className="mr-1 h-2 w-2" />
-              Has image
+              {t("announcements.badges.hasImage")}
             </Badge>
           )}
         </div>
@@ -436,6 +438,7 @@ function AnnouncementRow({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnnouncementsPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Announcement[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Announcement | null>(null);
@@ -594,12 +597,12 @@ export default function AnnouncementsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Content"
-        title="Announcements"
-        description="Publish notices and updates for museum visitors."
+        eyebrow={t("announcements.eyebrow")}
+        title={t("announcements.title")}
+        description={t("announcements.description")}
         actions={
           <Button onClick={openCreate} className="rounded-xl">
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> New announcement
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("announcements.newAnnouncement")}
           </Button>
         }
       />
@@ -614,12 +617,11 @@ export default function AnnouncementsPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search announcements…"
+          placeholder={t("announcements.searchPlaceholder")}
           className="w-full sm:w-64 rounded-xl bg-muted/40"
         />
         <span className="text-xs text-muted-foreground">
-          {filtered.length}{" "}
-          {filtered.length === 1 ? "announcement" : "announcements"}
+          {t("announcements.count", { count: filtered.length })}
         </span>
       </div>
 
@@ -634,11 +636,11 @@ export default function AnnouncementsPage() {
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
             icon={<Megaphone className="h-5 w-5" />}
-            title={query ? "No matches found" : "No announcements yet"}
+            title={query ? t("announcements.noMatchTitle") : t("announcements.noItemsTitle")}
             description={
               query
-                ? "Try a different search term."
-                : "Create your first announcement to keep visitors informed."
+                ? t("users.tryDifferentSearch")
+                : t("announcements.noItemsDesc")
             }
             action={
               !query && (
@@ -647,7 +649,7 @@ export default function AnnouncementsPage() {
                   variant="outline"
                   className="rounded-xl"
                 >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> New announcement
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("announcements.newAnnouncement")}
                 </Button>
               )
             }
@@ -672,9 +674,11 @@ export default function AnnouncementsPage() {
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <span className="text-xs text-muted-foreground tabular-nums">
-                {(currentPage - 1) * itemsPerPage + 1}–
-                {Math.min(currentPage * itemsPerPage, totalCount)} of{" "}
-                {totalCount} announcements
+                {t("announcements.showing", {
+                  from: (currentPage - 1) * itemsPerPage + 1,
+                  to: Math.min(currentPage * itemsPerPage, totalCount),
+                  total: totalCount,
+                })}
               </span>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -741,8 +745,8 @@ export default function AnnouncementsPage() {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? "Edit announcement" : "New announcement"}
-        description="Visitors will see this in their mobile app feed."
+        title={editItem ? t("announcements.editAnnouncement") : t("announcements.newAnnouncement")}
+        description={t("announcements.modalDesc")}
         size="md"
         footer={
           <>
@@ -751,21 +755,21 @@ export default function AnnouncementsPage() {
               onClick={() => setShowModal(false)}
               className="rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSubmit as any}
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? "Saving…" : editItem ? "Save changes" : "Publish"}
+              {saving ? t("announcements.saving") : editItem ? t("common.saveChanges") : t("common.publish")}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
-            <Label className="text-xs">Title *</Label>
+            <Label className="text-xs">{t("announcements.form.title")}</Label>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -776,7 +780,7 @@ export default function AnnouncementsPage() {
 
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs">
-              <Clock className="h-3 w-3" /> Date &amp; Time *
+              <Clock className="h-3 w-3" /> {t("announcements.form.dateTime")}
             </Label>
             <Input
               type="datetime-local"
@@ -791,7 +795,7 @@ export default function AnnouncementsPage() {
 
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs">
-              <AlignLeft className="h-3 w-3" /> Description
+              <AlignLeft className="h-3 w-3" /> {t("announcements.form.description")}
             </Label>
             <Textarea
               rows={3}
@@ -818,9 +822,9 @@ export default function AnnouncementsPage() {
       <ConfirmModal
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
-        title="Delete announcement"
-        description={`Delete "${deleteItem?.title}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t("announcements.deleteTitle")}
+        description={t("announcements.deleteDesc", { title: deleteItem?.title ?? "" })}
+        confirmLabel={t("common.delete")}
         destructive
         loading={saving}
         onConfirm={handleDelete}

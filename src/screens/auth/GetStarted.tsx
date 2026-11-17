@@ -147,7 +147,7 @@ export default function GetStarted({ onOnboardingComplete }: any) {
   const [isAnimating, setIsAnimating] = useState(false);
 
   const scrollX      = useRef(new Animated.Value(0)).current;
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<any>(null);
 
   // Badge bounce — native driver (translateY)
   const badgeBounce = useRef(new Animated.Value(0)).current;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   FlatList, Image, Animated, Dimensions,
@@ -11,22 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  Map as MapLibreMap,
-  Camera as MapLibreCamera,
-  Marker as MapLibreMarker,
-  GeoJSONSource,
-  Layer,
-  UserLocation as MapLibreUserLocation,
-  type CameraRef,
-} from '@maplibre/maplibre-react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Asset } from 'expo-asset';
 import { supabase } from '../../services/supabase';
 import { STORAGE_KEYS, toggleInStringArray, getStringArray, logVisit } from '../../utils/storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useAppContext } from '../../context/AppContext';
-import { useLanguage } from '../../context/LanguageContext';
+import { useLanguage, AppLanguage } from '../../context/LanguageContext';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
 import ArtifactComments from './ArtifactComments';
@@ -40,7 +32,6 @@ import {
   ARTIFACT_TAB_ICONS,
   type ArtifactTab,
 } from '../../features/artifacts/constants';
-import { MAPS_ENABLED } from '../../features/maps/config';
 import type { Announcement, Event, UserProfile } from '../../features/home/types';
 import {
   formatDate,
@@ -1071,7 +1062,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [playingLang, setPlayingLang] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ja' | 'fil' | 'es' | 'ko'>(appLanguage);
+  const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>(appLanguage);
 
   // ── Discovery state (read from the same storage QRScanner writes to) ──
   const [discoveredIds, setDiscoveredIds] = useState<string[]>([]);
@@ -1181,7 +1172,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const mapModalSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const mapModalOpacity = useRef(new Animated.Value(0)).current;
-  const cameraRef = useRef<CameraRef>(null);
+  const mapRef = useRef<MapView>(null);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
   const lastScrollY = useRef(0);
@@ -1449,7 +1440,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
     try {
       const { data, error } = await supabase
         .from('artifacts')
-        .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, audio_url)')
+        .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, historical_significance, audio_url)')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -1554,7 +1545,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       ] = await Promise.all([
         supabase
           .from('artifacts')
-          .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, audio_url)')
+          .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, historical_significance, audio_url)')
           .order('created_at', { ascending: false }),
 
         supabase
@@ -1729,20 +1720,15 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   // ── Map helpers ──
   function fitMapToPoints(
     points: Array<{ latitude: number; longitude: number }>,
-    padding: { top: number; right: number; bottom: number; left: number },
-    duration = 500,
   ) {
     if (!points.length) return;
-    const west = Math.min(...points.map(p => p.longitude));
-    const south = Math.min(...points.map(p => p.latitude));
-    const east = Math.max(...points.map(p => p.longitude));
-    const north = Math.max(...points.map(p => p.latitude));
-    cameraRef.current?.fitBounds([west, south, east, north], { padding, duration });
+    mapRef.current?.fitToCoordinates(points, {
+      edgePadding: { top: 80, right: 60, bottom: 120, left: 60 },
+      animated: true,
+    });
   }
 
   function openMapModal() {
-    if (!MAPS_ENABLED) return;
-
     setShowMapModal(true);
     onMapVisibilityChange?.(true);
     setLocationError(null);
@@ -1776,7 +1762,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       setUserLocation(coords);
       setTimeout(() => {
-        fitMapToPoints([coords, MUSEUM_LOCATION], { top: 80, right: 60, bottom: 80, left: 60 });
+        fitMapToPoints([coords, MUSEUM_LOCATION]);
       }, 500);
       // Auto-fetch route once we have the user's location
       await fetchRoute(coords, routeMode);
@@ -1845,7 +1831,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
       // Fit map to route
       setTimeout(() => {
-        fitMapToPoints(coords, { top: 80, right: 60, bottom: 120, left: 60 });
+        fitMapToPoints(coords);
       }, 300);
 
       // Parse turn-by-turn steps
@@ -2379,14 +2365,12 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
-                    style={[styles.visitBtn, { flex: 1, backgroundColor: C.gold, opacity: MAPS_ENABLED ? 1 : 0.5 }]}
+                    style={[styles.visitBtn, { flex: 1, backgroundColor: C.gold }]}
                     onPress={openMapModal}
-                    disabled={!MAPS_ENABLED}
                     activeOpacity={0.85}
-                    accessibilityState={{ disabled: !MAPS_ENABLED }}
                   >
                     <Ionicons name="navigate" size={16} color="#1A1510" />
-                    <Text style={styles.visitBtnText}>{MAPS_ENABLED ? 'Directions' : 'Maps disabled for testing'}</Text>
+                    <Text style={styles.visitBtnText}>Directions</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.visitBtn, { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}
@@ -2561,28 +2545,36 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                   </View>
                 )}
 
-                {selectedDiscovered && selectedArtifact.Historical_Significance ? (
-                  <View style={styles.modalSection}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="time-outline" size={13} color={C.gold} />
-                      <Text style={styles.modalSectionLabel}>HISTORICAL SIGNIFICANCE</Text>
+                {selectedDiscovered && (() => {
+                  const activeTx = selectedArtifact.translations?.find(tr => tr.language_code === selectedLanguage)
+                    || selectedArtifact.translations?.find(tr => tr.language_code === 'en');
+                  const histSig = activeTx?.historical_significance || selectedArtifact.Historical_Significance;
+                  return histSig ? (
+                    <View style={styles.modalSection}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="time-outline" size={13} color={C.gold} />
+                        <Text style={styles.modalSectionLabel}>HISTORICAL SIGNIFICANCE</Text>
+                      </View>
+                      <View style={styles.modalSectionUnderline} />
+                      <Text style={styles.modalDesc}>
+                        {histSig}
+                      </Text>
                     </View>
-                    <View style={styles.modalSectionUnderline} />
-                    <Text style={styles.modalDesc}>
-                      {selectedArtifact.Historical_Significance}
-                    </Text>
-                  </View>
-                ) : null}
+                  ) : null;
+                })()}
 
                 {/* Audio Narration */}
                 {selectedDiscovered && (() => {
                   const translations = selectedArtifact.translations || [];
                   const langMeta: Record<string, { label: string; icon: string; name: string }> = {
-                    en:  { label: 'EN',  icon: 'language-outline', name: 'English'  },
-                    fil: { label: 'FIL', icon: 'language-outline', name: 'Filipino' },
-                    ja:  { label: 'JA',  icon: 'language-outline', name: 'Japanese' },
-                    es:  { label: 'ES',  icon: 'language-outline', name: 'Spanish'  },
-                    ko:  { label: 'KO',  icon: 'language-outline', name: 'Korean'   },
+                    en:  { label: 'EN',  icon: 'language-outline', name: 'English'     },
+                    fil: { label: 'FIL', icon: 'language-outline', name: 'Filipino'    },
+                    ceb: { label: 'CEB', icon: 'language-outline', name: 'Bisaya'      },
+                    ilo: { label: 'ILO', icon: 'language-outline', name: 'Ilocano'     },
+                    hil: { label: 'HIL', icon: 'language-outline', name: 'Hiligaynon'  },
+                    ja:  { label: 'JA',  icon: 'language-outline', name: 'Japanese'    },
+                    es:  { label: 'ES',  icon: 'language-outline', name: 'Spanish'     },
+                    ko:  { label: 'KO',  icon: 'language-outline', name: 'Korean'      },
                   };
                   const available = translations.filter(t => t.audio_url || t.description);
                   if (!available.length) return null;
@@ -2996,7 +2988,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       {/* ══════════════════════════════════════════════════════
           MAP / DIRECTIONS MODAL  — fully in-app routing
       ══════════════════════════════════════════════════════ */}
-      {MAPS_ENABLED && showMapModal && (
+      {showMapModal && (
         <Animated.View style={[styles.modalWrap, { opacity: mapModalOpacity }]}>
           <TouchableOpacity style={styles.modalBackdrop} onPress={closeMapModal} activeOpacity={1} />
           <Animated.View style={[styles.mapModalSheet, { transform: [{ translateY: mapModalSlide }] }]}>
@@ -3055,112 +3047,73 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
 
             {/* ── Map ── */}
             <View style={{ flex: 1, position: 'relative' }}>
-              <MapLibreMap
-                style={styles.mapView}
-                mapStyle="https://tiles.openfreemap.org/styles/liberty"
-                attribution={false}
-                logo={false}
-              >
-                <MapLibreCamera
-                  ref={cameraRef}
-                  initialViewState={{
-                    center: [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
-                    zoom: 13,
+              {Platform.OS === 'ios' || Platform.OS === 'android' ? (
+                <MapView
+                  ref={mapRef}
+                  style={styles.mapView}
+                  initialRegion={{
+                    ...MUSEUM_LOCATION,
+                    latitudeDelta: 0.08,
+                    longitudeDelta: 0.08,
                   }}
-                />
-
-                {!!userLocation && <MapLibreUserLocation />}
-
-                <MapLibreMarker
-                  lngLat={[MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude]}
                 >
-                  <View style={{
-                    width: 36, height: 36, borderRadius: 18,
-                    backgroundColor: '#C9A84C',
-                    alignItems: 'center', justifyContent: 'center',
-                    borderWidth: 3, borderColor: '#fff',
-                    shadowColor: '#000', shadowOpacity: 0.3,
-                    shadowOffset: { width: 0, height: 3 }, shadowRadius: 5, elevation: 6,
-                  }}>
-                    <Ionicons name="location" size={18} color="#fff" />
-                  </View>
-                </MapLibreMarker>
-
-                {userLocation && (
-                  <MapLibreMarker
-                    lngLat={[userLocation.longitude, userLocation.latitude]}
+                  <Marker
+                    coordinate={MUSEUM_LOCATION}
+                    title="National Shrine of Our Lady of Sorrows"
                   >
                     <View style={{
-                      width: 32, height: 32, borderRadius: 16,
-                      backgroundColor: '#2ECC71',
+                      width: 36, height: 36, borderRadius: 18,
+                      backgroundColor: '#C9A84C',
                       alignItems: 'center', justifyContent: 'center',
                       borderWidth: 3, borderColor: '#fff',
-                      shadowColor: '#000', shadowOpacity: 0.25,
-                      shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 5,
+                      shadowColor: '#000', shadowOpacity: 0.3,
+                      shadowOffset: { width: 0, height: 3 }, shadowRadius: 5, elevation: 6,
                     }}>
-                      <Ionicons name="navigate" size={15} color="#fff" />
+                      <Ionicons name="location" size={18} color="#fff" />
                     </View>
-                  </MapLibreMarker>
-                )}
+                  </Marker>
 
-                {routeCoords.length > 1 && (
-                  <GeoJSONSource
-                    id="route"
-                    data={{
-                      type: 'Feature',
-                      geometry: {
-                        type: 'LineString',
-                        coordinates: routeCoords.map(c => [c.longitude, c.latitude]),
-                      },
-                      properties: {},
-                    }}
-                  >
-                    <Layer
-                      id="route-line"
-                      type="line"
-                      paint={{
-                        'line-color': '#C9A84C',
-                        'line-width': 4,
-                      }}
-                      layout={{
-                        'line-cap': 'round',
-                        'line-join': 'round',
-                      }}
-                    />
-                  </GeoJSONSource>
-                )}
+                  {userLocation && (
+                    <Marker coordinate={userLocation} title="Your location">
+                      <View style={{
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: '#2ECC71',
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 3, borderColor: '#fff',
+                        shadowColor: '#000', shadowOpacity: 0.25,
+                        shadowOffset: { width: 0, height: 2 }, shadowRadius: 4, elevation: 5,
+                      }}>
+                        <Ionicons name="navigate" size={15} color="#fff" />
+                      </View>
+                    </Marker>
+                  )}
 
-                {userLocation &&
-                  routeCoords.length === 0 &&
-                  !routeLoading &&
-                  (userLocation.latitude !== MUSEUM_LOCATION.latitude ||
-                    userLocation.longitude !== MUSEUM_LOCATION.longitude) && (
-                  <GeoJSONSource
-                    id="fallback-line"
-                    data={{
-                      type: 'Feature',
-                      geometry: {
-                        type: 'LineString',
-                        coordinates: [
-                          [userLocation.longitude, userLocation.latitude],
-                          [MUSEUM_LOCATION.longitude, MUSEUM_LOCATION.latitude],
-                        ],
-                      },
-                      properties: {},
-                    }}
-                  >
-                    <Layer
-                      id="fallback-line-layer"
-                      type="line"
-                      paint={{
-                        'line-color': C.border,
-                        'line-width': 2,
-                        'line-dasharray': [2, 2],
-                      }}
+                  {routeCoords.length > 1 && (
+                    <Polyline
+                      coordinates={routeCoords}
+                      strokeColor="#C9A84C"
+                      strokeWidth={4}
                     />
-                  </GeoJSONSource>
-                )}
-              </MapLibreMap>
+                  )}
+
+                  {userLocation &&
+                    routeCoords.length === 0 &&
+                    !routeLoading &&
+                    (userLocation.latitude !== MUSEUM_LOCATION.latitude ||
+                      userLocation.longitude !== MUSEUM_LOCATION.longitude) && (
+                    <Polyline
+                      coordinates={[userLocation, MUSEUM_LOCATION]}
+                      strokeColor={C.border}
+                      strokeWidth={2}
+                      lineDashPattern={[2, 2]}
+                    />
+                  )}
+                </MapView>
+              ) : (
+                <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: C.inkMid }}>Maps are available on iOS and Android.</Text>
+                </View>
+              )}
 
               {/* Location / route loading overlay */}
               {(locationLoading || routeLoading) && (

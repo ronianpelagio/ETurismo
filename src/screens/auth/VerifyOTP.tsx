@@ -165,7 +165,7 @@ export default function VerifyOTP({ route, navigation }: any) {
   const [attempts, setAttempts] = useState(0);
   const remainingAttempts = MAX_ATTEMPTS - attempts;
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── On mount: restore remaining time from AsyncStorage ────────────────────

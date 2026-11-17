@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
@@ -55,6 +56,7 @@ const emptyForm = {
 };
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -412,14 +414,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   return (
     <div>
       <PageHeader
-        eyebrow="Access Control"
-        title="Users"
-        description="Manage visitor accounts and admin access permissions."
-        actions={
-          <Button onClick={openCreate} className="rounded-xl">
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add user
-          </Button>
-        }
+        eyebrow={t("users.eyebrow")}
+        title={t("users.title")}
+        description={t("users.description")}
       />
 
       <Card className="rounded-2xl border-border bg-card">
@@ -430,11 +427,11 @@ const handleSubmit = async (e: React.FormEvent) => {
               setQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search users…"
+            placeholder={t("users.searchPlaceholder")}
             className="w-full sm:w-64"
           />
           <span className="text-xs text-muted-foreground">
-            {filtered.length} {filtered.length === 1 ? "user" : "users"}
+            {t("users.userCount", { count: filtered.length })}
           </span>
         </div>
 
@@ -442,11 +439,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           <TableSkeleton rows={6} cols={5} />
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={query ? "No matching users" : "No users yet"}
+            title={query ? t("users.noMatchingUsers") : t("users.noUsersYet")}
             description={
               query
-                ? "Try a different search term."
-                : "Add your first user to get started."
+                ? t("users.tryDifferentSearch")
+                : t("users.addFirstUser")
             }
             action={
               !query && (
@@ -455,7 +452,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   variant="outline"
                   className="rounded-xl"
                 >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add user
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("users.addUser")}
                 </Button>
               )
             }
@@ -465,12 +462,12 @@ const handleSubmit = async (e: React.FormEvent) => {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/40 backdrop-blur-xl">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-2.5 font-medium">User</th>
-                  <th className="px-5 py-2.5 font-medium">Role</th>
-                  <th className="px-5 py-2.5 font-medium">Status</th>
-                  <th className="px-5 py-2.5 font-medium">Joined</th>
+                  <th className="px-5 py-2.5 font-medium">{t("users.table.user")}</th>
+                  <th className="px-5 py-2.5 font-medium">{t("users.table.role")}</th>
+                  <th className="px-5 py-2.5 font-medium">{t("users.table.status")}</th>
+                  <th className="px-5 py-2.5 font-medium">{t("users.table.joined")}</th>
                   <th className="px-5 py-2.5 font-medium w-12 text-right">
-                    Actions
+                    {t("users.table.actions")}
                   </th>
                 </tr>
               </thead>
@@ -494,7 +491,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           <div className="truncate text-sm font-medium text-foreground">
                             {getFullName(u) || (
                               <span className="text-muted-foreground">
-                                No name
+                                {t("common.noName")}
                               </span>
                             )}
                           </div>
@@ -554,7 +551,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           className="w-44 rounded-xl border-border"
                         >
                           <DropdownMenuItem onClick={() => openEdit(u)}>
-                            <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                            <Pencil className="mr-2 h-3.5 w-3.5" /> {t("users.actions.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => toggleRole(u)}
@@ -562,8 +559,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                           >
                             <UserCog className="mr-2 h-3.5 w-3.5" />
                             {u.role === "admin"
-                              ? "Demote to user"
-                              : "Promote to admin"}
+                              ? t("users.actions.demote")
+                              : t("users.actions.promote")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => toggleStatus(u)}
@@ -572,12 +569,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                             {u.status === "inactive" ? (
                               <>
                                 <ShieldCheck className="mr-2 h-3.5 w-3.5" />{" "}
-                                Activate
+                                {t("users.actions.activate")}
                               </>
                             ) : (
                               <>
                                 <ShieldOff className="mr-2 h-3.5 w-3.5" />{" "}
-                                Deactivate
+                                {t("users.actions.deactivate")}
                               </>
                             )}
                           </DropdownMenuItem>
@@ -586,7 +583,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             onClick={() => setDeleteItem(u)}
                             className="text-destructive focus:text-destructive"
                           >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> {t("users.actions.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -601,9 +598,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         {!loading && filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <span className="text-xs tabular-nums text-muted-foreground">
-              Showing {(page - 1) * USERS_PER_PAGE + 1}–
-              {Math.min(page * USERS_PER_PAGE, filtered.length)} of{" "}
-              {filtered.length} users
+              {t("users.showingPage", { from: (page - 1) * USERS_PER_PAGE + 1, to: Math.min(page * USERS_PER_PAGE, filtered.length), total: filtered.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -618,7 +613,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  Page {page} of {totalPages}
+                  {t("users.page", { page, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"
@@ -639,11 +634,11 @@ const handleSubmit = async (e: React.FormEvent) => {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? "Edit user" : "Add user"}
+        title={editItem ? t("users.editUser") : t("users.addUser")}
         description={
           editItem
-            ? "Update the user's details and permissions."
-            : "Create a new account for an admin or visitor."
+            ? t("users.updateDetails")
+            : t("users.createAccount")
         }
         footer={
           <>
@@ -652,21 +647,21 @@ const handleSubmit = async (e: React.FormEvent) => {
               onClick={() => setShowModal(false)}
               className="rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSubmit as any}
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? "Saving…" : editItem ? "Save changes" : "Create user"}
+              {saving ? t("common.saving") : editItem ? t("common.saveChanges") : t("users.createUser")}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Email *</Label>
+            <Label className="text-xs">{t("users.form.email")}</Label>
             <Input
               type="email"
               value={form.email}
@@ -681,14 +676,14 @@ const handleSubmit = async (e: React.FormEvent) => {
           <div className="space-y-1.5">
             <Label className="text-xs">
               {editItem
-                ? "New password (leave blank to keep current)"
-                : "Password *"}
+                ? t("users.form.passwordNew")
+                : t("users.form.passwordRequired")}
             </Label>
             <Input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={editItem ? "New password" : "Min. 6 characters"}
+              placeholder={editItem ? "New password" : t("users.form.passwordMin")}
               className="h-10 rounded-xl bg-muted/40"
               required={!editItem}
               minLength={6}
@@ -697,7 +692,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">First name *</Label>
+              <Label className="text-xs">{t("users.form.firstName")}</Label>
               <Input
                 value={form.first_name}
                 onChange={(e) =>
@@ -709,7 +704,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Last name *</Label>
+              <Label className="text-xs">{t("users.form.lastName")}</Label>
               <Input
                 value={form.last_name}
                 onChange={(e) =>
@@ -724,13 +719,13 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Gender</Label>
+              <Label className="text-xs">{t("users.form.gender")}</Label>
               <Select
                 value={form.gender}
                 onValueChange={(v) => setForm({ ...form, gender: v })}
               >
                 <SelectTrigger className="h-10 rounded-xl bg-muted/40">
-                  <SelectValue placeholder="Select gender" />
+                  <SelectValue placeholder={t("users.form.selectGender")} />
                 </SelectTrigger>
                 <SelectContent>
                   {GENDERS.map((g) => (
@@ -742,7 +737,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Age</Label>
+              <Label className="text-xs">{t("users.form.age")}</Label>
               <Input
                 type="number"
                 value={form.age}
@@ -755,18 +750,18 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Address</Label>
+            <Label className="text-xs">{t("users.form.address")}</Label>
             <Input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="Street, City, Province"
+              placeholder={t("users.form.addressPlaceholder")}
               className="h-10 rounded-xl bg-muted/40"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Role</Label>
+              <Label className="text-xs">{t("users.form.role")}</Label>
               <Select
                 value={form.role}
                 onValueChange={(v) => setForm({ ...form, role: v })}
@@ -784,7 +779,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
+              <Label className="text-xs">{t("users.form.status")}</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) => setForm({ ...form, status: v })}
@@ -814,9 +809,9 @@ const handleSubmit = async (e: React.FormEvent) => {
       <ConfirmModal
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
-        title="Remove user"
-        description={`Remove ${deleteItem?.email ?? "this user"} from the database? This cannot be undone.`}
-        confirmLabel="Remove user"
+        title={t("users.removeUser")}
+        description={t("users.removeConfirm", { email: deleteItem?.email ?? "this user" })}
+        confirmLabel={t("users.removeUser")}
         destructive
         loading={saving}
         onConfirm={handleDelete}

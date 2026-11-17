@@ -149,7 +149,7 @@ const Input = forwardRef<TextInput, InputProps>(({
         )}
 
         <TextInput
-          ref={ref}
+          ref={ref as any}
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={C.inkLight}
           secureTextEntry={secureTextEntry && !showPassword}

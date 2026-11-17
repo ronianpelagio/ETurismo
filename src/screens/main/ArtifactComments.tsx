@@ -684,19 +684,19 @@ export default function ArtifactComments({
     useState<string | null>(null);
 
   const inputRef =
-    useRef<TextInput>(null);
+    useRef<any>(null);
 
   const scrollRef =
-    useRef<ScrollView>(null);
+    useRef<any>(null);
 
   // Ref attached to the composer View so we can scroll it into view
-  const composerRef = useRef<View>(null);
+  const composerRef = useRef<any>(null);
 
   // Scroll the outer modal ScrollView so the composer is fully visible above the keyboard
   const scrollToComposer = useCallback(() => {
     composerRef.current?.measureLayout(
       scrollRef.current as any,
-      (_x, y) => {
+      (_x: number, y: number) => {
         scrollRef.current?.scrollTo({ y: y - 12, animated: true });
       },
       () => {

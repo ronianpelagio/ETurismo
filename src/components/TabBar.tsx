@@ -208,7 +208,7 @@ export default function TabBar({
             <Ionicons
               name={tab.icon}
               size={getIconSize()}
-              color={getLabelStyle(isActive).color}
+              color={getLabelStyle(isActive).color as string}
             />
             {tab.badge && tab.badge > 0 && (
               <View style={styles.badge}>

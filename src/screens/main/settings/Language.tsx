@@ -59,6 +59,9 @@ function getStyles(C: ReturnType<typeof buildC>) {
 const LANGUAGES: { code: AppLanguage }[] = [
   { code: 'en' },
   { code: 'fil' },
+  { code: 'ceb' },
+  { code: 'ilo' },
+  { code: 'hil' },
   { code: 'ja' },
   { code: 'es' },
   { code: 'ko' },

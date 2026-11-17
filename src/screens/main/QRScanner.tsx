@@ -17,7 +17,6 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../context/LanguageContext';
 import PostTourFeedback from './PostTourFeedback';
-import ArtifactRatingModal from '../../components/ArtifactRatingModal';
 import { THEMES } from '../../constants/themes';
 import { useAudioWordHighlight } from '../../hooks/useAudioWordHighlight';
 import HighlightedText from '../../components/HighlightedText';
@@ -543,6 +542,7 @@ function ArtifactModal({
 
   const langMeta: Record<string, string> = {
     en: 'English', fil: 'Filipino', ja: 'Japanese', es: 'Spanish', ko: 'Korean',
+    ceb: 'Bisaya', ilo: 'Ilocano', hil: 'Hiligaynon',
   };
 
   useEffect(() => { setSelectedLanguage(appLanguage); }, [appLanguage]);
@@ -555,6 +555,11 @@ function ArtifactModal({
   }
 
   const currentDesc = getTabContent('Details');
+
+  const currentHistSig = (() => {
+    const t = translations.find(t => t.language_code === selectedLanguage);
+    return t?.historical_significance || artifact?.Historical_Significance || null;
+  })();
 
   const { words, highlightedIndex, currentTime, startHighlight, stopHighlight, resetHighlight } =
     useAudioWordHighlight({ text: currentDesc, durationSeconds: audioDuration });
@@ -585,7 +590,7 @@ function ArtifactModal({
     try {
       const { data, error } = await supabase
         .from('artifact_translations')
-        .select('language_code, name, description, audio_url')
+        .select('language_code, name, description, historical_significance, audio_url')
         .eq('artifact_id', artifactId);
       if (error) throw error;
       setTranslations(data || []);
@@ -734,13 +739,13 @@ function ArtifactModal({
             {/* ── Tab content ── */}
             <Text style={ams.tabContent}>{getTabContent(activeTab)}</Text>
 
-            {activeTab === 'Details' && artifact.Historical_Significance?.trim() ? (
+            {activeTab === 'Details' && currentHistSig?.trim() ? (
               <View style={ams.historicalSection}>
                 <View style={ams.historicalHeader}>
                   <Ionicons name="time-outline" size={14} color={C.gold} />
                   <Text style={ams.metaLabel}>HISTORICAL SIGNIFICANCE</Text>
                 </View>
-                <Text style={ams.historicalText}>{artifact.Historical_Significance}</Text>
+                <Text style={ams.historicalText}>{currentHistSig}</Text>
               </View>
             ) : null}
 
@@ -1138,15 +1143,12 @@ export default function QRScanner({
   const [scannedArtifactsLoaded, setScannedArtifactsLoaded] = useState(false);
   const [toast, setToast]               = useState<string | null>(null);
   // ── Artifact rating ─────────────────────────────────────────────────────────
-  // Holds the artifact that was just dismissed so we can prompt a rating.
-  // Tour feedback takes priority once the visitor has scanned enough artifacts.
-  const [pendingRatingArtifact, setPendingRatingArtifact] = useState<Artifact | null>(null);
+  // (rating prompt removed — ratings are no longer shown after scan)
   const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inCooldown  = useRef(false);
-  const scanAgainAfterRatingRef = useRef(false);
-  const pulse = useRef(new Animated.Value(0)).current;
+  const scanAgainAfterRatingRef = useRef(false);  const pulse = useRef(new Animated.Value(0)).current;
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   // ── Tour-completion state ────────────────────────────────────────────────────
@@ -1158,7 +1160,7 @@ export default function QRScanner({
 
   // ── Camera lifecycle: only active when this tab is focused and no modal is open ──
   useEffect(() => {
-    if (isActive && scannedArtifactsLoaded && !artifact && !pendingRatingArtifact && !showFeedback) {
+    if (isActive && scannedArtifactsLoaded && !artifact && !showFeedback) {
       if (inCooldown.current) return; // still in cooldown — don't re-enable yet
       // Small delay so the swipe animation finishes before camera activates
       const t = setTimeout(() => {
@@ -1172,12 +1174,12 @@ export default function QRScanner({
       setCameraActive(false);
       setTorchOn(false);
     }
-  }, [isActive, scannedArtifactsLoaded, artifact, pendingRatingArtifact, showFeedback]);
+  }, [isActive, scannedArtifactsLoaded, artifact, showFeedback]);
 
   // Hide navbar while any scanner modal is open
   useEffect(() => {
-    setNavbarVisible?.(!artifact && !pendingRatingArtifact && !showFeedback);
-  }, [artifact, pendingRatingArtifact, showFeedback]);
+    setNavbarVisible?.(!artifact && !showFeedback);
+  }, [artifact, showFeedback]);
 
   // Load scanned artifacts from storage
   useEffect(() => {
@@ -1311,20 +1313,13 @@ export default function QRScanner({
     }
   };
 
-  // Dismissing details unlocks tour feedback at the threshold; otherwise show the
-  // artifact rating prompt unless the user has already rated this artifact.
-  // scanAgain drives the cooldown length after the rating is done/skipped:
-  //   scanAgain=true  → 1s cooldown
-  //   scanAgain=false → 5s cooldown
-
+  // Dismissing details unlocks tour feedback at the threshold; otherwise
+  // go straight to cooldown (rating prompt removed).
   const reset = (scanAgain = false) => {
-    const closedArtifact = artifact; // capture before state clear
     scanAgainAfterRatingRef.current = scanAgain;
     setArtifact(null);
     setScanned(false);
     setScanError(null);
-
-    if (!closedArtifact) return;
 
     if (
       scannedArtifacts.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD &&
@@ -1334,36 +1329,11 @@ export default function QRScanner({
       return;
     }
 
-    // Check whether this user has already rated this artifact.
-    // If yes — skip the modal and go straight to cooldown.
-    void (async () => {
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: existing } = await supabase
-            .from('artifact_ratings')
-            .select('id')
-            .eq('artifact_id', closedArtifact.id)
-            .eq('user_id', authUser.id)
-            .maybeSingle();
-
-          if (existing) {
-            // Already rated — skip the modal entirely
-            resumeAfterRating(scanAgain);
-            return;
-          }
-        }
-      } catch (_) {
-        // Network/auth error — fall through and show the modal anyway
-      }
-      // No existing rating — show the rating prompt
-      setPendingRatingArtifact(closedArtifact);
-    })();
+    resumeAfterRating(scanAgain);
   };
 
   // Resume camera after rating is done/skipped (or skipped because already rated)
-  const resumeAfterRating = (scanAgain: boolean) => {
-    const delay = scanAgain ? 1000 : 5000;
+  const resumeAfterRating = (scanAgain: boolean) => {    const delay = scanAgain ? 1000 : 5000;
     const label = scanAgain ? '1s' : '5s';
     inCooldown.current = true;
     cooldownTimer.current && clearTimeout(cooldownTimer.current);
@@ -1380,7 +1350,6 @@ export default function QRScanner({
 
   // Called after the rating modal is submitted or skipped
   const afterRating = () => {
-    setPendingRatingArtifact(null);
     resumeAfterRating(scanAgainAfterRatingRef.current);
   };
 
@@ -1575,12 +1544,7 @@ export default function QRScanner({
         }}
       />
 
-      {/* ─── Artifact Rating Modal (shown after artifact modal dismissed normally) ── */}
-      <ArtifactRatingModal
-        visible={!!pendingRatingArtifact}
-        artifact={pendingRatingArtifact}
-        onDone={afterRating}
-      />
+      {/* ─── Artifact Rating Modal removed ── */}
     </View>
   );
 }

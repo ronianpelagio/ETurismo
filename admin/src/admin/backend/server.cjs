@@ -19,12 +19,17 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 5000;
 
 // Language mapping for gSpeak
+// ceb (Bisaya), ilo (Ilocano), hil (Hiligaynon) fall back to Filipino (tl)
+// because Google TTS has no dedicated voice for these PH dialects.
 const LANG_MAP = {
-  en: "en",
+  en:  "en",
   fil: "fil",
-  ja: "ja",
-  es: "es",
-  ko: "ko",
+  ceb: "fil",   // Bisaya — use Filipino voice
+  ilo: "fil",   // Ilocano — use Filipino voice
+  hil: "fil",   // Hiligaynon — use Filipino voice
+  ja:  "ja",
+  es:  "es",
+  ko:  "ko",
 };
 
 // Voice options for each language
@@ -42,6 +47,25 @@ const VOICE_OPTIONS = {
     "en-US-Standard-J",
   ],
   fil: [
+    "fil-PH-Standard-A",
+    "fil-PH-Standard-B",
+    "fil-PH-Standard-C",
+    "fil-PH-Standard-D",
+  ],
+  // PH dialects share Filipino voices
+  ceb: [
+    "fil-PH-Standard-A",
+    "fil-PH-Standard-B",
+    "fil-PH-Standard-C",
+    "fil-PH-Standard-D",
+  ],
+  ilo: [
+    "fil-PH-Standard-A",
+    "fil-PH-Standard-B",
+    "fil-PH-Standard-C",
+    "fil-PH-Standard-D",
+  ],
+  hil: [
     "fil-PH-Standard-A",
     "fil-PH-Standard-B",
     "fil-PH-Standard-C",
@@ -71,20 +95,26 @@ const VOICE_OPTIONS = {
 };
 
 const DEFAULT_VOICE = {
-  en: "en-US-Standard-A",
+  en:  "en-US-Standard-A",
   fil: "fil-PH-Standard-A",
-  ja: "ja-JP-Standard-A",
-  es: "es-ES-Standard-A",
-  ko: "ko-KR-Standard-A",
+  ceb: "fil-PH-Standard-A",
+  ilo: "fil-PH-Standard-A",
+  hil: "fil-PH-Standard-A",
+  ja:  "ja-JP-Standard-A",
+  es:  "es-ES-Standard-A",
+  ko:  "ko-KR-Standard-A",
 };
 
 // Map language to database language_code (used in artifact_translations table)
 const COLUMN_MAP = {
-  en: "en",
+  en:  "en",
   fil: "fil",
-  ja: "ja",
-  es: "es",
-  ko: "ko",
+  ceb: "ceb",
+  ilo: "ilo",
+  hil: "hil",
+  ja:  "ja",
+  es:  "es",
+  ko:  "ko",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,8 +168,8 @@ function sanitizeDescription(text, lang = "en") {
       /[^\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\s\.\,\!\\?\!]/g,
       " ",
     );
-  } else if (lang === "fil") {
-    // Filipino: keep letters with diacritics
+  } else if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") {
+    // Filipino and PH dialects: keep letters with diacritics
     sanitized = sanitized.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ\.,!?]/g, " ");
   } else if (lang === "es") {
     // Spanish: keep letters with diacritics and inverted punctuation
@@ -248,7 +278,8 @@ function cleanDescription(text, lang = "en", options = {}) {
       );
     } else if (lang === "ko") {
       cleaned = cleaned.replace(/[^\uac00-\ud7af\s\.\,\!\\?\!]/g, " ");
-    } else {
+    } else if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") {
+      cleaned = cleaned.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ\.,!?'-]/g, " ");
       cleaned = cleaned.replace(/[^a-zA-Z\s\.\,\!\\?'-]/g, " ");
     }
   }
@@ -398,8 +429,9 @@ app.post("/generate-audio", async (req, res) => {
     const fileBuffer = fs.readFileSync(tempPath);
 
     // Upload to Supabase Storage
+    const BUCKET = "artifacts-audio";
     const { error: uploadError } = await supabase.storage
-      .from("artifacts-audio")
+      .from(BUCKET)
       .upload(fileName, fileBuffer, {
         contentType: "audio/mpeg",
         upsert: true,
@@ -411,20 +443,17 @@ app.post("/generate-audio", async (req, res) => {
 
     // Get public URL
     const { data: publicData } = supabase.storage
-      .from("artifacts-audio")
+      .from(BUCKET)
       .getPublicUrl(fileName);
 
-    const audioUrl = publicData.publicUrl;
+    let audioUrl = publicData.publicUrl;
 
-    // Save URL to artifact_translations table
-    console.log(
-      `Looking for existing translation: artifact_id=${artifactId}, language_code=${langCode}`,
-    );
+    // ── Save URL to artifact_translations table ────────────────────────────
 
-    // First, verify artifact exists
+    // Verify artifact exists
     const { data: artifactCheck, error: artifactError } = await supabase
       .from("artifacts")
-      .select("id")
+      .select("id, name")
       .eq("id", artifactId)
       .single();
 
@@ -433,6 +462,9 @@ app.post("/generate-audio", async (req, res) => {
         `Artifact not found: ${artifactId}. Error: ${artifactError?.message}`,
       );
     }
+
+    // Use artifact English name as fallback so name NOT NULL constraint is satisfied
+    const fallbackName = artifactCheck.name || "Untitled";
 
     const { data: existingTx, error: selectError } = await supabase
       .from("artifact_translations")
@@ -448,22 +480,20 @@ app.post("/generate-audio", async (req, res) => {
 
     let dbError;
     if (existingTx) {
-      console.log(
-        `Updating existing translation ${existingTx.id} with audio_url`,
-      );
+      console.log(`Updating existing translation ${existingTx.id} with audio_url`);
       ({ error: dbError } = await supabase
         .from("artifact_translations")
         .update({ audio_url: audioUrl })
         .eq("id", existingTx.id));
       console.log("Update result:", { error: dbError });
     } else {
-      console.log("Creating new translation with audio_url");
+      console.log("Creating new translation row with audio_url");
       ({ error: dbError } = await supabase
         .from("artifact_translations")
         .insert({
           artifact_id: artifactId,
           language_code: langCode,
-          name: "",
+          name: fallbackName,       // satisfies NOT NULL
           description: cleanText,
           audio_url: audioUrl,
         }));
@@ -484,13 +514,10 @@ app.post("/generate-audio", async (req, res) => {
       .single();
 
     if (verifyError || !verification?.audio_url) {
-      console.log(
-        "Direct save failed, attempting fallback: fetch from bucket and save",
-      );
+      console.log("Direct save failed, attempting fallback via bucket listing");
 
-      // Fallback: List audio files from bucket for this artifact
       const { data: bucketFiles, error: listError } = await supabase.storage
-        .from("artifacts-audio")
+        .from(BUCKET)
         .list("", {
           search: `${artifactId}_${lang}`,
           limit: 10,
@@ -503,13 +530,11 @@ app.post("/generate-audio", async (req, res) => {
         );
       }
 
-      // Get the most recent audio file
       const audioFile = bucketFiles[0];
       const { data: bucketUrl } = supabase.storage
-        .from("artifacts-audio")
+        .from(BUCKET)
         .getPublicUrl(audioFile.name);
-     
-      // Try to save to database again with bucket URL
+
       let fallbackError;
       if (existingTx) {
         ({ error: fallbackError } = await supabase
@@ -522,7 +547,7 @@ app.post("/generate-audio", async (req, res) => {
           .insert({
             artifact_id: artifactId,
             language_code: langCode,
-            name: "",
+            name: fallbackName,
             description: cleanText,
             audio_url: bucketUrl.publicUrl,
           }));
@@ -532,13 +557,10 @@ app.post("/generate-audio", async (req, res) => {
         throw new Error(`Fallback save failed: ${fallbackError.message}`);
       }
 
-      console.log("✅ Fallback successful - Audio URL saved via bucket lookup");
+      console.log("✅ Fallback successful — audio URL saved via bucket lookup");
       audioUrl = bucketUrl.publicUrl;
     } else {
-      console.log(
-        "✅ Audio URL successfully saved and verified:",
-        verification.audio_url,
-      );
+      console.log("✅ Audio URL saved and verified:", verification.audio_url);
     }
 
     // Delete temp file

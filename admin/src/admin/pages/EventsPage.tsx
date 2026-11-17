@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar as CalIcon,
@@ -360,6 +361,7 @@ function EventRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const isPast = new Date(item.event_datetime) < new Date();
 
   return (
@@ -395,7 +397,7 @@ function EventRow({
                 : "border-primary/30 bg-primary/5 text-primary",
             )}
           >
-            {isPast ? "Past" : "Upcoming"}
+            {isPast ? t("events.badges.past") : t("events.badges.upcoming")}
           </Badge>
         </div>
 
@@ -448,6 +450,7 @@ function EventRow({
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function EventsPage() {
+  const { t } = useTranslation();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<EventItem | null>(null);
@@ -605,12 +608,12 @@ export default function EventsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Programming"
-        title="Events"
-        description="Manage upcoming and past museum events."
+        eyebrow={t("events.eyebrow")}
+        title={t("events.title")}
+        description={t("events.description")}
         actions={
           <Button onClick={openCreate} className="rounded-xl">
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add event
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("events.addEvent")}
           </Button>
         }
       />
@@ -627,11 +630,11 @@ export default function EventsPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search events…"
+          placeholder={t("events.searchPlaceholder")}
           className="w-full sm:w-64 rounded-xl bg-muted/40"
         />
         <span className="text-xs text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? "event" : "events"}
+          {t("events.count", { count: filtered.length })}
         </span>
       </div>
 
@@ -645,11 +648,11 @@ export default function EventsPage() {
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
             icon={<CalIcon className="h-5 w-5" />}
-            title={query ? "No matching events" : "No events yet"}
+            title={query ? t("events.noMatchTitle") : t("events.noEventsTitle")}
             description={
               query
-                ? "Try a different search term."
-                : "Schedule your first museum event."
+                ? t("users.tryDifferentSearch")
+                : t("events.noEventsDesc")
             }
             action={
               !query && (
@@ -658,7 +661,7 @@ export default function EventsPage() {
                   variant="outline"
                   className="rounded-xl"
                 >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add event
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("events.addEvent")}
                 </Button>
               )
             }
@@ -683,9 +686,11 @@ export default function EventsPage() {
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <span className="text-xs text-muted-foreground tabular-nums">
-                {(currentPage - 1) * itemsPerPage + 1}–
-                {Math.min(currentPage * itemsPerPage, totalCount)} of{" "}
-                {totalCount} events
+                {t("events.showing", {
+                  from: (currentPage - 1) * itemsPerPage + 1,
+                  to: Math.min(currentPage * itemsPerPage, totalCount),
+                  total: totalCount,
+                })}
               </span>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -752,8 +757,8 @@ export default function EventsPage() {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? "Edit event" : "New event"}
-        description="Fill in the details and add a cover image."
+        title={editItem ? t("events.editEvent") : t("events.newEvent")}
+        description={t("events.modalDesc")}
         size="md"
         footer={
           <>
@@ -762,14 +767,14 @@ export default function EventsPage() {
               onClick={() => setShowModal(false)}
               className="rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSubmit as any}
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? "Saving…" : editItem ? "Save changes" : "Create event"}
+              {saving ? t("events.saving") : editItem ? t("common.saveChanges") : t("events.createEvent")}
             </Button>
           </>
         }
@@ -777,7 +782,7 @@ export default function EventsPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* title */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Event name *</Label>
+            <Label className="text-xs">{t("events.form.eventName")}</Label>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -789,7 +794,7 @@ export default function EventsPage() {
           {/* datetime */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs">
-              <Clock className="h-3 w-3" /> Date &amp; Time *
+              <Clock className="h-3 w-3" /> {t("events.form.dateTime")}
             </Label>
             <Input
               type="datetime-local"
@@ -805,7 +810,7 @@ export default function EventsPage() {
           {/* description */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs">
-              <AlignLeft className="h-3 w-3" /> Description
+              <AlignLeft className="h-3 w-3" /> {t("events.form.description")}
             </Label>
             <Textarea
               rows={3}
@@ -832,9 +837,9 @@ export default function EventsPage() {
       <ConfirmModal
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
-        title="Delete event"
-        description={`Delete "${deleteItem?.title}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t("events.deleteTitle")}
+        description={t("events.deleteDesc", { title: deleteItem?.title ?? "" })}
+        confirmLabel={t("common.delete")}
         destructive
         loading={saving}
         onConfirm={handleDelete}

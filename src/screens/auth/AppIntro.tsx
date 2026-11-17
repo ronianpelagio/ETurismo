@@ -4,12 +4,12 @@ import {
   Animated,
   Easing,
   Image,
-  StatusBar,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 interface AppIntroProps {
   onReveal: () => Promise<void>;
@@ -199,11 +199,7 @@ export default function AppIntro({
       pointerEvents="auto"
       style={styles.container}
     >
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={PAPER}
-        translucent={false}
-      />
+      <StatusBar style="dark" />
 
       <AnimatedView
         pointerEvents="none"

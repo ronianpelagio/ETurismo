@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
@@ -11,12 +12,10 @@ import {
   ChevronRight,
   Search,
   RefreshCw,
-  Filter,
   X,
-  Users,
   TrendingUp,
-  Calendar,
-  Boxes,
+  Printer,
+  Minus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +23,20 @@ import { Button } from "@/components/ui/button";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { CardSkeleton, Skeleton } from "../components/LoadingSkeleton";
+import PrintReportModal, { PrintRange } from "../components/PrintReportModal";
 import { supabase } from "../services/supabase";
 import { TourFeedbackRow } from "../types";
+import {
+  analyzeSentiment,
+  Sentiment,
+  SENTIMENT_STYLES,
+} from "../utils/sentiment";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SortField = "submitted_at" | "overall_rating" | "total_artifacts";
 type SortDir = "asc" | "desc";
+type SentimentFilter = "all" | Sentiment;
 
 type FeedbackFilter = {
   rating: number | null; // 1-5 or null = all
@@ -95,6 +101,7 @@ function HeardFromChips({ heard }: { heard: string[] }) {
 // ─── Expanded row ─────────────────────────────────────────────────────────────
 
 function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -107,7 +114,7 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
         {fb.highlights ? (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Highlights
+              {t("dashboard.positiveComments")}
             </p>
             <p className="text-xs text-foreground leading-relaxed">
               {fb.highlights}
@@ -117,7 +124,7 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
         {fb.suggestions ? (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Suggestions
+              {t("dashboard.negativeComments")}
             </p>
             <p className="text-xs text-foreground leading-relaxed">
               {fb.suggestions}
@@ -126,18 +133,18 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
         ) : null}
         {!fb.highlights && !fb.suggestions && (
           <p className="text-xs text-muted-foreground italic col-span-2">
-            No written comments provided.
+            {t("dashboard.noWrittenComments")}
           </p>
         )}
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            How they heard about us
+            {t("dashboard.howHeardAboutUs")}
           </p>
           <HeardFromChips heard={fb.heard_from} />
         </div>
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            Artifacts explored
+            {t("dashboard.artifactsExplored")}
           </p>
           <p className="text-xs text-foreground">{fb.total_artifacts}</p>
         </div>
@@ -149,6 +156,7 @@ function ExpandedFeedback({ fb }: { fb: TourFeedbackRow }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FeedbackPage() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<TourFeedbackRow[]>([]);
   const [summary, setSummary] = useState<FeedbackSummary>({
     total: 0,
@@ -159,12 +167,17 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Print report modal ──────────────────────────────────────────────────────
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printRange, setPrintRange] = useState<PrintRange | null>(null);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FeedbackFilter>({
     rating: null,
     recommend: null,
     visitType: "",
   });
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
   const [sortField, setSortField] = useState<SortField>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -221,16 +234,51 @@ export default function FeedbackPage() {
 
   // ── Filtered rows (client-side search) ────────────────────────────────────
 
-  const visible = search.trim()
-    ? rows.filter((r) => {
-        const q = search.toLowerCase();
-        return (
-          (r.highlights ?? "").toLowerCase().includes(q) ||
-          (r.suggestions ?? "").toLowerCase().includes(q) ||
-          r.visit_type.toLowerCase().includes(q)
-        );
-      })
-    : rows;
+  const visible = useMemo(() => {
+    let list = search.trim()
+      ? rows.filter((r) => {
+          const q = search.toLowerCase();
+          return (
+            (r.highlights ?? "").toLowerCase().includes(q) ||
+            (r.suggestions ?? "").toLowerCase().includes(q) ||
+            r.visit_type.toLowerCase().includes(q)
+          );
+        })
+      : rows;
+
+    if (sentimentFilter !== "all") {
+      list = list.filter((r) => {
+        // Score combined text from both comment fields
+        const combined = [r.highlights, r.suggestions]
+          .filter(Boolean)
+          .join(" ");
+        return analyzeSentiment(combined).sentiment === sentimentFilter;
+      });
+    }
+
+    return list;
+  }, [rows, search, sentimentFilter]);
+
+  // sentiment counts for filter pill labels
+  const sentimentCounts = useMemo(() => {
+    const base = search.trim()
+      ? rows.filter((r) => {
+          const q = search.toLowerCase();
+          return (
+            (r.highlights ?? "").toLowerCase().includes(q) ||
+            (r.suggestions ?? "").toLowerCase().includes(q) ||
+            r.visit_type.toLowerCase().includes(q)
+          );
+        })
+      : rows;
+    const counts = { positive: 0, neutral: 0, negative: 0 };
+    base.forEach((r) => {
+      const combined = [r.highlights, r.suggestions].filter(Boolean).join(" ");
+      const s = analyzeSentiment(combined).sentiment;
+      counts[s]++;
+    });
+    return counts;
+  }, [rows, search]);
   const totalPages = Math.max(
     1,
     Math.ceil(visible.length / FEEDBACK_PER_PAGE),
@@ -271,28 +319,73 @@ export default function FeedbackPage() {
   const hasActiveFilter =
     filter.rating !== null ||
     filter.recommend !== null ||
-    filter.visitType !== "";
-  const clearFilters = () =>
+    filter.visitType !== "" ||
+    sentimentFilter !== "all";
+  const clearFilters = () => {
     setFilter({ rating: null, recommend: null, visitType: "" });
+    setSentimentFilter("all");
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div className="feedback-page-root">
+
+      {/* ── Print-only report header ──────────────────────────────────────── */}
+      <div className="hidden print:block mb-8 border-b-2 border-gray-800 pb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">ETurismo</h1>
+            <p className="text-lg font-semibold text-gray-700 mt-0.5">Tour Feedback Report</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Generated {new Date().toLocaleString()}
+              {printRange ? ` · ${printRange.label}` : ""}
+            </p>
+            {printRange && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Date range: {printRange.from} → {printRange.to}
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-semibold text-gray-700">Summary</div>
+            <table className="mt-1 text-xs text-gray-600 text-right">
+              <tbody>
+                <tr><td className="pr-3 text-left font-medium">Total Submissions</td><td>{summary.total.toLocaleString()}</td></tr>
+                <tr><td className="pr-3 text-left font-medium">Avg. Rating</td><td>{summary.avgRating ? summary.avgRating.toFixed(1) + " / 5" : "—"}</td></tr>
+                <tr><td className="pr-3 text-left font-medium">Would Recommend</td><td>{summary.total ? `${summary.recommendPct}%` : "—"}</td></tr>
+                <tr><td className="pr-3 text-left font-medium">This Week</td><td>{summary.last7d.toLocaleString()}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <PageHeader
-        eyebrow="User Feedback"
-        title="Tour Feedback"
-        description="All visitor feedback submitted after completing a tour. Click a row to see full details."
+        eyebrow={t("feedback.eyebrow")}
+        title={t("feedback.title")}
+        description={t("feedback.description")}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 rounded-xl text-xs"
-            onClick={fetchFeedback}
-          >
-            <RefreshCw className="h-3 w-3" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 rounded-xl text-xs print:hidden"
+              onClick={() => setShowPrintModal(true)}
+            >
+              <Printer className="h-3 w-3" />
+              {t("feedback.printReport")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 rounded-xl text-xs print:hidden"
+              onClick={fetchFeedback}
+            >
+              <RefreshCw className="h-3 w-3" />
+              {t("feedback.refresh")}
+            </Button>
+          </div>
         }
       />
 
@@ -305,30 +398,30 @@ export default function FeedbackPage() {
       {/* ── Summary stat cards ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total Submissions"
+          label={t("feedback.totalSubmissions")}
           value={summary.total.toLocaleString()}
-          delta="All-time feedback"
+          delta={t("feedback.allTimeFeedback")}
           icon={<MessageSquare className="h-4 w-4" />}
           loading={loading}
         />
         <StatCard
-          label="Avg. Rating"
+          label={t("feedback.avgRating")}
           value={summary.avgRating ? summary.avgRating.toFixed(1) : "—"}
-          delta="Out of 5.0"
+          delta={t("feedback.outOf5")}
           icon={<Star className="h-4 w-4" />}
           loading={loading}
         />
         <StatCard
-          label="Would Recommend"
+          label={t("feedback.wouldRecommend")}
           value={summary.total ? `${summary.recommendPct}%` : "—"}
-          delta="Visitors recommending"
+          delta={t("feedback.visitorsRecommending")}
           icon={<ThumbsUp className="h-4 w-4" />}
           loading={loading}
         />
         <StatCard
-          label="This Week"
+          label={t("feedback.thisWeek")}
           value={summary.last7d.toLocaleString()}
-          delta="Submissions (last 7 days)"
+          delta={t("feedback.last7Days")}
           icon={<TrendingUp className="h-4 w-4" />}
           loading={loading}
         />
@@ -341,7 +434,7 @@ export default function FeedbackPage() {
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search comments or visit type…"
+            placeholder={t("feedback.searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -371,7 +464,7 @@ export default function FeedbackPage() {
           }}
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         >
-          <option value="">All ratings</option>
+          <option value="">{t("feedback.allRatings")}</option>
           {[5, 4, 3, 2, 1].map((r) => (
             <option key={r} value={r}>
               {r} ★
@@ -394,9 +487,9 @@ export default function FeedbackPage() {
           }}
           className="h-8 rounded-xl border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         >
-          <option value="">All responses</option>
-          <option value="yes">Would recommend</option>
-          <option value="no">Would not recommend</option>
+          <option value="">{t("feedback.allResponses")}</option>
+          <option value="yes">{t("feedback.wouldRecommendOption")}</option>
+          <option value="no">{t("feedback.wouldNotRecommend")}</option>
         </select>
 
         {/* Visit type filter */}
@@ -410,7 +503,7 @@ export default function FeedbackPage() {
         >
           {VISIT_TYPES.map((vt) => (
             <option key={vt} value={vt}>
-              {vt ? VISIT_TYPE_LABELS[vt] : "All visit types"}
+              {vt ? VISIT_TYPE_LABELS[vt] : t("feedback.allVisitTypes")}
             </option>
           ))}
         </select>
@@ -427,9 +520,34 @@ export default function FeedbackPage() {
             className="h-8 gap-1 rounded-xl text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3 w-3" />
-            Clear filters
+            {t("feedback.clearFilters")}
           </Button>
         )}
+
+        {/* Sentiment filter pills */}
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-muted/30 p-0.5">
+          {(["all", "positive", "neutral", "negative"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => { setSentimentFilter(s); setCurrentPage(1); }}
+              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
+                sentimentFilter === s
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s === "positive" && <ThumbsUp className="h-3 w-3" />}
+              {s === "negative" && <ThumbsDown className="h-3 w-3" />}
+              {s === "neutral"  && <Minus className="h-3 w-3" />}
+              <span>{s === "all" ? t("feedback.sentiment.all") : s === "positive" ? t("feedback.sentiment.positive") : s === "neutral" ? t("feedback.sentiment.neutral") : t("feedback.sentiment.negative")}</span>
+              {s !== "all" && (
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  ({sentimentCounts[s as Sentiment]})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
         <span className="ml-auto text-[11px] text-muted-foreground">
           {visible.length} result{visible.length !== 1 ? "s" : ""}
@@ -447,10 +565,10 @@ export default function FeedbackPage() {
         ) : visible.length === 0 ? (
           <div className="py-16 text-center">
             <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No feedback found.</p>
+            <p className="text-sm text-muted-foreground">{t("feedback.noFeedbackFound")}</p>
             {(hasActiveFilter || search) && (
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Try adjusting your filters or search query.
+                {t("feedback.adjustFilters")}
               </p>
             )}
           </div>
@@ -464,7 +582,7 @@ export default function FeedbackPage() {
                       onClick={() => handleSort("submitted_at")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      Date <SortIcon field="submitted_at" />
+                      {t("feedback.table.date")} <SortIcon field="submitted_at" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left">
@@ -472,25 +590,28 @@ export default function FeedbackPage() {
                       onClick={() => handleSort("overall_rating")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      Rating <SortIcon field="overall_rating" />
+                      {t("feedback.table.rating")} <SortIcon field="overall_rating" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
-                    Visit type
+                    {t("feedback.table.visitType")}
                   </th>
                   <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
-                    Recommend
+                    {t("feedback.table.recommend")}
                   </th>
                   <th className="px-4 py-2.5 text-left">
                     <button
                       onClick={() => handleSort("total_artifacts")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      Artifacts <SortIcon field="total_artifacts" />
+                      {t("feedback.table.artifacts")} <SortIcon field="total_artifacts" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
-                    Comment
+                    {t("feedback.table.comments")}
+                  </th>
+                  <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
+                    {t("feedback.table.sentiment")}
                   </th>
                   <th className="px-4 py-2.5 w-8" />
                 </tr>
@@ -530,8 +651,7 @@ export default function FeedbackPage() {
                               variant="outline"
                               className="rounded-full border-border text-[10px] capitalize"
                             >
-                              {VISIT_TYPE_LABELS[fb.visit_type] ??
-                                fb.visit_type}
+                              {t(`feedback.visitTypes.${fb.visit_type}`) ?? fb.visit_type}
                             </Badge>
                           </td>
 
@@ -559,21 +679,51 @@ export default function FeedbackPage() {
                             {fb.total_artifacts}
                           </td>
 
-                          {/* Comment preview */}
-                          <td className="px-4 py-3 max-w-[200px]">
-                            {fb.highlights ? (
-                              <p className="truncate text-muted-foreground">
-                                {fb.highlights}
-                              </p>
-                            ) : fb.suggestions ? (
-                              <p className="truncate text-muted-foreground/60 italic">
-                                {fb.suggestions}
-                              </p>
-                            ) : (
-                              <span className="text-muted-foreground/40">
-                                —
-                              </span>
-                            )}
+                          {/* Positive comment */}
+                          <td className="px-4 py-3 max-w-[220px]">
+                            <div className="space-y-1">
+                              {fb.highlights ? (
+                                <div className="flex items-start gap-1">
+                                  <ThumbsUp className="h-3 w-3 mt-0.5 shrink-0 text-emerald-500" />
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {fb.highlights}
+                                  </p>
+                                </div>
+                              ) : null}
+                              {fb.suggestions ? (
+                                <div className="flex items-start gap-1">
+                                  <ThumbsDown className="h-3 w-3 mt-0.5 shrink-0 text-red-400" />
+                                  <p className="truncate text-[11px] text-muted-foreground/70 italic">
+                                    {fb.suggestions}
+                                  </p>
+                                </div>
+                              ) : null}
+                              {!fb.highlights && !fb.suggestions && (
+                                <span className="text-muted-foreground/40">—</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Sentiment badge */}
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const combined = [fb.highlights, fb.suggestions]
+                                .filter(Boolean)
+                                .join(" ");
+                              if (!combined) return <span className="text-muted-foreground/40">—</span>;
+                              const { sentiment } = analyzeSentiment(combined);
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className={`rounded-full text-[10px] border flex items-center gap-1 w-fit ${SENTIMENT_STYLES[sentiment].className}`}
+                                >
+                                  {sentiment === "positive" && <ThumbsUp className="h-2.5 w-2.5" />}
+                                  {sentiment === "negative" && <ThumbsDown className="h-2.5 w-2.5" />}
+                                  {sentiment === "neutral"  && <Minus className="h-2.5 w-2.5" />}
+                                  {SENTIMENT_STYLES[sentiment].label}
+                                </Badge>
+                              );
+                            })()}
                           </td>
 
                           {/* Expand chevron */}
@@ -589,7 +739,7 @@ export default function FeedbackPage() {
                         {/* Expanded detail row */}
                         {isExpanded && (
                           <tr>
-                            <td colSpan={7} className="p-0">
+                            <td colSpan={8} className="p-0">
                               <ExpandedFeedback fb={fb} />
                             </td>
                           </tr>
@@ -603,11 +753,9 @@ export default function FeedbackPage() {
           </div>
         )}
         {!loading && visible.length > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+          <div className="flex items-center justify-between border-t border-border px-4 py-3 print:hidden">
             <span className="text-xs tabular-nums text-muted-foreground">
-              Showing {(page - 1) * FEEDBACK_PER_PAGE + 1}–
-              {Math.min(page * FEEDBACK_PER_PAGE, visible.length)} of{" "}
-              {visible.length} results
+              {t("feedback.showing", { from: (page - 1) * FEEDBACK_PER_PAGE + 1, to: Math.min(page * FEEDBACK_PER_PAGE, visible.length), total: visible.length })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -622,7 +770,7 @@ export default function FeedbackPage() {
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  Page {page} of {totalPages}
+                  {t("feedback.page", { page, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"
@@ -639,6 +787,63 @@ export default function FeedbackPage() {
           </div>
         )}
       </Card>
+
+      {/* ── Print-only feedback table ─────────────────────────────────────── */}
+      <div className="hidden print:block mt-8">
+        <h2 className="text-base font-bold text-gray-900 mb-3 border-b border-gray-300 pb-2">
+          Feedback Records ({visible.length} entries)
+        </h2>
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b-2 border-gray-800 text-left">
+              <th className="py-2 pr-3 font-semibold text-gray-700">Date</th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">Rating</th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">Visit Type</th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">Recommend</th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">Artifacts</th>
+              <th className="py-2 font-semibold text-gray-700">Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((fb) => (
+              <tr key={fb.id} className="border-b border-gray-100">
+                <td className="py-1.5 pr-3 text-gray-600 whitespace-nowrap">
+                  {new Date(fb.submitted_at).toLocaleDateString()}
+                </td>
+                <td className="py-1.5 pr-3 font-semibold text-gray-800">{fb.overall_rating} ★</td>
+                <td className="py-1.5 pr-3 capitalize text-gray-600">{fb.visit_type}</td>
+                <td className="py-1.5 pr-3 text-gray-600">{fb.would_recommend ? "Yes" : "No"}</td>
+                <td className="py-1.5 pr-3 text-gray-600">{fb.total_artifacts}</td>
+                <td className="py-1.5 text-gray-600 max-w-[220px]">
+                  {[fb.highlights, fb.suggestions].filter(Boolean).join(" · ") || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Print styles ───────────────────────────────────────────────────── */}
+      <style>{`
+        @media print {
+          body { font-size: 11px; }
+          .feedback-page-root { padding: 0; }
+          header, aside, nav, [data-sidebar] { display: none !important; }
+          .print\\:hidden { display: none !important; }
+        }
+      `}</style>
+
+      {/* ── Print Report Modal ─────────────────────────────────────────────── */}
+      <PrintReportModal
+        open={showPrintModal}
+        title={t("feedback.printFeedback")}
+        onClose={() => setShowPrintModal(false)}
+        onPrint={(range) => {
+          setPrintRange(range);
+          setShowPrintModal(false);
+          setTimeout(() => window.print(), 100);
+        }}
+      />
     </div>
   );
 }

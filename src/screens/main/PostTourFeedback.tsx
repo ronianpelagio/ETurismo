@@ -477,14 +477,14 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
                   </View>
                 </View>
 
-                {/* ── Highlights ── */}
+                {/* ── Positive Comments ── */}
                 <View style={styles(C).section}>
-                  <SectionHeader icon="sparkles-outline" label="WHAT DID YOU ENJOY MOST?" C={C} />
+                  <SectionHeader icon="thumbs-up-outline" label="POSITIVE COMMENTS" C={C} />
                   <TextInput
                     style={styles(C).textArea}
                     value={highlights}
                     onChangeText={setHighlights}
-                    placeholder="Tell us about your favourite artifact or moment…"
+                    placeholder="What did you enjoy most? Share your favourite artifact or moment…"
                     placeholderTextColor={C.inkLight}
                     multiline
                     numberOfLines={3}
@@ -494,14 +494,14 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
                   <Text style={styles(C).charCount}>{highlights.length}/500</Text>
                 </View>
 
-                {/* ── Suggestions ── */}
+                {/* ── Negative Comments ── */}
                 <View style={styles(C).section}>
-                  <SectionHeader icon="bulb-outline" label="ANY SUGGESTIONS?" C={C} />
+                  <SectionHeader icon="thumbs-down-outline" label="NEGATIVE COMMENTS / AREAS TO IMPROVE" C={C} />
                   <TextInput
                     style={styles(C).textArea}
                     value={suggestions}
                     onChangeText={setSuggestions}
-                    placeholder="How can we improve your experience?"
+                    placeholder="What could we do better? Any concerns or suggestions…"
                     placeholderTextColor={C.inkLight}
                     multiline
                     numberOfLines={3}

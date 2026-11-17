@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import type { ArtifactLanguageCode } from "../features/artifacts/config";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
@@ -27,6 +28,18 @@ export async function uploadArtifactImage(
     .publicUrl;
 }
 
+// ─── TTS routing ──────────────────────────────────────────────────────────────
+
+// Languages with Azure neural voices served by the Supabase Edge Function.
+const AZURE_SUPPORTED = new Set(["en", "fil", "ja", "es", "ko"]);
+
+// Local Philippine-dialect languages route to the gSpeak backend server.
+// ceb / ilo / hil have no dedicated Azure voices; the backend maps them to
+// the Filipino (tl) Google TTS voice.
+const BACKEND_URL =
+  import.meta.env.VITE_AUDIO_API_URL || "http://localhost:5000";
+
+// ─── generateArtifactAudio ────────────────────────────────────────────────────
 
 export async function generateArtifactAudio(
   artifactId: string,
@@ -35,10 +48,6 @@ export async function generateArtifactAudio(
   voiceName?: string,
   speakingRate?: number,
 ): Promise<{ success: boolean; audioUrl: string; error?: string }> {
-  // Diagnostic information
-  console.log("[AZURE TTS] Artifact ID:", artifactId);
-  console.log("[AZURE TTS] Language:", language);
-
   const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,6 +60,36 @@ export async function generateArtifactAudio(
   if (!text.trim()) {
     throw new Error("Narration text cannot be empty.");
   }
+
+  // ── Philippine dialect languages → local gSpeak backend ──────────────────
+  if (!AZURE_SUPPORTED.has(language)) {
+    console.log(`[gSpeak TTS] Language ${language} – routing to local backend`);
+    const res = await fetch(`${BACKEND_URL}/generate-audio`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        artifactId,
+        text,
+        lang: language,
+        voiceName: voiceName || undefined,
+        speakingRate: speakingRate ?? 1,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(
+        `Audio generation failed for ${language}: ${data.error || res.statusText}`,
+      );
+    }
+
+    return { success: true, audioUrl: data.audioUrl };
+  }
+
+  // ── Azure TTS via Supabase Edge Function (en / fil / ja / es / ko) ────────
+  console.log("[AZURE TTS] Artifact ID:", artifactId);
+  console.log("[AZURE TTS] Language:", language);
 
   const { data, error } = await supabase.functions.invoke(
     "generate-artifact-audio",
@@ -72,7 +111,7 @@ export async function generateArtifactAudio(
         const payload = await error.context.json();
         message = payload.error || payload.message || message;
       } catch {
-        // Preserve the original error.
+        // Preserve original error.
       }
     }
 
@@ -85,13 +124,10 @@ export async function generateArtifactAudio(
     );
   }
 
-  return {
-    success: true,
-    audioUrl: data.audioUrl,
-  };
-  
+  return { success: true, audioUrl: data.audioUrl };
 }
 
+// ─── upsertArtifactTranslation ────────────────────────────────────────────────
 
 export async function upsertArtifactTranslation(
   artifactId: string,
@@ -99,17 +135,22 @@ export async function upsertArtifactTranslation(
   name: string,
   description: string,
   existingId?: string,
+  historicalSignificance?: string,
 ) {
+  const payload = {
+    name,
+    description,
+    historical_significance: historicalSignificance ?? null,
+  };
   if (existingId) {
     return supabase
       .from("artifact_translations")
-      .update({ name, description })
+      .update(payload)
       .eq("id", existingId);
   }
   return supabase.from("artifact_translations").insert({
     artifact_id: artifactId,
     language_code: language,
-    name,
-    description,
+    ...payload,
   });
 }

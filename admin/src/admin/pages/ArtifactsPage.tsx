@@ -1,10 +1,11 @@
-import React, {
+﻿﻿﻿import React, {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Boxes,
@@ -62,7 +63,7 @@ import {
   upsertArtifactTranslation as upsertTranslation,
 } from "../services/artifactService";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const PAGE_SIZE = 8;
 
 // Supabase artifacts use UUID primary keys.
@@ -83,6 +84,19 @@ const AZURE_VOICES: Record<
     { name: "fil-PH-BlessicaNeural", description: "Blessica", gender: "Female" },
     { name: "fil-PH-AngeloNeural", description: "Angelo", gender: "Male" },
   ],
+  // Azure has no dedicated Bisaya/Ilocano/Hiligaynon voices â€” use Filipino
+  ceb: [
+    { name: "fil-PH-BlessicaNeural", description: "Blessica (Bisaya)", gender: "Female" },
+    { name: "fil-PH-AngeloNeural", description: "Angelo (Bisaya)", gender: "Male" },
+  ],
+  ilo: [
+    { name: "fil-PH-BlessicaNeural", description: "Blessica (Ilocano)", gender: "Female" },
+    { name: "fil-PH-AngeloNeural", description: "Angelo (Ilocano)", gender: "Male" },
+  ],
+  hil: [
+    { name: "fil-PH-BlessicaNeural", description: "Blessica (Hiligaynon)", gender: "Female" },
+    { name: "fil-PH-AngeloNeural", description: "Angelo (Hiligaynon)", gender: "Male" },
+  ],
   ja: [
     { name: "ja-JP-NanamiNeural", description: "Nanami", gender: "Female" },
     { name: "ja-JP-KeitaNeural", description: "Keita", gender: "Male" },
@@ -97,7 +111,7 @@ const AZURE_VOICES: Record<
   ],
 };
 
-// ─── Form ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const emptyForm = {
   name: "",
@@ -110,14 +124,28 @@ const emptyForm = {
   // per-lang translation fields
   name_en: "",
   name_fil: "",
+  name_ceb: "",
+  name_ilo: "",
+  name_hil: "",
   name_ja: "",
   name_es: "",
   name_ko: "",
   desc_en: "",
   desc_fil: "",
+  desc_ceb: "",
+  desc_ilo: "",
+  desc_hil: "",
   desc_ja: "",
   desc_es: "",
   desc_ko: "",
+  hist_en: "",
+  hist_fil: "",
+  hist_ceb: "",
+  hist_ilo: "",
+  hist_hil: "",
+  hist_ja: "",
+  hist_es: "",
+  hist_ko: "",
 };
 type AForm = typeof emptyForm;
 
@@ -132,7 +160,7 @@ function Spinner({ className = "" }: { className?: string }) {
   );
 }
 
-// ─── Audio Control Panel ──────────────────────────────────────────────────────
+// â”€â”€â”€ Audio Control Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface AudioControlPanelProps {
   artifactName: string;
@@ -275,7 +303,7 @@ function AudioControlPanel({
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
               >
-                {r === 1 ? "1×" : `${r}×`}
+                {r === 1 ? "1Ã—" : `${r}Ã—`}
               </button>
             ))}
           </div>
@@ -285,9 +313,10 @@ function AudioControlPanel({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ArtifactsPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -299,10 +328,6 @@ export default function ArtifactsPage() {
   // translations keyed by artifact_id -> lang -> ArtifactTranslation
   const [txMap, setTxMap] = useState<
     Record<string, Record<string, ArtifactTranslation>>
-  >({});
-  // rating summary keyed by artifact_id
-  const [ratingMap, setRatingMap] = useState<
-    Record<string, { avg_rating: number; rating_count: number }>
   >({});
   // audio map for currently editing artifact
   const [audioMap, setAudioMap] = useState<AudioMap>({});
@@ -336,7 +361,7 @@ export default function ArtifactsPage() {
   const [speakingRate, setSpeakingRate] = useState(1.0);
   const [showVoiceControls, setShowVoiceControls] = useState(false);
 
-  // ── Admin audio player state ───────────────────────────────────────────────
+  // â”€â”€ Admin audio player state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioRafRef = useRef<number>(0);
   const panelRef = useRef<HTMLDivElement>(null!);
@@ -353,7 +378,7 @@ export default function ArtifactsPage() {
   const [audioDurationState, setAudioDurationState] = useState(0);
   const [audioPlaybackRate, setAudioPlaybackRate] = useState(1);
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     fetchData(page);
@@ -407,20 +432,6 @@ export default function ArtifactsPage() {
           map[tx.artifact_id][tx.language_code] = tx;
         }
         setTxMap(map);
-
-        // fetch rating summaries for this page
-        const { data: ratingData } = await supabase
-          .from("artifact_rating_summary")
-          .select("artifact_id, avg_rating, rating_count")
-          .in("artifact_id", ids);
-        const rMap: Record<string, { avg_rating: number; rating_count: number }> = {};
-        for (const r of (ratingData || []) as any[]) {
-          rMap[r.artifact_id] = {
-            avg_rating: Number(r.avg_rating),
-            rating_count: Number(r.rating_count),
-          };
-        }
-        setRatingMap(rMap);
       }
     } catch (e: any) {
       setListError(e.message);
@@ -445,7 +456,7 @@ export default function ArtifactsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // ── Modal helpers ──────────────────────────────────────────────────────────
+  // â”€â”€ Modal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const openCreate = () => {
     setEditingId(null);
@@ -499,14 +510,28 @@ export default function ArtifactsPage() {
       historical_significance: a.Historical_Significance || "",
       name_en: byLang.en?.name || a.name,
       name_fil: byLang.fil?.name || "",
+      name_ceb: byLang.ceb?.name || "",
+      name_ilo: byLang.ilo?.name || "",
+      name_hil: byLang.hil?.name || "",
       name_ja: byLang.ja?.name || "",
       name_es: byLang.es?.name || "",
       name_ko: byLang.ko?.name || "",
       desc_en: byLang.en?.description || "",
       desc_fil: byLang.fil?.description || "",
+      desc_ceb: byLang.ceb?.description || "",
+      desc_ilo: byLang.ilo?.description || "",
+      desc_hil: byLang.hil?.description || "",
       desc_ja: byLang.ja?.description || "",
       desc_es: byLang.es?.description || "",
       desc_ko: byLang.ko?.description || "",
+      hist_en: byLang.en?.historical_significance || a.Historical_Significance || "",
+      hist_fil: byLang.fil?.historical_significance || "",
+      hist_ceb: byLang.ceb?.historical_significance || "",
+      hist_ilo: byLang.ilo?.historical_significance || "",
+      hist_hil: byLang.hil?.historical_significance || "",
+      hist_ja: byLang.ja?.historical_significance || "",
+      hist_es: byLang.es?.historical_significance || "",
+      hist_ko: byLang.ko?.historical_significance || "",
     });
     setShowModal(true);
   };
@@ -518,7 +543,7 @@ export default function ArtifactsPage() {
     setImagePreview(URL.createObjectURL(file));
   };
 
-  // ── Translate ──────────────────────────────────────────────────────────────
+  // â”€â”€ Translate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleTranslate = async () => {
     if (!form.name.trim()) {
@@ -530,26 +555,41 @@ export default function ArtifactsPage() {
       return;
     }
     setTranslating(true);
-    setTranslateStep("Starting translation…");
+    setTranslateStep("Starting translation...");
     try {
       const result = await translateAllLanguages(
         form.name,
         form.desc_en,
         setTranslateStep,
         "user@example.com",
+        form.historical_significance || undefined,
       );
       setForm((f) => ({
         ...f,
         name_fil: result.name_fil || f.name_fil,
+        name_ceb: result.name_ceb || f.name_ceb,
+        name_ilo: result.name_ilo || f.name_ilo,
+        name_hil: result.name_hil || f.name_hil,
         name_ja: result.name_ja || f.name_ja,
         name_es: result.name_es || f.name_es,
         name_ko: result.name_ko || f.name_ko,
         desc_fil: result.description_fil || f.desc_fil,
+        desc_ceb: result.description_ceb || f.desc_ceb,
+        desc_ilo: result.description_ilo || f.desc_ilo,
+        desc_hil: result.description_hil || f.desc_hil,
         desc_ja: result.description_ja || f.desc_ja,
         desc_es: result.description_es || f.desc_es,
         desc_ko: result.description_ko || f.desc_ko,
+        hist_en: result.historical_significance_en || f.hist_en,
+        hist_fil: result.historical_significance_fil || f.hist_fil,
+        hist_ceb: result.historical_significance_ceb || f.hist_ceb,
+        hist_ilo: result.historical_significance_ilo || f.hist_ilo,
+        hist_hil: result.historical_significance_hil || f.hist_hil,
+        hist_ja: result.historical_significance_ja || f.hist_ja,
+        hist_es: result.historical_significance_es || f.hist_es,
+        hist_ko: result.historical_significance_ko || f.hist_ko,
       }));
-      alert("✅ Translations completed!");
+      alert("Translations completed!");
     } catch (e: any) {
       alert(`Translation error: ${e.message}`);
     } finally {
@@ -558,7 +598,7 @@ export default function ArtifactsPage() {
     }
   };
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Audio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const setAudioStatusFor = (
     lang: string,
@@ -592,7 +632,7 @@ export default function ArtifactsPage() {
       return;
     }
     setAudioSaving(true);
-    setAudioStep(`Generating ${langCode.toUpperCase()} audio…`);
+    setAudioStep(`Generating ${langCode.toUpperCase()} audioâ€¦`);
     setAudioStatusFor(langCode, "generating", 0);
     try {
       const result = await generateAudioViaAPI(
@@ -628,11 +668,14 @@ export default function ArtifactsPage() {
       return;
     }
     const pairs: [LangCode, string][] = [
-      ["en", form.desc_en],
+      ["en",  form.desc_en],
       ["fil", form.desc_fil],
-      ["ja", form.desc_ja],
-      ["es", form.desc_es],
-      ["ko", form.desc_ko],
+      ["ceb", form.desc_ceb],
+      ["ilo", form.desc_ilo],
+      ["hil", form.desc_hil],
+      ["ja",  form.desc_ja],
+      ["es",  form.desc_es],
+      ["ko",  form.desc_ko],
     ].filter(([, t]) => (t as string).trim()) as [LangCode, string][];
     if (!pairs.length) {
       alert("No descriptions to generate audio from.");
@@ -642,7 +685,7 @@ export default function ArtifactsPage() {
     let ok = 0,
       fail = 0;
     for (const [lang, text] of pairs) {
-      setAudioStep(`Generating ${lang.toUpperCase()} audio…`);
+      setAudioStep(`Generating ${lang.toUpperCase()} audioâ€¦`);
       setAudioStatusFor(lang, "generating", 0);
       try {
         const r = await generateAudioViaAPI(
@@ -664,13 +707,13 @@ export default function ArtifactsPage() {
     setAudioStep("");
     if (ok > 0) {
       alert(
-        `✅ ${ok} audio file(s) generated!${fail ? ` (${fail} failed)` : ""}`,
+        `âœ… ${ok} audio file(s) generated!${fail ? ` (${fail} failed)` : ""}`,
       );
       await fetchData(page);
-    } else alert(`❌ Failed to generate ${fail} audio file(s).`);
+    } else alert(`âŒ Failed to generate ${fail} audio file(s).`);
   };
 
-  // ── Save artifact ──────────────────────────────────────────────────────────
+  // â”€â”€ Save artifact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleSaveArtifact = async () => {
     if (!form.name.trim()) {
@@ -678,7 +721,7 @@ export default function ArtifactsPage() {
       return;
     }
     setSaving(true);
-    setSaveStep("Saving artifact…");
+    setSaveStep("Saving artifactâ€¦");
     setFormError(null);
     try {
       const payload = {
@@ -715,7 +758,7 @@ export default function ArtifactsPage() {
       }
 
       if (form.image_file) {
-        setSaveStep("Uploading image…");
+        setSaveStep("Uploading imageâ€¦");
 
         const url = await uploadImage(artifactId, form.image_file);
 
@@ -730,7 +773,7 @@ export default function ArtifactsPage() {
       }
 
       // QR code
-      setSaveStep("Generating QR code…");
+      setSaveStep("Generating QR codeâ€¦");
       const qrValue = `${window.location.origin}/artifact/${artifactId}`;
       const qrDataUrl = await QRCode.toDataURL(qrValue);
       const { error: qrErr } = await supabase.storage
@@ -750,13 +793,14 @@ export default function ArtifactsPage() {
       }
 
       // Upsert translations
-      setSaveStep("Saving translations…");
-      const langs: LangCode[] = ["en", "fil", "ja", "es", "ko"];
+      setSaveStep("Saving translationsâ€¦");
+      const langs: LangCode[] = ["en", "fil", "ceb", "ilo", "hil", "ja", "es", "ko"];
       for (const lang of langs) {
         const name =
           (form[`name_${lang}` as keyof AForm] as string) ||
           (lang === "en" ? form.name : "");
         const desc = form[`desc_${lang}` as keyof AForm] as string;
+        const hist = form[`hist_${lang}` as keyof AForm] as string;
         if (!name && !desc) continue;
         const { error: translationError } = await upsertTranslation(
           artifactId,
@@ -764,6 +808,7 @@ export default function ArtifactsPage() {
           name || form.name,
           desc,
           txIds[lang],
+          hist || undefined,
         );
         if (translationError) {
           throw new Error(
@@ -777,13 +822,13 @@ export default function ArtifactsPage() {
         // Small delay to ensure translation records are committed to database
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        setSaveStep("Generating audio…");
+        setSaveStep("Generating audioâ€¦");
         const audioErrors: string[] = [];
         for (const lang of langs) {
           const text = form[`desc_${lang}` as keyof AForm] as string;
           if (text?.trim()) {
             try {
-              setSaveStep(`Generating ${lang.toUpperCase()} audio…`);
+              setSaveStep(`Generating ${lang.toUpperCase()} audioâ€¦`);
               const result = await generateAudioViaAPI(
                 artifactId,
                 text,
@@ -835,7 +880,7 @@ export default function ArtifactsPage() {
 
       setShowModal(false);
       await fetchData(page);
-      alert("✅ Artifact saved!");
+      alert("âœ… Artifact saved!");
     } catch (e: any) {
       setFormError(e.message);
     } finally {
@@ -844,7 +889,7 @@ export default function ArtifactsPage() {
     }
   };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Delete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleDelete = async () => {
     if (!deleteItem) return;
@@ -863,7 +908,7 @@ export default function ArtifactsPage() {
     setDeleting(false);
   };
 
-  // ── Audio playback ─────────────────────────────────────────────────────────
+  // â”€â”€ Audio playback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Stop whatever is currently playing and clean up. */
   const stopAudio = useCallback(() => {
@@ -897,7 +942,7 @@ export default function ArtifactsPage() {
     (artifactId: string, lang: (typeof LANGUAGES)[number]) => {
       const key = `${artifactId}:${lang.code}`;
 
-      // Clicking the same language chip again → toggle pause/resume
+      // Clicking the same language chip again â†’ toggle pause/resume
       if (playingKey === key && audioRef.current) {
         if (audioRef.current.paused) {
           audioRef.current.play().catch(() => {});
@@ -972,7 +1017,7 @@ export default function ArtifactsPage() {
     [playingKey, txMap, items, stopAudio, startProgressTick],
   );
 
-  // Click-outside → stop audio
+  // Click-outside â†’ stop audio
   useEffect(() => {
     if (!playingKey) return;
     const handler = (e: MouseEvent) => {
@@ -1049,7 +1094,7 @@ export default function ArtifactsPage() {
   const activeNameKey = `name_${activeLang}` as keyof AForm;
   const activeDescKey = `desc_${activeLang}` as keyof AForm;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <div>
@@ -1069,7 +1114,7 @@ export default function ArtifactsPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search artifacts…"
+            placeholder="Search artifacts"
             className="h-9 w-full rounded-xl border-border bg-muted/40 text-sm sm:w-56"
           />
           <Select value={category} onValueChange={setCategory}>
@@ -1186,36 +1231,7 @@ export default function ArtifactsPage() {
                         {artTx.en.description}
                       </p>
                     )}
-                    {/* ── Artifact rating summary ── */}
-                    {(() => {
-                      const r = ratingMap[a.id];
-                      if (!r || r.rating_count === 0) return (
-                        <p className="mt-1.5 text-[11px] text-muted-foreground/50">No ratings yet</p>
-                      );
-                      const full  = Math.floor(r.avg_rating);
-                      const half  = r.avg_rating - full >= 0.5;
-                      const empty = 5 - full - (half ? 1 : 0);
-                      return (
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <span className="flex items-center gap-0.5">
-                            {Array.from({ length: full }).map((_, i) => (
-                              <svg key={`f${i}`} className="h-3 w-3 fill-amber-400 text-amber-400" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                            ))}
-                            {half && (
-                              <svg className="h-3 w-3 text-amber-400" viewBox="0 0 20 20">
-                                <defs><linearGradient id={`hg-${a.id}`}><stop offset="50%" stopColor="#fbbf24"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs>
-                                <path fill={`url(#hg-${a.id})`} stroke="#fbbf24" strokeWidth="0.5" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                              </svg>
-                            )}
-                            {Array.from({ length: empty }).map((_, i) => (
-                              <svg key={`e${i}`} className="h-3 w-3 text-muted-foreground/30" viewBox="0 0 20 20"><path fill="currentColor" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                            ))}
-                          </span>
-                          <span className="text-[11px] font-semibold text-foreground">{r.avg_rating.toFixed(1)}</span>
-                          <span className="text-[11px] text-muted-foreground">({r.rating_count} {r.rating_count === 1 ? "rating" : "ratings"})</span>
-                        </div>
-                      );
-                    })()}
+
                     {langsWithDesc.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {langsWithDesc.map((l) => {
@@ -1225,7 +1241,7 @@ export default function ArtifactsPage() {
                             <button
                               key={l.code}
                               onClick={() => playAudio(a.id, l)}
-                              title={`${l.label}${langsWithAudio.find((x) => x.code === l.code) ? " — audio available" : ""}`}
+                              title={`${l.label}${langsWithAudio.find((x) => x.code === l.code) ? " â€” audio available" : ""}`}
                               className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] transition
                                 ${
                                   isActive
@@ -1302,7 +1318,7 @@ export default function ArtifactsPage() {
         </div>
       )}
 
-      {/* ── Create / Edit Modal ────────────────────────────────────────────── */}
+      {/* â”€â”€ Create / Edit Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={showModal}
         onOpenChange={(o) => {
@@ -1440,7 +1456,7 @@ export default function ArtifactsPage() {
                         setForm((f) => ({ ...f, image_url: e.target.value }))
                       }
                       className="h-10 rounded-xl bg-muted/40"
-                      placeholder="https://…"
+                      placeholder="https://â€¦"
                     />
                   </div>
                 </div>
@@ -1471,7 +1487,7 @@ export default function ArtifactsPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Historical Significance</Label>
+                  <Label className="text-xs">{t("artifacts.historicalSignificance")}</Label>
                   <Textarea
                     rows={3}
                     value={form.historical_significance}
@@ -1481,7 +1497,7 @@ export default function ArtifactsPage() {
                         historical_significance: e.target.value,
                       }))
                     }
-                    placeholder="Brief note on historical significance…"
+                    placeholder={t("artifacts.historicalSignificancePlaceholder")}
                     className="rounded-xl bg-muted/40"
                   />
                 </div>
@@ -1516,7 +1532,7 @@ export default function ArtifactsPage() {
                     {translating ? (
                       <>
                         <Spinner className="mr-1.5" />
-                        {translateStep || "Translating…"}
+                        {translateStep || "Translatingâ€¦"}
                       </>
                     ) : (
                       <>
@@ -1549,7 +1565,7 @@ export default function ArtifactsPage() {
                       {generatingAll || audioSaving ? (
                         <>
                           <Spinner className="mr-1.5" />
-                          {audioStep || "Generating…"}
+                          {audioStep || "Generatingâ€¦"}
                         </>
                       ) : (
                         <>
@@ -1571,7 +1587,7 @@ export default function ArtifactsPage() {
                       className="overflow-hidden rounded-xl border border-border bg-muted/40 p-4"
                     >
                       <p className="mb-3 text-xs font-semibold text-foreground">
-                        Voice Settings —{" "}
+                        Voice Settings â€”{" "}
                         {LANGUAGES.find((l) => l.code === activeLang)?.label}
                       </p>
                       <div className="space-y-3">
@@ -1582,7 +1598,7 @@ export default function ArtifactsPage() {
                             onValueChange={setSelectedVoice}
                           >
                             <SelectTrigger className="h-9 rounded-xl bg-background text-xs">
-                              <SelectValue placeholder="Select voice…" />
+                              <SelectValue placeholder="Select voiceâ€¦" />
                             </SelectTrigger>
                             <SelectContent>
                               {availableVoices.map((v) => (
@@ -1591,7 +1607,7 @@ export default function ArtifactsPage() {
                                   value={v.name}
                                   className="text-xs"
                                 >
-                                  {v.description} ({v.gender}) — {v.name}
+                                  {v.description} ({v.gender}) â€” {v.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1599,7 +1615,7 @@ export default function ArtifactsPage() {
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs">
-                            Speaking Speed: {speakingRate.toFixed(1)}×
+                            Speaking Speed: {speakingRate.toFixed(1)}Ã—
                           </Label>
                           <input
                             type="range"
@@ -1613,9 +1629,9 @@ export default function ArtifactsPage() {
                             className="w-full accent-foreground"
                           />
                           <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>Slower (0.5×)</span>
-                            <span>Normal (1.0×)</span>
-                            <span>Faster (2.0×)</span>
+                            <span>Slower (0.5Ã—)</span>
+                            <span>Normal (1.0Ã—)</span>
+                            <span>Faster (2.0Ã—)</span>
                           </div>
                         </div>
                       </div>
@@ -1655,7 +1671,7 @@ export default function ArtifactsPage() {
                         [activeNameKey]: e.target.value,
                       }))
                     }
-                    placeholder={`Name in ${LANGUAGES.find((l) => l.code === activeLang)?.label}…`}
+                    placeholder={`Name in ${LANGUAGES.find((l) => l.code === activeLang)?.label}â€¦`}
                     className="h-10 rounded-xl bg-muted/40 text-sm"
                   />
                 </div>
@@ -1675,7 +1691,7 @@ export default function ArtifactsPage() {
                         [activeDescKey]: e.target.value,
                       }))
                     }
-                    placeholder={`Description in ${LANGUAGES.find((l) => l.code === activeLang)?.label}…`}
+                    placeholder={`Description in ${LANGUAGES.find((l) => l.code === activeLang)?.label}â€¦`}
                     className="rounded-xl bg-muted/40"
                   />
                 </div>
@@ -1743,7 +1759,7 @@ export default function ArtifactsPage() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {form.category}
-                          {form.creator ? ` · ${form.creator}` : ""}
+                          {form.creator ? ` Â· ${form.creator}` : ""}
                         </p>
                       </div>
                     </div>
@@ -1826,7 +1842,7 @@ export default function ArtifactsPage() {
         onConfirm={handleDelete}
       />
 
-      {/* ── Floating Audio Control Panel ─────────────────────────────────── */}
+      {/* â”€â”€ Floating Audio Control Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <AnimatePresence>
         {playingKey && playingMeta && (
           <AudioControlPanel

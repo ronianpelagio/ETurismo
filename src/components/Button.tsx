@@ -145,7 +145,7 @@ export default function Button({
       <Ionicons
         name={icon}
         size={getSizeTextStyle().fontSize}
-        color={getTextStyle().color}
+        color={getTextStyle().color as string}
         style={{ marginHorizontal: 4 }}
       />
     );

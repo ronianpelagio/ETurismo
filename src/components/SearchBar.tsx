@@ -117,7 +117,7 @@ const SearchBar = forwardRef<TextInput, SearchBarProps>(({
       />
 
       <TextInput
-        ref={ref}
+        ref={ref as any}
         value={value}
         onChangeText={handleTextChange}
         placeholder={placeholder}

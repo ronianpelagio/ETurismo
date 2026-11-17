@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AdminApp from "./admin/App";
 import Landing from "./Landing";
+// Initialise i18n before any component mounts so translations are ready
+import "./admin/i18n";
 import "./styles.css";
 
 const queryClient = new QueryClient();

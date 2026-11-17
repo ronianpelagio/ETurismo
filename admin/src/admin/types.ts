@@ -33,6 +33,7 @@ export type ArtifactTranslation = {
   language_code: string;
   name: string;
   description?: string | null;
+  historical_significance?: string | null;
   audio_url?: string | null;
   created_at?: string | null;
 };

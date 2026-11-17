@@ -4,6 +4,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -12,11 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons as Icon } from '@expo/vector-icons';
-import {
-  Camera as MapCamera,
-  Map as MapLibreMap,
-  type CameraRef,
-} from '@maplibre/maplibre-react-native';
+import MapView from 'react-native-maps';
 import * as Location from 'expo-location';
 import {
   getBarangays,
@@ -25,7 +22,6 @@ import {
   LocationOption,
   resolvePhilippineLocation,
 } from '../services/philippineLocations';
-import { MAPS_ENABLED } from '../../maps/config';
 
 // ─── World countries (ISO 3166-1 alpha-2) ─────────────────────────────────────
 // Full list — sorted alphabetically. Philippines is listed normally (not special-cased).
@@ -255,8 +251,8 @@ function LocationMapModal({
   onClose: () => void;
   onSelect: (coordinates: Coordinates) => Promise<void>;
 }) {
-  const camera = useRef<CameraRef>(null);
-  const [coordinates, setCoordinates] = useState<Coordinates>({
+  const mapRef = useRef<MapView>(null);
+  const coordinatesRef = useRef<Coordinates>({
     latitude: 14.5995,
     longitude: 120.9842,
   });
@@ -280,12 +276,12 @@ function LocationMapModal({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
-      setCoordinates(next);
-      camera.current?.flyTo({
-        center: [next.longitude, next.latitude],
-        zoom: 15,
-        duration: 700,
-      });
+      coordinatesRef.current = next;
+      mapRef.current?.animateToRegion({
+        ...next,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 700);
     } catch (locationError) {
       setError(
         locationError instanceof Error
@@ -301,7 +297,7 @@ function LocationMapModal({
     setSaving(true);
     setError('');
     try {
-      await onSelect(coordinates);
+      await onSelect(coordinatesRef.current);
       onClose();
     } catch (selectionError) {
       setError(
@@ -333,24 +329,27 @@ function LocationMapModal({
         </View>
 
         <View style={styles.mapWrap}>
-          <MapLibreMap
-            style={StyleSheet.absoluteFill}
-            mapStyle="https://tiles.openfreemap.org/styles/liberty"
-            attribution={false}
-            logo={false}
-            onRegionDidChange={event => {
-              const [longitude, latitude] = event.nativeEvent.center;
-              setCoordinates({ latitude, longitude });
-            }}
-          >
-            <MapCamera
-              ref={camera}
-              initialViewState={{
-                center: [coordinates.longitude, coordinates.latitude],
-                zoom: 12,
+          {Platform.OS === 'ios' || Platform.OS === 'android' ? (
+            <MapView
+              ref={mapRef}
+              style={StyleSheet.absoluteFill}
+              initialRegion={{
+                ...coordinatesRef.current,
+                latitudeDelta: 0.08,
+                longitudeDelta: 0.08,
+              }}
+              onRegionChangeComplete={region => {
+                coordinatesRef.current = {
+                  latitude: region.latitude,
+                  longitude: region.longitude,
+                };
               }}
             />
-          </MapLibreMap>
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={styles.mapHint}>Maps are available on iOS and Android.</Text>
+            </View>
+          )}
           <View pointerEvents="none" style={styles.centerPin}>
             <Icon name="location" size={42} color="#B63B32" />
           </View>
@@ -594,8 +593,6 @@ export function LocationFields({ value, onChange, error, onMapVisibilityChange }
 
   const update = (patch: Partial<LocationValue>) => onChange({ ...value, ...patch });
   const openMap = () => {
-    if (!MAPS_ENABLED) return;
-
     setMapOpen(true);
     onMapVisibilityChange?.(true);
   };
@@ -665,30 +662,26 @@ export function LocationFields({ value, onChange, error, onMapVisibilityChange }
         </View>
       </View>
 
-      <View style={[styles.mapShortcut, !MAPS_ENABLED && styles.mapShortcutDisabled]}>
+      <View style={styles.mapShortcut}>
         <View style={styles.mapShortcutCopy}>
-          <Text style={styles.mapShortcutTitle}>
-            {MAPS_ENABLED ? 'FIND YOUR ADDRESS' : 'MAP DISABLED FOR TESTING'}
-          </Text>
+          <Text style={styles.mapShortcutTitle}>FIND YOUR ADDRESS</Text>
           <Text style={styles.mapShortcutSummary} numberOfLines={2}>
-            {selectedLocation || (MAPS_ENABLED ? 'Choose a spot on the map to fill this in' : 'Select your location manually below.')}
+            {selectedLocation || 'Choose a spot on the map to fill this in'}
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.mapShortcutButton, !MAPS_ENABLED && styles.mapShortcutButtonDisabled]}
+          style={styles.mapShortcutButton}
           onPress={openMap}
-          disabled={!MAPS_ENABLED}
           accessibilityRole="button"
-          accessibilityLabel={MAPS_ENABLED ? 'Choose location on map' : 'Map disabled for testing'}
-          accessibilityState={{ disabled: !MAPS_ENABLED }}
+          accessibilityLabel="Choose location on map"
         >
           <Icon name="map-outline" size={17} color="#FFFFFF" />
-          <Text style={styles.mapShortcutButtonText}>{MAPS_ENABLED ? 'Map' : 'Off'}</Text>
+          <Text style={styles.mapShortcutButtonText}>Map</Text>
         </TouchableOpacity>
       </View>
 
       <LocationMapModal
-        visible={MAPS_ENABLED && mapOpen}
+        visible={mapOpen}
         onClose={closeMap}
         onSelect={applyMapLocation}
       />
@@ -818,12 +811,10 @@ const styles = StyleSheet.create({
   sectionTitle:       { color: '#191611', fontSize: 13, fontWeight: '800' },
   sectionDescription: { color: '#6E665B', fontSize: 10, lineHeight: 15, marginTop: 2 },
   mapShortcut:        { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, marginBottom: 13, borderRadius: 12, borderWidth: 1, borderColor: '#E8D9B8', backgroundColor: '#F8F1E3' },
-  mapShortcutDisabled: { opacity: 0.65 },
   mapShortcutCopy:    { flex: 1 },
   mapShortcutTitle:   { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
   mapShortcutSummary: { color: '#302A22', fontSize: 12, lineHeight: 16, marginTop: 4 },
   mapShortcutButton:  { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#B99345' },
-  mapShortcutButtonDisabled: { backgroundColor: '#8B8479' },
   mapShortcutButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   field:              { marginBottom: 10 },
   label:              { color: '#6E665B', fontSize: 9, fontWeight: '800', letterSpacing: 1.1, marginBottom: 6 },
