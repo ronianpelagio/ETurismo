@@ -42,11 +42,7 @@ import {
   SENTIMENT_STYLES,
   SentimentResult,
 } from "../utils/sentiment";
-import {
-  translate,
-  DialectCode,
-  DIALECT_META,
-} from "../utils/translation";
+import { translate, DialectCode, DIALECT_META } from "../utils/translation";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,7 +107,7 @@ function avatarInitials(user: CommentUser | null): string {
 
 const SENTIMENT_ICON: Record<Sentiment, React.ReactNode> = {
   positive: <ThumbsUp className="h-3 w-3" />,
-  neutral:  <Minus className="h-3 w-3" />,
+  neutral: <Minus className="h-3 w-3" />,
   negative: <ThumbsDown className="h-3 w-3" />,
 };
 
@@ -170,7 +166,8 @@ function TranslateDropdown({
                 setOpen(false);
               }}
             >
-              {DIALECT_META[code].flag} {DIALECT_META[code].name} ({DIALECT_META[code].nativeName})
+              {DIALECT_META[code].flag} {DIALECT_META[code].name} (
+              {DIALECT_META[code].nativeName})
             </button>
           ))}
         </div>
@@ -187,16 +184,23 @@ export default function CommentsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
+  const [sentimentFilter, setSentimentFilter] =
+    useState<SentimentFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
   const stats = React.useMemo(() => {
     const total = comments.length;
-    const positive = comments.filter((c) => c.sentiment.sentiment === "positive").length;
-    const negative = comments.filter((c) => c.sentiment.sentiment === "negative").length;
-    const neutral  = comments.filter((c) => c.sentiment.sentiment === "neutral").length;
+    const positive = comments.filter(
+      (c) => c.sentiment.sentiment === "positive",
+    ).length;
+    const negative = comments.filter(
+      (c) => c.sentiment.sentiment === "negative",
+    ).length;
+    const neutral = comments.filter(
+      (c) => c.sentiment.sentiment === "neutral",
+    ).length;
     return { total, positive, negative, neutral };
   }, [comments]);
 
@@ -223,7 +227,7 @@ export default function CommentsPage() {
 
       // Step 2: fetch user profiles for all unique user_ids in one query
       const uids = [...new Set(rawRows.map((r) => r.user_id).filter(Boolean))];
-      let userMap = new Map<string, CommentUser>();
+      const userMap = new Map<string, CommentUser>();
 
       if (uids.length > 0) {
         const { data: users } = await supabase
@@ -283,9 +287,7 @@ export default function CommentsPage() {
 
   const handleRestoreOriginal = (id: string) => {
     setComments((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, activeTranslation: null } : c,
-      ),
+      prev.map((c) => (c.id === id ? { ...c, activeTranslation: null } : c)),
     );
   };
 
@@ -569,7 +571,9 @@ export default function CommentsPage() {
                         </span>
                         {c.artifact_name && (
                           <>
-                            <span className="text-muted-foreground/40 text-xs">on</span>
+                            <span className="text-muted-foreground/40 text-xs">
+                              on
+                            </span>
                             <span className="text-xs text-muted-foreground font-medium truncate max-w-[180px]">
                               {c.artifact_name}
                             </span>
@@ -602,8 +606,8 @@ export default function CommentsPage() {
                       {/* Translation notice */}
                       {c.activeTranslation && (
                         <p className="mt-0.5 text-[10px] text-muted-foreground/60 print:hidden">
-                          Translated to{" "}
-                          {DIALECT_META[c.activeTranslation].name} ·{" "}
+                          Translated to {DIALECT_META[c.activeTranslation].name}{" "}
+                          ·{" "}
                           <button
                             className="underline hover:text-muted-foreground"
                             onClick={() => handleRestoreOriginal(c.id)}

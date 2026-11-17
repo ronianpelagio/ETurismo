@@ -25,7 +25,9 @@ type LogEntry = {
   created_at: string;
 };
 
-function getTypeMeta(t: (key: string) => string): Record<
+function getTypeMeta(
+  t: (key: string) => string,
+): Record<
   LogEntry["type"],
   { icon: React.ReactNode; label: string; color: string }
 > {
@@ -33,7 +35,8 @@ function getTypeMeta(t: (key: string) => string): Record<
     user: {
       icon: <Users className="h-3.5 w-3.5" />,
       label: t("logs.types.user"),
-      color: "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
+      color:
+        "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
     },
     artifact: {
       icon: <Boxes className="h-3.5 w-3.5" />,
@@ -270,7 +273,10 @@ export default function RecentLogsPage() {
           >
             {tab === "all"
               ? t("logs.filterAll", { count: logs.length })
-              : t("logs.filterType", { label: TYPE_META[tab as LogEntry["type"]].label, count: counts[tab] ?? 0 })}
+              : t("logs.filterType", {
+                  label: TYPE_META[tab as LogEntry["type"]].label,
+                  count: counts[tab] ?? 0,
+                })}
           </button>
         ))}
       </div>
@@ -342,7 +348,11 @@ export default function RecentLogsPage() {
         {!loading && displayed.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <span className="text-xs tabular-nums text-muted-foreground">
-              {t("logs.showing", { from: (page - 1) * LOGS_PER_PAGE + 1, to: Math.min(page * LOGS_PER_PAGE, displayed.length), total: displayed.length })}
+              {t("logs.showing", {
+                from: (page - 1) * LOGS_PER_PAGE + 1,
+                to: Math.min(page * LOGS_PER_PAGE, displayed.length),
+                total: displayed.length,
+              })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">

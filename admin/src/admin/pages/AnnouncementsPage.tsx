@@ -387,7 +387,9 @@ function AnnouncementRow({
                 : "border-primary/30 bg-primary/5 text-primary",
             )}
           >
-            {isPast ? t("announcements.badges.past") : t("announcements.badges.active")}
+            {isPast
+              ? t("announcements.badges.past")
+              : t("announcements.badges.active")}
           </Badge>
           {item.image_url && (
             <Badge
@@ -602,7 +604,8 @@ export default function AnnouncementsPage() {
         description={t("announcements.description")}
         actions={
           <Button onClick={openCreate} className="rounded-xl">
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("announcements.newAnnouncement")}
+            <Plus className="mr-1.5 h-3.5 w-3.5" />{" "}
+            {t("announcements.newAnnouncement")}
           </Button>
         }
       />
@@ -636,7 +639,11 @@ export default function AnnouncementsPage() {
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
             icon={<Megaphone className="h-5 w-5" />}
-            title={query ? t("announcements.noMatchTitle") : t("announcements.noItemsTitle")}
+            title={
+              query
+                ? t("announcements.noMatchTitle")
+                : t("announcements.noItemsTitle")
+            }
             description={
               query
                 ? t("users.tryDifferentSearch")
@@ -649,7 +656,8 @@ export default function AnnouncementsPage() {
                   variant="outline"
                   className="rounded-xl"
                 >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> {t("announcements.newAnnouncement")}
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />{" "}
+                  {t("announcements.newAnnouncement")}
                 </Button>
               )
             }
@@ -745,7 +753,11 @@ export default function AnnouncementsPage() {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? t("announcements.editAnnouncement") : t("announcements.newAnnouncement")}
+        title={
+          editItem
+            ? t("announcements.editAnnouncement")
+            : t("announcements.newAnnouncement")
+        }
         description={t("announcements.modalDesc")}
         size="md"
         footer={
@@ -762,7 +774,11 @@ export default function AnnouncementsPage() {
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? t("announcements.saving") : editItem ? t("common.saveChanges") : t("common.publish")}
+              {saving
+                ? t("announcements.saving")
+                : editItem
+                  ? t("common.saveChanges")
+                  : t("common.publish")}
             </Button>
           </>
         }
@@ -795,7 +811,8 @@ export default function AnnouncementsPage() {
 
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs">
-              <AlignLeft className="h-3 w-3" /> {t("announcements.form.description")}
+              <AlignLeft className="h-3 w-3" />{" "}
+              {t("announcements.form.description")}
             </Label>
             <Textarea
               rows={3}
@@ -823,7 +840,9 @@ export default function AnnouncementsPage() {
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
         title={t("announcements.deleteTitle")}
-        description={t("announcements.deleteDesc", { title: deleteItem?.title ?? "" })}
+        description={t("announcements.deleteDesc", {
+          title: deleteItem?.title ?? "",
+        })}
         confirmLabel={t("common.delete")}
         destructive
         loading={saving}

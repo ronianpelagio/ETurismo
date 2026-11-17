@@ -1,7 +1,6 @@
 import { supabase } from "./supabase";
 import type { ArtifactLanguageCode } from "../features/artifacts/config";
 
-
 export function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
   const mime = header.match(/:(.*?);/)?.[1] ?? "image/png";
@@ -26,7 +25,6 @@ export async function uploadArtifactImage(
   return supabase.storage.from("artifact-images").getPublicUrl(path).data
     .publicUrl;
 }
-
 
 export async function generateArtifactAudio(
   artifactId: string,
@@ -89,9 +87,7 @@ export async function generateArtifactAudio(
     success: true,
     audioUrl: data.audioUrl,
   };
-  
 }
-
 
 export async function upsertArtifactTranslation(
   artifactId: string,

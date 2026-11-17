@@ -1,4 +1,4 @@
-﻿﻿﻿import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -81,21 +81,49 @@ const AZURE_VOICES: Record<
     { name: "en-US-GuyNeural", description: "Guy", gender: "Male" },
   ],
   fil: [
-    { name: "fil-PH-BlessicaNeural", description: "Blessica", gender: "Female" },
+    {
+      name: "fil-PH-BlessicaNeural",
+      description: "Blessica",
+      gender: "Female",
+    },
     { name: "fil-PH-AngeloNeural", description: "Angelo", gender: "Male" },
   ],
   // Azure has no dedicated Bisaya/Ilocano/Hiligaynon voices â€” use Filipino
   ceb: [
-    { name: "fil-PH-BlessicaNeural", description: "Blessica (Bisaya)", gender: "Female" },
-    { name: "fil-PH-AngeloNeural", description: "Angelo (Bisaya)", gender: "Male" },
+    {
+      name: "fil-PH-BlessicaNeural",
+      description: "Blessica (Bisaya)",
+      gender: "Female",
+    },
+    {
+      name: "fil-PH-AngeloNeural",
+      description: "Angelo (Bisaya)",
+      gender: "Male",
+    },
   ],
   ilo: [
-    { name: "fil-PH-BlessicaNeural", description: "Blessica (Ilocano)", gender: "Female" },
-    { name: "fil-PH-AngeloNeural", description: "Angelo (Ilocano)", gender: "Male" },
+    {
+      name: "fil-PH-BlessicaNeural",
+      description: "Blessica (Ilocano)",
+      gender: "Female",
+    },
+    {
+      name: "fil-PH-AngeloNeural",
+      description: "Angelo (Ilocano)",
+      gender: "Male",
+    },
   ],
   hil: [
-    { name: "fil-PH-BlessicaNeural", description: "Blessica (Hiligaynon)", gender: "Female" },
-    { name: "fil-PH-AngeloNeural", description: "Angelo (Hiligaynon)", gender: "Male" },
+    {
+      name: "fil-PH-BlessicaNeural",
+      description: "Blessica (Hiligaynon)",
+      gender: "Female",
+    },
+    {
+      name: "fil-PH-AngeloNeural",
+      description: "Angelo (Hiligaynon)",
+      gender: "Male",
+    },
   ],
   ja: [
     { name: "ja-JP-NanamiNeural", description: "Nanami", gender: "Female" },
@@ -524,7 +552,8 @@ export default function ArtifactsPage() {
       desc_ja: byLang.ja?.description || "",
       desc_es: byLang.es?.description || "",
       desc_ko: byLang.ko?.description || "",
-      hist_en: byLang.en?.historical_significance || a.Historical_Significance || "",
+      hist_en:
+        byLang.en?.historical_significance || a.Historical_Significance || "",
       hist_fil: byLang.fil?.historical_significance || "",
       hist_ceb: byLang.ceb?.historical_significance || "",
       hist_ilo: byLang.ilo?.historical_significance || "",
@@ -668,14 +697,14 @@ export default function ArtifactsPage() {
       return;
     }
     const pairs: [LangCode, string][] = [
-      ["en",  form.desc_en],
+      ["en", form.desc_en],
       ["fil", form.desc_fil],
       ["ceb", form.desc_ceb],
       ["ilo", form.desc_ilo],
       ["hil", form.desc_hil],
-      ["ja",  form.desc_ja],
-      ["es",  form.desc_es],
-      ["ko",  form.desc_ko],
+      ["ja", form.desc_ja],
+      ["es", form.desc_es],
+      ["ko", form.desc_ko],
     ].filter(([, t]) => (t as string).trim()) as [LangCode, string][];
     if (!pairs.length) {
       alert("No descriptions to generate audio from.");
@@ -794,7 +823,16 @@ export default function ArtifactsPage() {
 
       // Upsert translations
       setSaveStep("Saving translationsâ€¦");
-      const langs: LangCode[] = ["en", "fil", "ceb", "ilo", "hil", "ja", "es", "ko"];
+      const langs: LangCode[] = [
+        "en",
+        "fil",
+        "ceb",
+        "ilo",
+        "hil",
+        "ja",
+        "es",
+        "ko",
+      ];
       for (const lang of langs) {
         const name =
           (form[`name_${lang}` as keyof AForm] as string) ||
@@ -1487,7 +1525,9 @@ export default function ArtifactsPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{t("artifacts.historicalSignificance")}</Label>
+                  <Label className="text-xs">
+                    {t("artifacts.historicalSignificance")}
+                  </Label>
                   <Textarea
                     rows={3}
                     value={form.historical_significance}
@@ -1497,7 +1537,9 @@ export default function ArtifactsPage() {
                         historical_significance: e.target.value,
                       }))
                     }
-                    placeholder={t("artifacts.historicalSignificancePlaceholder")}
+                    placeholder={t(
+                      "artifacts.historicalSignificancePlaceholder",
+                    )}
                     className="rounded-xl bg-muted/40"
                   />
                 </div>

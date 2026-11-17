@@ -11,11 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConfirmModal } from "../components/Modal";
 import { useTheme } from "@/utils/theme";
-import {
-  ADMIN_LANGUAGES,
-  setAdminLanguage,
-  type AdminLangCode,
-} from "../i18n";
+import { ADMIN_LANGUAGES, setAdminLanguage, type AdminLangCode } from "../i18n";
 import { cn } from "@/lib/utils";
 
 // ─── Stored settings shape ────────────────────────────────────────────────────
@@ -103,13 +99,22 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList className="rounded-xl border border-border bg-card p-1">
-          <TabsTrigger value="general" className="rounded-lg text-xs data-[state=active]:bg-muted">
+          <TabsTrigger
+            value="general"
+            className="rounded-lg text-xs data-[state=active]:bg-muted"
+          >
             {t("settings.tabs.general")}
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="rounded-lg text-xs data-[state=active]:bg-muted">
+          <TabsTrigger
+            value="preferences"
+            className="rounded-lg text-xs data-[state=active]:bg-muted"
+          >
             {t("settings.tabs.preferences")}
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="rounded-lg text-xs data-[state=active]:bg-muted">
+          <TabsTrigger
+            value="appearance"
+            className="rounded-lg text-xs data-[state=active]:bg-muted"
+          >
             {t("settings.tabs.appearance")}
           </TabsTrigger>
         </TabsList>
@@ -119,18 +124,26 @@ export default function SettingsPage() {
           <Card className="rounded-2xl border-border bg-card p-6 space-y-6">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">{t("settings.general.museumName")}</Label>
+                <Label className="text-xs">
+                  {t("settings.general.museumName")}
+                </Label>
                 <Input
                   value={form.museumName}
-                  onChange={(e) => setForm({ ...form, museumName: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, museumName: e.target.value })
+                  }
                   className="h-10 rounded-xl bg-muted/40"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">{t("settings.general.timezone")}</Label>
+                <Label className="text-xs">
+                  {t("settings.general.timezone")}
+                </Label>
                 <Input
                   value={form.timezone}
-                  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, timezone: e.target.value })
+                  }
                   className="h-10 rounded-xl bg-muted/40"
                 />
               </div>
@@ -166,7 +179,9 @@ export default function SettingsPage() {
                     <span
                       className={cn(
                         "text-[10px] leading-tight",
-                        lang === l.code ? "text-background/70" : "text-muted-foreground",
+                        lang === l.code
+                          ? "text-background/70"
+                          : "text-muted-foreground",
                       )}
                     >
                       {l.label}
@@ -222,9 +237,21 @@ export default function SettingsPage() {
               <div className="flex flex-wrap gap-3">
                 {(
                   [
-                    { value: "light",  Icon: Sun,     label: t("settings.appearance.light")  },
-                    { value: "dark",   Icon: Moon,    label: t("settings.appearance.dark")   },
-                    { value: "system", Icon: Monitor, label: t("settings.appearance.system") },
+                    {
+                      value: "light",
+                      Icon: Sun,
+                      label: t("settings.appearance.light"),
+                    },
+                    {
+                      value: "dark",
+                      Icon: Moon,
+                      label: t("settings.appearance.dark"),
+                    },
+                    {
+                      value: "system",
+                      Icon: Monitor,
+                      label: t("settings.appearance.system"),
+                    },
                   ] as const
                 ).map(({ value, Icon, label }) => (
                   <button

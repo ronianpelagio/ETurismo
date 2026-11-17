@@ -129,272 +129,212 @@ export default function UsersPage() {
     setError(null);
     setShowModal(true);
   };
-  const manageUser = async (
-  body: Record<string, unknown>,
-) => {
-  const { data, error } = await supabase.functions.invoke(
-    "manage-user",
-    {
+  const manageUser = async (body: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("manage-user", {
       body,
-    },
-  );
+    });
 
-  if (error) {
-    console.error("manage-user invocation error:", error);
-    throw new Error(
-      error.message || "User operation failed.",
-    );
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
-};
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  setSaving(true);
-  setError(null);
-
-  try {
-    const email = form.email.trim();
-    const firstName = form.first_name.trim();
-    const lastName = form.last_name.trim();
-
-    if (!email) {
-      throw new Error("Email is required.");
+    if (error) {
+      console.error("manage-user invocation error:", error);
+      throw new Error(error.message || "User operation failed.");
     }
 
-    if (!firstName) {
-      throw new Error("First name is required.");
+    if (data?.error) {
+      throw new Error(data.error);
     }
 
-    if (!lastName) {
-      throw new Error("Last name is required.");
-    }
+    return data;
+  };
 
-    if (!editItem && !form.password) {
-      throw new Error(
-        "Password is required for new users.",
-      );
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    if (
-      form.password &&
-      form.password.length < 6
-    ) {
-      throw new Error(
-        "Password must be at least 6 characters.",
-      );
-    }
+    setSaving(true);
+    setError(null);
 
-    const age = form.age
-      ? parseInt(form.age, 10)
-      : null;
+    try {
+      const email = form.email.trim();
+      const firstName = form.first_name.trim();
+      const lastName = form.last_name.trim();
 
-    if (
-      age !== null &&
-      (Number.isNaN(age) || age < 0)
-    ) {
-      throw new Error("Please enter a valid age.");
-    }
-
-    // ─────────────────────────────────────
-    // EDIT EXISTING USER
-    // ─────────────────────────────────────
-
-    if (editItem) {
-      // Profile information
-      await manageUser({
-        action: "update",
-        userId: editItem.id,
-
-        first_name: firstName,
-        last_name: lastName,
-
-        gender: form.gender || null,
-        age,
-
-        address: form.address.trim() || null,
-      });
-
-      // Role
-      if (
-        form.role !==
-        (editItem.role ?? "user")
-      ) {
-        await manageUser({
-          action: "set-role",
-          userId: editItem.id,
-          role: form.role,
-        });
+      if (!email) {
+        throw new Error("Email is required.");
       }
 
-      // Status
-      if (
-        form.status !==
-        (editItem.status ?? "active")
-      ) {
+      if (!firstName) {
+        throw new Error("First name is required.");
+      }
+
+      if (!lastName) {
+        throw new Error("Last name is required.");
+      }
+
+      if (!editItem && !form.password) {
+        throw new Error("Password is required for new users.");
+      }
+
+      if (form.password && form.password.length < 6) {
+        throw new Error("Password must be at least 6 characters.");
+      }
+
+      const age = form.age ? parseInt(form.age, 10) : null;
+
+      if (age !== null && (Number.isNaN(age) || age < 0)) {
+        throw new Error("Please enter a valid age.");
+      }
+
+      // ─────────────────────────────────────
+      // EDIT EXISTING USER
+      // ─────────────────────────────────────
+
+      if (editItem) {
+        // Profile information
         await manageUser({
-          action: "set-status",
+          action: "update",
           userId: editItem.id,
+
+          first_name: firstName,
+          last_name: lastName,
+
+          gender: form.gender || null,
+          age,
+
+          address: form.address.trim() || null,
+        });
+
+        // Role
+        if (form.role !== (editItem.role ?? "user")) {
+          await manageUser({
+            action: "set-role",
+            userId: editItem.id,
+            role: form.role,
+          });
+        }
+
+        // Status
+        if (form.status !== (editItem.status ?? "active")) {
+          await manageUser({
+            action: "set-status",
+            userId: editItem.id,
+            status: form.status,
+          });
+        }
+
+        // Password only if admin entered one
+        if (form.password) {
+          await manageUser({
+            action: "set-password",
+            userId: editItem.id,
+            password: form.password,
+          });
+        }
+      }
+
+      // ─────────────────────────────────────
+      // CREATE NEW USER
+      // ─────────────────────────────────────
+      else {
+        await manageUser({
+          action: "create",
+
+          email: email.toLowerCase(),
+          password: form.password,
+
+          first_name: firstName,
+          last_name: lastName,
+
+          gender: form.gender || null,
+          age,
+
+          address: form.address.trim() || null,
+
+          role: form.role,
           status: form.status,
         });
       }
 
-      // Password only if admin entered one
-      if (form.password) {
-        await manageUser({
-          action: "set-password",
-          userId: editItem.id,
-          password: form.password,
-        });
-      }
+      setShowModal(false);
+      setEditItem(null);
+      setForm(emptyForm);
+
+      await load();
+    } catch (err: any) {
+      console.error("User operation failed:", err);
+
+      setError(err?.message || "An unexpected error occurred.");
+    } finally {
+      setSaving(false);
     }
-
-    // ─────────────────────────────────────
-    // CREATE NEW USER
-    // ─────────────────────────────────────
-
-    else {
-      await manageUser({
-        action: "create",
-
-        email: email.toLowerCase(),
-        password: form.password,
-
-        first_name: firstName,
-        last_name: lastName,
-
-        gender: form.gender || null,
-        age,
-
-        address: form.address.trim() || null,
-
-        role: form.role,
-        status: form.status,
-      });
-    }
-
-    setShowModal(false);
-    setEditItem(null);
-    setForm(emptyForm);
-
-    await load();
-  } catch (err: any) {
-    console.error(
-      "User operation failed:",
-      err,
-    );
-
-    setError(
-      err?.message ||
-        "An unexpected error occurred.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   const handleDelete = async () => {
-  if (!deleteItem) return;
+    if (!deleteItem) return;
 
-  setSaving(true);
-  setError(null);
+    setSaving(true);
+    setError(null);
 
-  try {
-    await manageUser({
-      action: "delete",
-      userId: deleteItem.id,
-    });
+    try {
+      await manageUser({
+        action: "delete",
+        userId: deleteItem.id,
+      });
 
-    setDeleteItem(null);
+      setDeleteItem(null);
 
-    await load();
-  } catch (err: any) {
-    console.error(
-      "Delete user failed:",
-      err,
-    );
+      await load();
+    } catch (err: any) {
+      console.error("Delete user failed:", err);
 
-    setError(
-      err?.message ||
-        "Failed to delete user.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+      setError(err?.message || "Failed to delete user.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
- const toggleStatus = async (
-  u: AdminUser,
-) => {
-  setSaving(true);
-  setError(null);
+  const toggleStatus = async (u: AdminUser) => {
+    setSaving(true);
+    setError(null);
 
-  try {
-    const newStatus =
-      u.status === "inactive"
-        ? "active"
-        : "inactive";
+    try {
+      const newStatus = u.status === "inactive" ? "active" : "inactive";
 
-    await manageUser({
-      action: "set-status",
-      userId: u.id,
-      status: newStatus,
-    });
+      await manageUser({
+        action: "set-status",
+        userId: u.id,
+        status: newStatus,
+      });
 
-    await load();
-  } catch (err: any) {
-    console.error(
-      "Status update failed:",
-      err,
-    );
+      await load();
+    } catch (err: any) {
+      console.error("Status update failed:", err);
 
-    setError(
-      err?.message ||
-        "Failed to update user status.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
- const toggleRole = async (
-  u: AdminUser,
-) => {
-  setSaving(true);
-  setError(null);
+      setError(err?.message || "Failed to update user status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const toggleRole = async (u: AdminUser) => {
+    setSaving(true);
+    setError(null);
 
-  try {
-    const newRole =
-      u.role === "admin"
-        ? "user"
-        : "admin";
+    try {
+      const newRole = u.role === "admin" ? "user" : "admin";
 
-    await manageUser({
-      action: "set-role",
-      userId: u.id,
-      role: newRole,
-    });
+      await manageUser({
+        action: "set-role",
+        userId: u.id,
+        role: newRole,
+      });
 
-    await load();
-  } catch (err: any) {
-    console.error(
-      "Role update failed:",
-      err,
-    );
+      await load();
+    } catch (err: any) {
+      console.error("Role update failed:", err);
 
-    setError(
-      err?.message ||
-        "Failed to update user role.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+      setError(err?.message || "Failed to update user role.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const getFullName = (user: AdminUser) => {
     if (user.first_name && user.last_name) {
@@ -441,9 +381,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           <EmptyState
             title={query ? t("users.noMatchingUsers") : t("users.noUsersYet")}
             description={
-              query
-                ? t("users.tryDifferentSearch")
-                : t("users.addFirstUser")
+              query ? t("users.tryDifferentSearch") : t("users.addFirstUser")
             }
             action={
               !query && (
@@ -462,10 +400,18 @@ const handleSubmit = async (e: React.FormEvent) => {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/40 backdrop-blur-xl">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-2.5 font-medium">{t("users.table.user")}</th>
-                  <th className="px-5 py-2.5 font-medium">{t("users.table.role")}</th>
-                  <th className="px-5 py-2.5 font-medium">{t("users.table.status")}</th>
-                  <th className="px-5 py-2.5 font-medium">{t("users.table.joined")}</th>
+                  <th className="px-5 py-2.5 font-medium">
+                    {t("users.table.user")}
+                  </th>
+                  <th className="px-5 py-2.5 font-medium">
+                    {t("users.table.role")}
+                  </th>
+                  <th className="px-5 py-2.5 font-medium">
+                    {t("users.table.status")}
+                  </th>
+                  <th className="px-5 py-2.5 font-medium">
+                    {t("users.table.joined")}
+                  </th>
                   <th className="px-5 py-2.5 font-medium w-12 text-right">
                     {t("users.table.actions")}
                   </th>
@@ -551,7 +497,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                           className="w-44 rounded-xl border-border"
                         >
                           <DropdownMenuItem onClick={() => openEdit(u)}>
-                            <Pencil className="mr-2 h-3.5 w-3.5" /> {t("users.actions.edit")}
+                            <Pencil className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("users.actions.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => toggleRole(u)}
@@ -583,7 +530,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                             onClick={() => setDeleteItem(u)}
                             className="text-destructive focus:text-destructive"
                           >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" /> {t("users.actions.delete")}
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("users.actions.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -598,7 +546,11 @@ const handleSubmit = async (e: React.FormEvent) => {
         {!loading && filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <span className="text-xs tabular-nums text-muted-foreground">
-              {t("users.showingPage", { from: (page - 1) * USERS_PER_PAGE + 1, to: Math.min(page * USERS_PER_PAGE, filtered.length), total: filtered.length })}
+              {t("users.showingPage", {
+                from: (page - 1) * USERS_PER_PAGE + 1,
+                to: Math.min(page * USERS_PER_PAGE, filtered.length),
+                total: filtered.length,
+              })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -636,9 +588,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         onOpenChange={setShowModal}
         title={editItem ? t("users.editUser") : t("users.addUser")}
         description={
-          editItem
-            ? t("users.updateDetails")
-            : t("users.createAccount")
+          editItem ? t("users.updateDetails") : t("users.createAccount")
         }
         footer={
           <>
@@ -654,7 +604,11 @@ const handleSubmit = async (e: React.FormEvent) => {
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? t("common.saving") : editItem ? t("common.saveChanges") : t("users.createUser")}
+              {saving
+                ? t("common.saving")
+                : editItem
+                  ? t("common.saveChanges")
+                  : t("users.createUser")}
             </Button>
           </>
         }
@@ -683,7 +637,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={editItem ? "New password" : t("users.form.passwordMin")}
+              placeholder={
+                editItem ? "New password" : t("users.form.passwordMin")
+              }
               className="h-10 rounded-xl bg-muted/40"
               required={!editItem}
               minLength={6}
@@ -810,7 +766,9 @@ const handleSubmit = async (e: React.FormEvent) => {
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
         title={t("users.removeUser")}
-        description={t("users.removeConfirm", { email: deleteItem?.email ?? "this user" })}
+        description={t("users.removeConfirm", {
+          email: deleteItem?.email ?? "this user",
+        })}
         confirmLabel={t("users.removeUser")}
         destructive
         loading={saving}

@@ -19,7 +19,7 @@ import en from "./locales/en";
 import fil from "./locales/fil";
 
 export const ADMIN_LANGUAGES = [
-  { code: "en",  label: "English",           nativeLabel: "English"  },
+  { code: "en", label: "English", nativeLabel: "English" },
   { code: "fil", label: "Filipino (Tagalog)", nativeLabel: "Filipino" },
 ] as const;
 
@@ -37,20 +37,18 @@ function savedLang(): AdminLangCode {
   return "en";
 }
 
-i18n
-  .use(initReactI18next)
-  .init({
-    lng: savedLang(),
-    fallbackLng: "en",
-    interpolation: {
-      // React already escapes values
-      escapeValue: false,
-    },
-    resources: {
-      en:  { translation: en },
-      fil: { translation: fil },
-    },
-  });
+i18n.use(initReactI18next).init({
+  lng: savedLang(),
+  fallbackLng: "en",
+  interpolation: {
+    // React already escapes values
+    escapeValue: false,
+  },
+  resources: {
+    en: { translation: en },
+    fil: { translation: fil },
+  },
+});
 
 /** Persist and switch the active language. */
 export function setAdminLanguage(code: AdminLangCode) {

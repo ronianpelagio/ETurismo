@@ -71,7 +71,8 @@ const fil: Translations = {
     },
     preferences: {
       notifications: "Mga Abiso",
-      notificationsDesc: "Mag-email sa akin kapag may bagong rating o account na nalilikha.",
+      notificationsDesc:
+        "Mag-email sa akin kapag may bagong rating o account na nalilikha.",
       compactDensity: "Compact na layout",
       compactDensityDesc: "Bawasan ang padding sa mga talahanayan at kard.",
     },
@@ -93,7 +94,8 @@ const fil: Translations = {
   dashboard: {
     eyebrow: "Pangkalahatang-ideya",
     welcome: "Maligayang pagdating, Admin {{name}}",
-    description: "Isang snapshot ng mga bisita, nilalaman, at pakikipag-ugnayan sa koleksyon.",
+    description:
+      "Isang snapshot ng mga bisita, nilalaman, at pakikipag-ugnayan sa koleksyon.",
     totalVisitors: "Kabuuang Bisita",
     activeUsers: "Mga Aktibong Gumagamit",
     allTimeAccounts: "Lahat ng account",
@@ -126,7 +128,8 @@ const fil: Translations = {
     unknown: "Hindi alam",
     ageGroups: "Mga pangkat ng edad",
     visitorLocations: "Lokasyon ng mga bisita",
-    locationsSubtitle: "Pilipinas ayon sa rehiyon · ibang bansa ayon sa sub-rehiyon",
+    locationsSubtitle:
+      "Pilipinas ayon sa rehiyon · ibang bansa ayon sa sub-rehiyon",
     visitorsBy: "Mga bisita ayon sa rehiyon",
     demographics: "Demograpiko",
     noLocationData: "Wala pang datos ng lokasyon",
@@ -182,7 +185,8 @@ const fil: Translations = {
     },
     form: {
       email: "Email *",
-      passwordNew: "Bagong password (iwanan ang blangko para mapanatili ang kasalukuyan)",
+      passwordNew:
+        "Bagong password (iwanan ang blangko para mapanatili ang kasalukuyan)",
       passwordRequired: "Password *",
       passwordMin: "Min. 6 karakter",
       firstName: "Pangalan *",
@@ -205,7 +209,8 @@ const fil: Translations = {
     },
     createUser: "Lumikha ng gumagamit",
     removeUser: "Alisin ang gumagamit",
-    removeConfirm: "Alisin ang {{email}} mula sa database? Hindi ito maaaring ibalik.",
+    removeConfirm:
+      "Alisin ang {{email}} mula sa database? Hindi ito maaaring ibalik.",
     showingPage: "Ipinapakita ang {{from}}–{{to}} ng {{total}} mga gumagamit",
     page: "Pahina {{page}} ng {{total}}",
   },
@@ -213,7 +218,8 @@ const fil: Translations = {
   announcements: {
     eyebrow: "Nilalaman",
     title: "Mga Anunsyo",
-    description: "Mag-publish ng mga abiso at update para sa mga bisita ng museo.",
+    description:
+      "Mag-publish ng mga abiso at update para sa mga bisita ng museo.",
     newAnnouncement: "Bagong anunsyo",
     editAnnouncement: "I-edit ang anunsyo",
     searchPlaceholder: "Maghanap ng mga anunsyo…",
@@ -221,7 +227,8 @@ const fil: Translations = {
     count_plural: "{{count}} mga anunsyo",
     noMatchTitle: "Walang nahanap",
     noItemsTitle: "Wala pang mga anunsyo",
-    noItemsDesc: "Lumikha ng iyong unang anunsyo para mapanatiling may kaalaman ang mga bisita.",
+    noItemsDesc:
+      "Lumikha ng iyong unang anunsyo para mapanatiling may kaalaman ang mga bisita.",
     modalDesc: "Makikita ito ng mga bisita sa kanilang mobile app feed.",
     form: {
       title: "Pamagat *",
@@ -234,7 +241,7 @@ const fil: Translations = {
       hasImage: "May larawan",
     },
     deleteTitle: "Tanggalin ang anunsyo",
-    deleteDesc: "Tanggalin ang \"{{title}}\"? Hindi ito maaaring ibalik.",
+    deleteDesc: 'Tanggalin ang "{{title}}"? Hindi ito maaaring ibalik.',
     saving: "Sine-save…",
     showing: "Ipinapakita ang {{from}}–{{to}} ng {{total}} mga anunsyo",
     page: "Pahina {{page}} ng {{total}}",
@@ -243,7 +250,8 @@ const fil: Translations = {
   events: {
     eyebrow: "Programa",
     title: "Mga Kaganapan",
-    description: "Pamahalaan ang mga paparating at nakaraang kaganapan ng museo.",
+    description:
+      "Pamahalaan ang mga paparating at nakaraang kaganapan ng museo.",
     addEvent: "Magdagdag ng kaganapan",
     editEvent: "I-edit ang kaganapan",
     newEvent: "Bagong kaganapan",
@@ -265,7 +273,7 @@ const fil: Translations = {
       interested: "{{count}} interesado",
     },
     deleteTitle: "Tanggalin ang kaganapan",
-    deleteDesc: "Tanggalin ang \"{{title}}\"? Hindi ito maaaring ibalik.",
+    deleteDesc: 'Tanggalin ang "{{title}}"? Hindi ito maaaring ibalik.',
     createEvent: "Lumikha ng kaganapan",
     saving: "Sine-save…",
     showing: "Ipinapakita ang {{from}}–{{to}} ng {{total}} mga kaganapan",
@@ -275,7 +283,8 @@ const fil: Translations = {
   feedback: {
     eyebrow: "Feedback ng Gumagamit",
     title: "Feedback sa Tour",
-    description: "Lahat ng feedback ng bisita na isinumite pagkatapos makumpleto ang isang tour. Mag-click sa row para makita ang buong detalye.",
+    description:
+      "Lahat ng feedback ng bisita na isinumite pagkatapos makumpleto ang isang tour. Mag-click sa row para makita ang buong detalye.",
     printReport: "I-print ang Ulat",
     printFeedback: "I-print ang Ulat ng Feedback",
     refresh: "I-refresh",
@@ -295,7 +304,8 @@ const fil: Translations = {
     allVisitTypes: "Lahat ng uri ng pagbisita",
     clearFilters: "I-clear ang mga filter",
     noFeedbackFound: "Walang nahanap na feedback.",
-    adjustFilters: "Subukang ayusin ang iyong mga filter o termino sa paghahanap.",
+    adjustFilters:
+      "Subukang ayusin ang iyong mga filter o termino sa paghahanap.",
     table: {
       date: "Petsa",
       rating: "Rating",
@@ -324,13 +334,15 @@ const fil: Translations = {
 
   artifacts: {
     historicalSignificance: "Kasaysayang Kahalagahan",
-    historicalSignificancePlaceholder: "Maikling tala tungkol sa kasaysayang kahalagahan.",
+    historicalSignificancePlaceholder:
+      "Maikling tala tungkol sa kasaysayang kahalagahan.",
   },
 
   logs: {
     eyebrow: "Aktibidad",
     title: "Mga Kamakailanang Log",
-    description: "Pinakabagong aktibidad sa mga gumagamit, artefakto, rating, kaganapan, at anunsyo.",
+    description:
+      "Pinakabagong aktibidad sa mga gumagamit, artefakto, rating, kaganapan, at anunsyo.",
     refresh: "I-refresh",
     noActivity: "Wala pang aktibidad.",
     types: {

@@ -13,15 +13,25 @@
  */
 
 import React, { useState } from "react";
-import { Calendar, Printer, X, ChevronDown, CalendarDays, CalendarRange, BarChart3, TrendingUp, PenLine } from "lucide-react";
+import {
+  Calendar,
+  Printer,
+  X,
+  ChevronDown,
+  CalendarDays,
+  CalendarRange,
+  BarChart3,
+  TrendingUp,
+  PenLine,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type PrintRange = {
-  from: string;   // ISO date string "YYYY-MM-DD"
-  to: string;     // ISO date string "YYYY-MM-DD"
-  label: string;  // human-readable, used in print header
+  from: string; // ISO date string "YYYY-MM-DD"
+  to: string; // ISO date string "YYYY-MM-DD"
+  label: string; // human-readable, used in print header
 };
 
 type Preset = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
@@ -54,15 +64,49 @@ function startOfYear(): string {
   return `${new Date().getFullYear()}-01-01`;
 }
 
-const PRESETS: { key: Preset; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
-  { key: "weekly",    label: "Weekly",    icon: CalendarDays,  description: "Last 7 days" },
-  { key: "monthly",   label: "Monthly",   icon: CalendarRange, description: "Last 30 days" },
-  { key: "quarterly", label: "Quarterly", icon: BarChart3,     description: "Current quarter" },
-  { key: "yearly",    label: "Yearly",    icon: TrendingUp,    description: `Jan 1 – today (${new Date().getFullYear()})` },
-  { key: "custom",    label: "Custom",    icon: PenLine,       description: "Pick your own date range" },
+const PRESETS: {
+  key: Preset;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}[] = [
+  {
+    key: "weekly",
+    label: "Weekly",
+    icon: CalendarDays,
+    description: "Last 7 days",
+  },
+  {
+    key: "monthly",
+    label: "Monthly",
+    icon: CalendarRange,
+    description: "Last 30 days",
+  },
+  {
+    key: "quarterly",
+    label: "Quarterly",
+    icon: BarChart3,
+    description: "Current quarter",
+  },
+  {
+    key: "yearly",
+    label: "Yearly",
+    icon: TrendingUp,
+    description: `Jan 1 – today (${new Date().getFullYear()})`,
+  },
+  {
+    key: "custom",
+    label: "Custom",
+    icon: PenLine,
+    description: "Pick your own date range",
+  },
 ];
 
-function resolveRange(preset: Preset, customFrom: string, customTo: string): PrintRange | null {
+function resolveRange(
+  preset: Preset,
+  customFrom: string,
+  customTo: string,
+): PrintRange | null {
   const to = today();
   switch (preset) {
     case "weekly":
@@ -70,9 +114,17 @@ function resolveRange(preset: Preset, customFrom: string, customTo: string): Pri
     case "monthly":
       return { from: daysAgo(29), to, label: "Monthly Report (Last 30 Days)" };
     case "quarterly":
-      return { from: startOfQuarter(), to, label: `Quarterly Report (Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()})` };
+      return {
+        from: startOfQuarter(),
+        to,
+        label: `Quarterly Report (Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()})`,
+      };
     case "yearly":
-      return { from: startOfYear(), to, label: `Annual Report (${new Date().getFullYear()})` };
+      return {
+        from: startOfYear(),
+        to,
+        label: `Annual Report (${new Date().getFullYear()})`,
+      };
     case "custom":
       if (!customFrom || !customTo) return null;
       if (customTo < customFrom) return null;
@@ -108,8 +160,8 @@ export default function PrintReportModal({
         selected === "custom" && !customFrom
           ? "Please select a start date."
           : selected === "custom" && customTo < customFrom
-          ? "End date must be on or after start date."
-          : "Invalid date range.",
+            ? "End date must be on or after start date."
+            : "Invalid date range.",
       );
       return;
     }
@@ -138,7 +190,9 @@ export default function PrintReportModal({
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">{title}</p>
-                <p className="text-[11px] text-muted-foreground">Choose a report period</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Choose a report period
+                </p>
               </div>
             </div>
             <button
@@ -156,7 +210,10 @@ export default function PrintReportModal({
               {PRESETS.filter((p) => p.key !== "custom").map((p) => (
                 <button
                   key={p.key}
-                  onClick={() => { setSelected(p.key); setError(null); }}
+                  onClick={() => {
+                    setSelected(p.key);
+                    setError(null);
+                  }}
                   className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition ${
                     selected === p.key
                       ? "border-foreground bg-foreground text-background"
@@ -164,8 +221,12 @@ export default function PrintReportModal({
                   }`}
                 >
                   <p.icon className="h-4 w-4" />
-                  <span className="text-xs font-semibold leading-tight">{p.label}</span>
-                  <span className={`text-[10px] leading-tight ${selected === p.key ? "text-background/70" : "text-muted-foreground"}`}>
+                  <span className="text-xs font-semibold leading-tight">
+                    {p.label}
+                  </span>
+                  <span
+                    className={`text-[10px] leading-tight ${selected === p.key ? "text-background/70" : "text-muted-foreground"}`}
+                  >
                     {p.description}
                   </span>
                 </button>
@@ -174,7 +235,10 @@ export default function PrintReportModal({
 
             {/* Custom toggle */}
             <button
-              onClick={() => { setSelected("custom"); setError(null); }}
+              onClick={() => {
+                setSelected("custom");
+                setError(null);
+              }}
               className={`w-full flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${
                 selected === "custom"
                   ? "border-foreground bg-foreground text-background"
@@ -185,12 +249,16 @@ export default function PrintReportModal({
                 <PenLine className="h-4 w-4 shrink-0" />
                 <div>
                   <p className="text-xs font-semibold">Custom Range</p>
-                  <p className={`text-[10px] ${selected === "custom" ? "text-background/70" : "text-muted-foreground"}`}>
+                  <p
+                    className={`text-[10px] ${selected === "custom" ? "text-background/70" : "text-muted-foreground"}`}
+                  >
                     Pick your own start and end date
                   </p>
                 </div>
               </div>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${selected === "custom" ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${selected === "custom" ? "rotate-180" : ""}`}
+              />
             </button>
 
             {/* Custom date inputs */}
@@ -204,7 +272,10 @@ export default function PrintReportModal({
                     type="date"
                     value={customFrom}
                     max={customTo || today()}
-                    onChange={(e) => { setCustomFrom(e.target.value); setError(null); }}
+                    onChange={(e) => {
+                      setCustomFrom(e.target.value);
+                      setError(null);
+                    }}
                     className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
                   />
                 </div>
@@ -217,7 +288,10 @@ export default function PrintReportModal({
                     value={customTo}
                     min={customFrom}
                     max={today()}
-                    onChange={(e) => { setCustomTo(e.target.value); setError(null); }}
+                    onChange={(e) => {
+                      setCustomTo(e.target.value);
+                      setError(null);
+                    }}
                     className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
                   />
                 </div>
@@ -230,7 +304,9 @@ export default function PrintReportModal({
                 <Printer className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <p className="text-[11px] text-muted-foreground">
                   Will print:{" "}
-                  <span className="font-semibold text-foreground">{range.label}</span>
+                  <span className="font-semibold text-foreground">
+                    {range.label}
+                  </span>
                   <span className="ml-1.5 tabular-nums">
                     ({range.from} → {range.to})
                   </span>

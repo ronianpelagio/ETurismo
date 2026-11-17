@@ -94,12 +94,12 @@ const POSITIVE_WORDS: Record<string, number> = {
   ayos: 1,
   okey: 1,
   "nag-enjoy": 2,
-  "natutuwa": 2,
-  "natuwa": 2,
+  natutuwa: 2,
+  natuwa: 2,
   "gustong-gusto": 3,
-  "gusto": 1,
-  "magandang": 2,
-  "napakaganda": 3,
+  gusto: 1,
+  magandang: 2,
+  napakaganda: 3,
   "napaka-ganda": 3,
   // Cebuano
   nindot: 2,
@@ -263,7 +263,11 @@ export function analyzeSentiment(text: string): SentimentResult {
   }
 
   const sentiment: Sentiment =
-    score > THRESHOLD ? "positive" : score < -THRESHOLD ? "negative" : "neutral";
+    score > THRESHOLD
+      ? "positive"
+      : score < -THRESHOLD
+        ? "negative"
+        : "neutral";
 
   return { sentiment, score, positiveHits, negativeHits };
 }
@@ -285,8 +289,7 @@ export const SENTIMENT_STYLES: Record<
   },
   neutral: {
     label: "Neutral",
-    className:
-      "bg-muted/60 text-muted-foreground border-border",
+    className: "bg-muted/60 text-muted-foreground border-border",
   },
   negative: {
     label: "Negative",

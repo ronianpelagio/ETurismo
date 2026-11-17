@@ -485,7 +485,9 @@ export default function EventsPage() {
       const from = (currentPage - 1) * itemsPerPage;
       const { data, error: e } = await supabase
         .from("events")
-        .select("id, title, event_datetime, description, image_url, created_at, interested_count")
+        .select(
+          "id, title, event_datetime, description, image_url, created_at, interested_count",
+        )
         .order("event_datetime", { ascending: false })
         .range(from, from + itemsPerPage - 1);
 
@@ -650,9 +652,7 @@ export default function EventsPage() {
             icon={<CalIcon className="h-5 w-5" />}
             title={query ? t("events.noMatchTitle") : t("events.noEventsTitle")}
             description={
-              query
-                ? t("users.tryDifferentSearch")
-                : t("events.noEventsDesc")
+              query ? t("users.tryDifferentSearch") : t("events.noEventsDesc")
             }
             action={
               !query && (
@@ -774,7 +774,11 @@ export default function EventsPage() {
               disabled={saving}
               className="rounded-xl"
             >
-              {saving ? t("events.saving") : editItem ? t("common.saveChanges") : t("events.createEvent")}
+              {saving
+                ? t("events.saving")
+                : editItem
+                  ? t("common.saveChanges")
+                  : t("events.createEvent")}
             </Button>
           </>
         }

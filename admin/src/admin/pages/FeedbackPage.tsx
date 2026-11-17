@@ -177,7 +177,8 @@ export default function FeedbackPage() {
     recommend: null,
     visitType: "",
   });
-  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
+  const [sentimentFilter, setSentimentFilter] =
+    useState<SentimentFilter>("all");
   const [sortField, setSortField] = useState<SortField>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -279,10 +280,7 @@ export default function FeedbackPage() {
     });
     return counts;
   }, [rows, search]);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(visible.length / FEEDBACK_PER_PAGE),
-  );
+  const totalPages = Math.max(1, Math.ceil(visible.length / FEEDBACK_PER_PAGE));
   const page = Math.min(currentPage, totalPages);
   const paginatedRows = visible.slice(
     (page - 1) * FEEDBACK_PER_PAGE,
@@ -330,13 +328,16 @@ export default function FeedbackPage() {
 
   return (
     <div className="feedback-page-root">
-
       {/* ── Print-only report header ──────────────────────────────────────── */}
       <div className="hidden print:block mb-8 border-b-2 border-gray-800 pb-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">ETurismo</h1>
-            <p className="text-lg font-semibold text-gray-700 mt-0.5">Tour Feedback Report</p>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              ETurismo
+            </h1>
+            <p className="text-lg font-semibold text-gray-700 mt-0.5">
+              Tour Feedback Report
+            </p>
             <p className="text-sm text-gray-500 mt-1">
               Generated {new Date().toLocaleString()}
               {printRange ? ` · ${printRange.label}` : ""}
@@ -351,10 +352,30 @@ export default function FeedbackPage() {
             <div className="text-sm font-semibold text-gray-700">Summary</div>
             <table className="mt-1 text-xs text-gray-600 text-right">
               <tbody>
-                <tr><td className="pr-3 text-left font-medium">Total Submissions</td><td>{summary.total.toLocaleString()}</td></tr>
-                <tr><td className="pr-3 text-left font-medium">Avg. Rating</td><td>{summary.avgRating ? summary.avgRating.toFixed(1) + " / 5" : "—"}</td></tr>
-                <tr><td className="pr-3 text-left font-medium">Would Recommend</td><td>{summary.total ? `${summary.recommendPct}%` : "—"}</td></tr>
-                <tr><td className="pr-3 text-left font-medium">This Week</td><td>{summary.last7d.toLocaleString()}</td></tr>
+                <tr>
+                  <td className="pr-3 text-left font-medium">
+                    Total Submissions
+                  </td>
+                  <td>{summary.total.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td className="pr-3 text-left font-medium">Avg. Rating</td>
+                  <td>
+                    {summary.avgRating
+                      ? summary.avgRating.toFixed(1) + " / 5"
+                      : "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="pr-3 text-left font-medium">
+                    Would Recommend
+                  </td>
+                  <td>{summary.total ? `${summary.recommendPct}%` : "—"}</td>
+                </tr>
+                <tr>
+                  <td className="pr-3 text-left font-medium">This Week</td>
+                  <td>{summary.last7d.toLocaleString()}</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -529,7 +550,10 @@ export default function FeedbackPage() {
           {(["all", "positive", "neutral", "negative"] as const).map((s) => (
             <button
               key={s}
-              onClick={() => { setSentimentFilter(s); setCurrentPage(1); }}
+              onClick={() => {
+                setSentimentFilter(s);
+                setCurrentPage(1);
+              }}
               className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
                 sentimentFilter === s
                   ? "bg-background shadow-sm text-foreground"
@@ -538,8 +562,16 @@ export default function FeedbackPage() {
             >
               {s === "positive" && <ThumbsUp className="h-3 w-3" />}
               {s === "negative" && <ThumbsDown className="h-3 w-3" />}
-              {s === "neutral"  && <Minus className="h-3 w-3" />}
-              <span>{s === "all" ? t("feedback.sentiment.all") : s === "positive" ? t("feedback.sentiment.positive") : s === "neutral" ? t("feedback.sentiment.neutral") : t("feedback.sentiment.negative")}</span>
+              {s === "neutral" && <Minus className="h-3 w-3" />}
+              <span>
+                {s === "all"
+                  ? t("feedback.sentiment.all")
+                  : s === "positive"
+                    ? t("feedback.sentiment.positive")
+                    : s === "neutral"
+                      ? t("feedback.sentiment.neutral")
+                      : t("feedback.sentiment.negative")}
+              </span>
               {s !== "all" && (
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   ({sentimentCounts[s as Sentiment]})
@@ -565,7 +597,9 @@ export default function FeedbackPage() {
         ) : visible.length === 0 ? (
           <div className="py-16 text-center">
             <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">{t("feedback.noFeedbackFound")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("feedback.noFeedbackFound")}
+            </p>
             {(hasActiveFilter || search) && (
               <p className="text-xs text-muted-foreground/60 mt-1">
                 {t("feedback.adjustFilters")}
@@ -582,7 +616,8 @@ export default function FeedbackPage() {
                       onClick={() => handleSort("submitted_at")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      {t("feedback.table.date")} <SortIcon field="submitted_at" />
+                      {t("feedback.table.date")}{" "}
+                      <SortIcon field="submitted_at" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left">
@@ -590,7 +625,8 @@ export default function FeedbackPage() {
                       onClick={() => handleSort("overall_rating")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      {t("feedback.table.rating")} <SortIcon field="overall_rating" />
+                      {t("feedback.table.rating")}{" "}
+                      <SortIcon field="overall_rating" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
@@ -604,7 +640,8 @@ export default function FeedbackPage() {
                       onClick={() => handleSort("total_artifacts")}
                       className="flex items-center font-semibold uppercase tracking-wider text-muted-foreground text-[10px] hover:text-foreground transition"
                     >
-                      {t("feedback.table.artifacts")} <SortIcon field="total_artifacts" />
+                      {t("feedback.table.artifacts")}{" "}
+                      <SortIcon field="total_artifacts" />
                     </button>
                   </th>
                   <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
@@ -651,7 +688,8 @@ export default function FeedbackPage() {
                               variant="outline"
                               className="rounded-full border-border text-[10px] capitalize"
                             >
-                              {t(`feedback.visitTypes.${fb.visit_type}`) ?? fb.visit_type}
+                              {t(`feedback.visitTypes.${fb.visit_type}`) ??
+                                fb.visit_type}
                             </Badge>
                           </td>
 
@@ -699,7 +737,9 @@ export default function FeedbackPage() {
                                 </div>
                               ) : null}
                               {!fb.highlights && !fb.suggestions && (
-                                <span className="text-muted-foreground/40">—</span>
+                                <span className="text-muted-foreground/40">
+                                  —
+                                </span>
                               )}
                             </div>
                           </td>
@@ -710,16 +750,27 @@ export default function FeedbackPage() {
                               const combined = [fb.highlights, fb.suggestions]
                                 .filter(Boolean)
                                 .join(" ");
-                              if (!combined) return <span className="text-muted-foreground/40">—</span>;
+                              if (!combined)
+                                return (
+                                  <span className="text-muted-foreground/40">
+                                    —
+                                  </span>
+                                );
                               const { sentiment } = analyzeSentiment(combined);
                               return (
                                 <Badge
                                   variant="outline"
                                   className={`rounded-full text-[10px] border flex items-center gap-1 w-fit ${SENTIMENT_STYLES[sentiment].className}`}
                                 >
-                                  {sentiment === "positive" && <ThumbsUp className="h-2.5 w-2.5" />}
-                                  {sentiment === "negative" && <ThumbsDown className="h-2.5 w-2.5" />}
-                                  {sentiment === "neutral"  && <Minus className="h-2.5 w-2.5" />}
+                                  {sentiment === "positive" && (
+                                    <ThumbsUp className="h-2.5 w-2.5" />
+                                  )}
+                                  {sentiment === "negative" && (
+                                    <ThumbsDown className="h-2.5 w-2.5" />
+                                  )}
+                                  {sentiment === "neutral" && (
+                                    <Minus className="h-2.5 w-2.5" />
+                                  )}
                                   {SENTIMENT_STYLES[sentiment].label}
                                 </Badge>
                               );
@@ -755,7 +806,11 @@ export default function FeedbackPage() {
         {!loading && visible.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3 print:hidden">
             <span className="text-xs tabular-nums text-muted-foreground">
-              {t("feedback.showing", { from: (page - 1) * FEEDBACK_PER_PAGE + 1, to: Math.min(page * FEEDBACK_PER_PAGE, visible.length), total: visible.length })}
+              {t("feedback.showing", {
+                from: (page - 1) * FEEDBACK_PER_PAGE + 1,
+                to: Math.min(page * FEEDBACK_PER_PAGE, visible.length),
+                total: visible.length,
+              })}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -798,9 +853,15 @@ export default function FeedbackPage() {
             <tr className="border-b-2 border-gray-800 text-left">
               <th className="py-2 pr-3 font-semibold text-gray-700">Date</th>
               <th className="py-2 pr-3 font-semibold text-gray-700">Rating</th>
-              <th className="py-2 pr-3 font-semibold text-gray-700">Visit Type</th>
-              <th className="py-2 pr-3 font-semibold text-gray-700">Recommend</th>
-              <th className="py-2 pr-3 font-semibold text-gray-700">Artifacts</th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">
+                Visit Type
+              </th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">
+                Recommend
+              </th>
+              <th className="py-2 pr-3 font-semibold text-gray-700">
+                Artifacts
+              </th>
               <th className="py-2 font-semibold text-gray-700">Comments</th>
             </tr>
           </thead>
@@ -810,12 +871,22 @@ export default function FeedbackPage() {
                 <td className="py-1.5 pr-3 text-gray-600 whitespace-nowrap">
                   {new Date(fb.submitted_at).toLocaleDateString()}
                 </td>
-                <td className="py-1.5 pr-3 font-semibold text-gray-800">{fb.overall_rating} ★</td>
-                <td className="py-1.5 pr-3 capitalize text-gray-600">{fb.visit_type}</td>
-                <td className="py-1.5 pr-3 text-gray-600">{fb.would_recommend ? "Yes" : "No"}</td>
-                <td className="py-1.5 pr-3 text-gray-600">{fb.total_artifacts}</td>
+                <td className="py-1.5 pr-3 font-semibold text-gray-800">
+                  {fb.overall_rating} ★
+                </td>
+                <td className="py-1.5 pr-3 capitalize text-gray-600">
+                  {fb.visit_type}
+                </td>
+                <td className="py-1.5 pr-3 text-gray-600">
+                  {fb.would_recommend ? "Yes" : "No"}
+                </td>
+                <td className="py-1.5 pr-3 text-gray-600">
+                  {fb.total_artifacts}
+                </td>
                 <td className="py-1.5 text-gray-600 max-w-[220px]">
-                  {[fb.highlights, fb.suggestions].filter(Boolean).join(" · ") || "—"}
+                  {[fb.highlights, fb.suggestions]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
                 </td>
               </tr>
             ))}

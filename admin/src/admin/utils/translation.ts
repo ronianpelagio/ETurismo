@@ -23,10 +23,10 @@ export const DIALECT_META: Record<
   DialectCode,
   { name: string; nativeName: string; flag: string }
 > = {
-  tl:  { name: "Tagalog",     nativeName: "Tagalog",   flag: "🇵🇭" },
-  ceb: { name: "Bisaya",      nativeName: "Bisaya",    flag: "🇵🇭" },
-  ilo: { name: "Ilocano",     nativeName: "Ilokano",   flag: "🇵🇭" },
-  hil: { name: "Hiligaynon",  nativeName: "Ilonggo",   flag: "🇵🇭" },
+  tl: { name: "Tagalog", nativeName: "Tagalog", flag: "🇵🇭" },
+  ceb: { name: "Bisaya", nativeName: "Bisaya", flag: "🇵🇭" },
+  ilo: { name: "Ilocano", nativeName: "Ilokano", flag: "🇵🇭" },
+  hil: { name: "Hiligaynon", nativeName: "Ilonggo", flag: "🇵🇭" },
 };
 
 // ─── Dictionaries ──────────────────────────────────────────────────────────────
@@ -547,7 +547,7 @@ const HIL_DICT: Dict = [
 ];
 
 const DIALECT_DICTS: Record<DialectCode, Dict> = {
-  tl:  TL_DICT,
+  tl: TL_DICT,
   ceb: CEB_DICT,
   ilo: ILO_DICT,
   hil: HIL_DICT,
@@ -584,15 +584,21 @@ export function translate(text: string, target: DialectCode): string {
     result = result.replace(regex, () => {
       const idx = placeholders.length;
       placeholders.push(dialect);
-      return `\x00${idx}\x00`; // null-byte delimited placeholder
+      return `__DIALECT_PLACEHOLDER_${idx}__`;
     });
   }
 
   // Restore placeholders
-  result = result.replace(/\x00(\d+)\x00/g, (_, idx) => placeholders[Number(idx)]);
+  result = result.replace(
+    /__DIALECT_PLACEHOLDER_(\d+)__/g,
+    (_, idx) => placeholders[Number(idx)],
+  );
 
   // Re-apply simple sentence capitalisation (first word after . ! ?)
-  result = result.replace(/(^|[.!?]\s+)([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+  result = result.replace(
+    /(^|[.!?]\s+)([a-z])/g,
+    (_, sep, ch) => sep + ch.toUpperCase(),
+  );
 
   return result;
 }
@@ -609,13 +615,58 @@ export function detectDialect(text: string): DialectCode | null {
 
   // Sample dialect-specific marker words
   const markers: Record<DialectCode, string[]> = {
-    tl:  ["ang", "ng", "mga", "ay", "sa", "ko", "mo", "na", "hindi", "ito", "naman"],
-    ceb: ["ang", "og", "ug", "sa", "nindot", "maayo", "dili", "kini", "gyud", "kaayo"],
-    ilo: ["ti", "iti", "ken", "dagiti", "nasayaat", "agyamanak", "siak", "daytoy"],
-    hil: ["ang", "kag", "sang", "gid", "matahom", "maayo", "indi", "ini", "damo"],
+    tl: [
+      "ang",
+      "ng",
+      "mga",
+      "ay",
+      "sa",
+      "ko",
+      "mo",
+      "na",
+      "hindi",
+      "ito",
+      "naman",
+    ],
+    ceb: [
+      "ang",
+      "og",
+      "ug",
+      "sa",
+      "nindot",
+      "maayo",
+      "dili",
+      "kini",
+      "gyud",
+      "kaayo",
+    ],
+    ilo: [
+      "ti",
+      "iti",
+      "ken",
+      "dagiti",
+      "nasayaat",
+      "agyamanak",
+      "siak",
+      "daytoy",
+    ],
+    hil: [
+      "ang",
+      "kag",
+      "sang",
+      "gid",
+      "matahom",
+      "maayo",
+      "indi",
+      "ini",
+      "damo",
+    ],
   };
 
-  for (const [code, words] of Object.entries(markers) as [DialectCode, string[]][]) {
+  for (const [code, words] of Object.entries(markers) as [
+    DialectCode,
+    string[],
+  ][]) {
     for (const w of words) {
       const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const matches = lower.match(new RegExp(`\\b${escaped}\\b`, "g"));

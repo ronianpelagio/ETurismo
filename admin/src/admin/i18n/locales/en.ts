@@ -91,7 +91,8 @@ const en = {
   dashboard: {
     eyebrow: "Overview",
     welcome: "Welcome Admin, {{name}}",
-    description: "A snapshot of visitors, content, and engagement across the collection.",
+    description:
+      "A snapshot of visitors, content, and engagement across the collection.",
     totalVisitors: "Total Visitors",
     activeUsers: "Active Users",
     allTimeAccounts: "All-time accounts",
@@ -232,7 +233,7 @@ const en = {
       hasImage: "Has image",
     },
     deleteTitle: "Delete announcement",
-    deleteDesc: "Delete \"{{title}}\"? This cannot be undone.",
+    deleteDesc: 'Delete "{{title}}"? This cannot be undone.',
     saving: "Saving…",
     showing: "Showing {{from}}–{{to}} of {{total}} announcements",
     page: "Page {{page}} of {{total}}",
@@ -263,7 +264,7 @@ const en = {
       interested: "{{count}} interested",
     },
     deleteTitle: "Delete event",
-    deleteDesc: "Delete \"{{title}}\"? This cannot be undone.",
+    deleteDesc: 'Delete "{{title}}"? This cannot be undone.',
     createEvent: "Create event",
     saving: "Saving…",
     showing: "Showing {{from}}–{{to}} of {{total}} events",
@@ -273,7 +274,8 @@ const en = {
   feedback: {
     eyebrow: "User Feedback",
     title: "Tour Feedback",
-    description: "All visitor feedback submitted after completing a tour. Click a row to see full details.",
+    description:
+      "All visitor feedback submitted after completing a tour. Click a row to see full details.",
     printReport: "Print Report",
     printFeedback: "Print Feedback Report",
     refresh: "Refresh",
@@ -328,7 +330,8 @@ const en = {
   logs: {
     eyebrow: "Activity",
     title: "Recent Logs",
-    description: "Latest activity across users, artifacts, ratings, events, and announcements.",
+    description:
+      "Latest activity across users, artifacts, ratings, events, and announcements.",
     refresh: "Refresh",
     noActivity: "No activity yet.",
     types: {
@@ -348,14 +351,307 @@ const en = {
 export default en;
 
 export type Translations = {
-  nav: { dashboard: string; artifacts: string; users: string; announcements: string; events: string; feedback: string; recentLogs: string; settings: string };
-  common: { save: string; cancel: string; confirm: string; delete: string; edit: string; add: string; search: string; loading: string; noData: string; actions: string; close: string; back: string; next: string; yes: string; no: string; or: string; all: string; saving: string; refresh: string; publish: string; create: string; saveChanges: string; addNew: string; noName: string; preview: string; uploading: string; imageUploaded: string; clickToChoose: string; imageFormats: string; previewNotAvailable: string; upload: string; url: string; coverImage: string; noActivity: string; pageOf: string; showing: string; results: string; results_plural: string };
-  settings: { eyebrow: string; title: string; description: string; saveChanges: string; saved: string; tabs: { general: string; preferences: string; appearance: string }; general: { museumName: string; defaultLanguage: string; timezone: string }; preferences: { notifications: string; notificationsDesc: string; compactDensity: string; compactDensityDesc: string }; appearance: { title: string; light: string; dark: string; system: string }; confirmTitle: string; confirmDesc: string; confirmLabel: string; language: { label: string; hint: string } };
-  dashboard: { eyebrow: string; welcome: string; description: string; totalVisitors: string; activeUsers: string; allTimeAccounts: string; activeInLast: string; artifacts: string; withQR: string; online: string; offline: string; systemLive: string; noSession: string; printReport: string; printDashboard: string; visitorTrend: string; lastNDays: string; last30Days: string; last90Days: string; allTime: string; custom: string; from: string; to: string; apply: string; clear: string; showingFrom: string; toLabel: string; today: string; gender: string; male: string; female: string; other: string; unknown: string; ageGroups: string; visitorLocations: string; locationsSubtitle: string; visitorsBy: string; demographics: string; noLocationData: string; unresolvedPH: string; international: string; tourFeedback: string; totalFeedback: string; thisWeek: string; avgTourRating: string; outOf5: string; wouldRecommend: string; yesNo: string; avgArtifactsExplored: string; perVisit: string; feedbackTrend: string; thisMonth: string; ratingDistribution: string; breakdown: string; visitType: string; howHeard: string; recentFeedback: string; noFeedbackYet: string; noDataYet: string; totalFeedbackCount: string; positiveComments: string; negativeComments: string; noWrittenComments: string; howHeardAboutUs: string; artifactsExplored: string };
-  users: { eyebrow: string; title: string; description: string; searchPlaceholder: string; userCount: string; userCount_plural: string; noMatchingUsers: string; noUsersYet: string; tryDifferentSearch: string; addFirstUser: string; addUser: string; editUser: string; updateDetails: string; createAccount: string; table: { user: string; role: string; status: string; joined: string; actions: string }; form: { email: string; passwordNew: string; passwordRequired: string; passwordMin: string; firstName: string; lastName: string; gender: string; selectGender: string; age: string; address: string; addressPlaceholder: string; role: string; status: string }; actions: { edit: string; demote: string; promote: string; activate: string; deactivate: string; delete: string }; createUser: string; removeUser: string; removeConfirm: string; showingPage: string; page: string };
-  announcements: { eyebrow: string; title: string; description: string; newAnnouncement: string; editAnnouncement: string; searchPlaceholder: string; count: string; count_plural: string; noMatchTitle: string; noItemsTitle: string; noItemsDesc: string; modalDesc: string; form: { title: string; dateTime: string; description: string }; badges: { past: string; active: string; hasImage: string }; deleteTitle: string; deleteDesc: string; saving: string; showing: string; page: string };
-  events: { eyebrow: string; title: string; description: string; addEvent: string; editEvent: string; newEvent: string; searchPlaceholder: string; count: string; count_plural: string; noMatchTitle: string; noEventsTitle: string; noEventsDesc: string; modalDesc: string; form: { eventName: string; dateTime: string; description: string }; badges: { past: string; upcoming: string; interested: string }; deleteTitle: string; deleteDesc: string; createEvent: string; saving: string; showing: string; page: string };
-  feedback: { eyebrow: string; title: string; description: string; printReport: string; printFeedback: string; refresh: string; totalSubmissions: string; allTimeFeedback: string; avgRating: string; outOf5: string; wouldRecommend: string; visitorsRecommending: string; thisWeek: string; last7Days: string; searchPlaceholder: string; allRatings: string; allResponses: string; wouldRecommendOption: string; wouldNotRecommend: string; allVisitTypes: string; clearFilters: string; noFeedbackFound: string; adjustFilters: string; table: { date: string; rating: string; visitType: string; recommend: string; artifacts: string; comments: string; sentiment: string }; sentiment: { all: string; positive: string; neutral: string; negative: string }; visitTypes: { solo: string; couple: string; family: string; group: string; school: string }; showing: string; page: string };
-  artifacts: { historicalSignificance: string; historicalSignificancePlaceholder: string };
-  logs: { eyebrow: string; title: string; description: string; refresh: string; noActivity: string; types: { user: string; artifact: string; rating: string; event: string; announcement: string }; filterAll: string; filterType: string; showing: string; page: string };
+  nav: {
+    dashboard: string;
+    artifacts: string;
+    users: string;
+    announcements: string;
+    events: string;
+    feedback: string;
+    recentLogs: string;
+    settings: string;
+  };
+  common: {
+    save: string;
+    cancel: string;
+    confirm: string;
+    delete: string;
+    edit: string;
+    add: string;
+    search: string;
+    loading: string;
+    noData: string;
+    actions: string;
+    close: string;
+    back: string;
+    next: string;
+    yes: string;
+    no: string;
+    or: string;
+    all: string;
+    saving: string;
+    refresh: string;
+    publish: string;
+    create: string;
+    saveChanges: string;
+    addNew: string;
+    noName: string;
+    preview: string;
+    uploading: string;
+    imageUploaded: string;
+    clickToChoose: string;
+    imageFormats: string;
+    previewNotAvailable: string;
+    upload: string;
+    url: string;
+    coverImage: string;
+    noActivity: string;
+    pageOf: string;
+    showing: string;
+    results: string;
+    results_plural: string;
+  };
+  settings: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    saveChanges: string;
+    saved: string;
+    tabs: { general: string; preferences: string; appearance: string };
+    general: { museumName: string; defaultLanguage: string; timezone: string };
+    preferences: {
+      notifications: string;
+      notificationsDesc: string;
+      compactDensity: string;
+      compactDensityDesc: string;
+    };
+    appearance: { title: string; light: string; dark: string; system: string };
+    confirmTitle: string;
+    confirmDesc: string;
+    confirmLabel: string;
+    language: { label: string; hint: string };
+  };
+  dashboard: {
+    eyebrow: string;
+    welcome: string;
+    description: string;
+    totalVisitors: string;
+    activeUsers: string;
+    allTimeAccounts: string;
+    activeInLast: string;
+    artifacts: string;
+    withQR: string;
+    online: string;
+    offline: string;
+    systemLive: string;
+    noSession: string;
+    printReport: string;
+    printDashboard: string;
+    visitorTrend: string;
+    lastNDays: string;
+    last30Days: string;
+    last90Days: string;
+    allTime: string;
+    custom: string;
+    from: string;
+    to: string;
+    apply: string;
+    clear: string;
+    showingFrom: string;
+    toLabel: string;
+    today: string;
+    gender: string;
+    male: string;
+    female: string;
+    other: string;
+    unknown: string;
+    ageGroups: string;
+    visitorLocations: string;
+    locationsSubtitle: string;
+    visitorsBy: string;
+    demographics: string;
+    noLocationData: string;
+    unresolvedPH: string;
+    international: string;
+    tourFeedback: string;
+    totalFeedback: string;
+    thisWeek: string;
+    avgTourRating: string;
+    outOf5: string;
+    wouldRecommend: string;
+    yesNo: string;
+    avgArtifactsExplored: string;
+    perVisit: string;
+    feedbackTrend: string;
+    thisMonth: string;
+    ratingDistribution: string;
+    breakdown: string;
+    visitType: string;
+    howHeard: string;
+    recentFeedback: string;
+    noFeedbackYet: string;
+    noDataYet: string;
+    totalFeedbackCount: string;
+    positiveComments: string;
+    negativeComments: string;
+    noWrittenComments: string;
+    howHeardAboutUs: string;
+    artifactsExplored: string;
+  };
+  users: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    searchPlaceholder: string;
+    userCount: string;
+    userCount_plural: string;
+    noMatchingUsers: string;
+    noUsersYet: string;
+    tryDifferentSearch: string;
+    addFirstUser: string;
+    addUser: string;
+    editUser: string;
+    updateDetails: string;
+    createAccount: string;
+    table: {
+      user: string;
+      role: string;
+      status: string;
+      joined: string;
+      actions: string;
+    };
+    form: {
+      email: string;
+      passwordNew: string;
+      passwordRequired: string;
+      passwordMin: string;
+      firstName: string;
+      lastName: string;
+      gender: string;
+      selectGender: string;
+      age: string;
+      address: string;
+      addressPlaceholder: string;
+      role: string;
+      status: string;
+    };
+    actions: {
+      edit: string;
+      demote: string;
+      promote: string;
+      activate: string;
+      deactivate: string;
+      delete: string;
+    };
+    createUser: string;
+    removeUser: string;
+    removeConfirm: string;
+    showingPage: string;
+    page: string;
+  };
+  announcements: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    newAnnouncement: string;
+    editAnnouncement: string;
+    searchPlaceholder: string;
+    count: string;
+    count_plural: string;
+    noMatchTitle: string;
+    noItemsTitle: string;
+    noItemsDesc: string;
+    modalDesc: string;
+    form: { title: string; dateTime: string; description: string };
+    badges: { past: string; active: string; hasImage: string };
+    deleteTitle: string;
+    deleteDesc: string;
+    saving: string;
+    showing: string;
+    page: string;
+  };
+  events: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    addEvent: string;
+    editEvent: string;
+    newEvent: string;
+    searchPlaceholder: string;
+    count: string;
+    count_plural: string;
+    noMatchTitle: string;
+    noEventsTitle: string;
+    noEventsDesc: string;
+    modalDesc: string;
+    form: { eventName: string; dateTime: string; description: string };
+    badges: { past: string; upcoming: string; interested: string };
+    deleteTitle: string;
+    deleteDesc: string;
+    createEvent: string;
+    saving: string;
+    showing: string;
+    page: string;
+  };
+  feedback: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    printReport: string;
+    printFeedback: string;
+    refresh: string;
+    totalSubmissions: string;
+    allTimeFeedback: string;
+    avgRating: string;
+    outOf5: string;
+    wouldRecommend: string;
+    visitorsRecommending: string;
+    thisWeek: string;
+    last7Days: string;
+    searchPlaceholder: string;
+    allRatings: string;
+    allResponses: string;
+    wouldRecommendOption: string;
+    wouldNotRecommend: string;
+    allVisitTypes: string;
+    clearFilters: string;
+    noFeedbackFound: string;
+    adjustFilters: string;
+    table: {
+      date: string;
+      rating: string;
+      visitType: string;
+      recommend: string;
+      artifacts: string;
+      comments: string;
+      sentiment: string;
+    };
+    sentiment: {
+      all: string;
+      positive: string;
+      neutral: string;
+      negative: string;
+    };
+    visitTypes: {
+      solo: string;
+      couple: string;
+      family: string;
+      group: string;
+      school: string;
+    };
+    showing: string;
+    page: string;
+  };
+  artifacts: {
+    historicalSignificance: string;
+    historicalSignificancePlaceholder: string;
+  };
+  logs: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    refresh: string;
+    noActivity: string;
+    types: {
+      user: string;
+      artifact: string;
+      rating: string;
+      event: string;
+      announcement: string;
+    };
+    filterAll: string;
+    filterType: string;
+    showing: string;
+    page: string;
+  };
 };

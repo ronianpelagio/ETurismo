@@ -6,7 +6,15 @@ import { supabase } from "../services/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type LangCode = "en" | "fil" | "ceb" | "ilo" | "hil" | "ja" | "es" | "ko";
+export type LangCode =
+  | "en"
+  | "fil"
+  | "ceb"
+  | "ilo"
+  | "hil"
+  | "ja"
+  | "es"
+  | "ko";
 
 export interface TranslationResult {
   name_en: string;
@@ -53,7 +61,7 @@ export interface AudioUploadResult {
 
 const LANG_CONFIG = [
   {
-    code: "en"  as const,
+    code: "en" as const,
     label: "English",
     googleCode: "en",
     myMemoryCode: "en-US",
@@ -61,7 +69,7 @@ const LANG_CONFIG = [
     dbName: "name",
     dbHistSig: "historical_significance_en",
     dbAudio: "audio_en",
-    ttsEngine: "azure"  as const,
+    ttsEngine: "azure" as const,
   },
   {
     code: "fil" as const,
@@ -72,7 +80,7 @@ const LANG_CONFIG = [
     dbName: "name_fil",
     dbHistSig: "historical_significance_fil",
     dbAudio: "audio_fil",
-    ttsEngine: "azure"  as const,
+    ttsEngine: "azure" as const,
   },
   {
     code: "ceb" as const,
@@ -83,32 +91,32 @@ const LANG_CONFIG = [
     dbName: "name_ceb",
     dbHistSig: "historical_significance_ceb",
     dbAudio: "audio_ceb",
-    ttsEngine: "gspeak" as const,  // no Azure neural voice for Cebuano
+    ttsEngine: "gspeak" as const, // no Azure neural voice for Cebuano
   },
   {
     code: "ilo" as const,
     label: "Ilocano",
-    googleCode: "tl",              // Google has no Ilocano; translate via Filipino
+    googleCode: "tl", // Google has no Ilocano; translate via Filipino
     myMemoryCode: "ilo-PH",
     dbDesc: "description_ilo",
     dbName: "name_ilo",
     dbHistSig: "historical_significance_ilo",
     dbAudio: "audio_ilo",
-    ttsEngine: "gspeak" as const,  // no Azure neural voice for Ilocano
+    ttsEngine: "gspeak" as const, // no Azure neural voice for Ilocano
   },
   {
     code: "hil" as const,
     label: "Hiligaynon",
-    googleCode: "tl",              // Google has no Hiligaynon; translate via Filipino
+    googleCode: "tl", // Google has no Hiligaynon; translate via Filipino
     myMemoryCode: "hil-PH",
     dbDesc: "description_hil",
     dbName: "name_hil",
     dbHistSig: "historical_significance_hil",
     dbAudio: "audio_hil",
-    ttsEngine: "gspeak" as const,  // no Azure neural voice for Hiligaynon
+    ttsEngine: "gspeak" as const, // no Azure neural voice for Hiligaynon
   },
   {
-    code: "ja"  as const,
+    code: "ja" as const,
     label: "Japanese",
     googleCode: "ja",
     myMemoryCode: "ja-JP",
@@ -116,10 +124,10 @@ const LANG_CONFIG = [
     dbName: "name_ja",
     dbHistSig: "historical_significance_ja",
     dbAudio: "audio_ja",
-    ttsEngine: "azure"  as const,
+    ttsEngine: "azure" as const,
   },
   {
-    code: "es"  as const,
+    code: "es" as const,
     label: "Spanish",
     googleCode: "es",
     myMemoryCode: "es-ES",
@@ -127,10 +135,10 @@ const LANG_CONFIG = [
     dbName: "name_es",
     dbHistSig: "historical_significance_es",
     dbAudio: "audio_es",
-    ttsEngine: "azure"  as const,
+    ttsEngine: "azure" as const,
   },
   {
-    code: "ko"  as const,
+    code: "ko" as const,
     label: "Korean",
     googleCode: "ko",
     myMemoryCode: "ko-KR",
@@ -138,7 +146,7 @@ const LANG_CONFIG = [
     dbName: "name_ko",
     dbHistSig: "historical_significance_ko",
     dbAudio: "audio_ko",
-    ttsEngine: "azure"  as const,
+    ttsEngine: "azure" as const,
   },
 ] as const;
 
@@ -154,7 +162,9 @@ export async function translateAllLanguages(
   sourceHistSig?: string,
 ): Promise<TranslationResult> {
   if (!sourceName.trim()) {
-    throw new Error("Source name is empty. Please enter an English name first.");
+    throw new Error(
+      "Source name is empty. Please enter an English name first.",
+    );
   }
   if (!sourceDesc.trim()) {
     throw new Error(
@@ -297,7 +307,10 @@ export async function translateAllLanguages(
       (result as any)[lang.dbDesc] = desc;
       console.log(`✅ ${lang.label} description:`, desc.substring(0, 100));
     } catch (err: any) {
-      console.error(`Failed to translate ${lang.label} description:`, err.message);
+      console.error(
+        `Failed to translate ${lang.label} description:`,
+        err.message,
+      );
       (result as any)[lang.dbDesc] = sourceDesc;
     }
 
@@ -306,9 +319,15 @@ export async function translateAllLanguages(
       try {
         const histSig = await translateFull(sourceHistSig, lang.googleCode);
         (result as any)[lang.dbHistSig] = histSig;
-        console.log(`✅ ${lang.label} historical significance:`, histSig.substring(0, 100));
+        console.log(
+          `✅ ${lang.label} historical significance:`,
+          histSig.substring(0, 100),
+        );
       } catch (err: any) {
-        console.error(`Failed to translate ${lang.label} historical significance:`, err.message);
+        console.error(
+          `Failed to translate ${lang.label} historical significance:`,
+          err.message,
+        );
         (result as any)[lang.dbHistSig] = sourceHistSig;
       }
     }
@@ -377,7 +396,10 @@ export async function generateAndSaveAllAudio(
       results.push({ lang: lang.code, url: audioMarker });
       onStep?.(`✓ ${lang.label} audio ready`);
     } catch (err: any) {
-      console.warn(`[generateAndSaveAllAudio] ${lang.label} skipped:`, err.message);
+      console.warn(
+        `[generateAndSaveAllAudio] ${lang.label} skipped:`,
+        err.message,
+      );
     }
   }
 

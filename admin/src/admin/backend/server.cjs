@@ -22,14 +22,14 @@ const PORT = process.env.PORT || 5000;
 // ceb (Bisaya), ilo (Ilocano), hil (Hiligaynon) fall back to Filipino (tl)
 // because Google TTS has no dedicated voice for these PH dialects.
 const LANG_MAP = {
-  en:  "en",
+  en: "en",
   fil: "fil",
-  ceb: "fil",   // Bisaya — use Filipino voice
-  ilo: "fil",   // Ilocano — use Filipino voice
-  hil: "fil",   // Hiligaynon — use Filipino voice
-  ja:  "ja",
-  es:  "es",
-  ko:  "ko",
+  ceb: "fil", // Bisaya — use Filipino voice
+  ilo: "fil", // Ilocano — use Filipino voice
+  hil: "fil", // Hiligaynon — use Filipino voice
+  ja: "ja",
+  es: "es",
+  ko: "ko",
 };
 
 // Voice options for each language
@@ -95,26 +95,26 @@ const VOICE_OPTIONS = {
 };
 
 const DEFAULT_VOICE = {
-  en:  "en-US-Standard-A",
+  en: "en-US-Standard-A",
   fil: "fil-PH-Standard-A",
   ceb: "fil-PH-Standard-A",
   ilo: "fil-PH-Standard-A",
   hil: "fil-PH-Standard-A",
-  ja:  "ja-JP-Standard-A",
-  es:  "es-ES-Standard-A",
-  ko:  "ko-KR-Standard-A",
+  ja: "ja-JP-Standard-A",
+  es: "es-ES-Standard-A",
+  ko: "ko-KR-Standard-A",
 };
 
 // Map language to database language_code (used in artifact_translations table)
 const COLUMN_MAP = {
-  en:  "en",
+  en: "en",
   fil: "fil",
   ceb: "ceb",
   ilo: "ilo",
   hil: "hil",
-  ja:  "ja",
-  es:  "es",
-  ko:  "ko",
+  ja: "ja",
+  es: "es",
+  ko: "ko",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,7 +168,12 @@ function sanitizeDescription(text, lang = "en") {
       /[^\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\s\.\,\!\\?\!]/g,
       " ",
     );
-  } else if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") {
+  } else if (
+    lang === "fil" ||
+    lang === "ceb" ||
+    lang === "ilo" ||
+    lang === "hil"
+  ) {
     // Filipino and PH dialects: keep letters with diacritics
     sanitized = sanitized.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ\.,!?]/g, " ");
   } else if (lang === "es") {
@@ -278,7 +283,12 @@ function cleanDescription(text, lang = "en", options = {}) {
       );
     } else if (lang === "ko") {
       cleaned = cleaned.replace(/[^\uac00-\ud7af\s\.\,\!\\?\!]/g, " ");
-    } else if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") {
+    } else if (
+      lang === "fil" ||
+      lang === "ceb" ||
+      lang === "ilo" ||
+      lang === "hil"
+    ) {
       cleaned = cleaned.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ\.,!?'-]/g, " ");
       cleaned = cleaned.replace(/[^a-zA-Z\s\.\,\!\\?'-]/g, " ");
     }
@@ -480,7 +490,9 @@ app.post("/generate-audio", async (req, res) => {
 
     let dbError;
     if (existingTx) {
-      console.log(`Updating existing translation ${existingTx.id} with audio_url`);
+      console.log(
+        `Updating existing translation ${existingTx.id} with audio_url`,
+      );
       ({ error: dbError } = await supabase
         .from("artifact_translations")
         .update({ audio_url: audioUrl })
@@ -493,7 +505,7 @@ app.post("/generate-audio", async (req, res) => {
         .insert({
           artifact_id: artifactId,
           language_code: langCode,
-          name: fallbackName,       // satisfies NOT NULL
+          name: fallbackName, // satisfies NOT NULL
           description: cleanText,
           audio_url: audioUrl,
         }));
