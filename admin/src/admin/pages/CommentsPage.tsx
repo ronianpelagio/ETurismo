@@ -1,15 +1,3 @@
-/**
- * CommentsPage
- *
- * Admin view for all artifact_comments pulled from Supabase.
- *
- * Features wired in:
- *  1. Sentiment analysis  — badge on every comment, run client-side
- *  2. Sentiment filter    — toolbar pills: All / Positive / Neutral / Negative
- *  3. Local dialect translation — per-comment translate button (Tagalog, Cebuano, Ilocano)
- *  4. Print / export report — "Print Report" button calls window.print()
- */
-
 import React, { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
