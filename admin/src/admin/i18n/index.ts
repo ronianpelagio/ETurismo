@@ -37,18 +37,21 @@ function savedLang(): AdminLangCode {
   return "en";
 }
 
-i18n.use(initReactI18next).init({
-  lng: savedLang(),
-  fallbackLng: "en",
-  interpolation: {
-    // React already escapes values
-    escapeValue: false,
-  },
-  resources: {
-    en: { translation: en },
-    fil: { translation: fil },
-  },
-});
+export const i18nReady: Promise<void> = i18n
+  .use(initReactI18next)
+  .init({
+    lng: savedLang(),
+    fallbackLng: "en",
+    interpolation: {
+      // React already escapes values
+      escapeValue: false,
+    },
+    resources: {
+      en: { translation: en },
+      fil: { translation: fil },
+    },
+  })
+  .then(() => undefined);
 
 /** Persist and switch the active language. */
 export function setAdminLanguage(code: AdminLangCode) {
