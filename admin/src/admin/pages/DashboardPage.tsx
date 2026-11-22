@@ -1093,7 +1093,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       {/* Section label */}
                       <div className="mb-2 flex items-center gap-1.5">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          🌍 International
+                          Other Countries
                         </span>
                         <span className="text-[10px] text-muted-foreground">
                           ({intlTotal.toLocaleString()})
@@ -1103,7 +1103,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       {/* Scrollable list — max ~5 rows visible */}
                       <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                         {intlRows.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No international visitors</p>
+                          <p className="text-xs text-muted-foreground italic">No other countries visitors</p>
                         ) : (
                           intlRows.map((row, idx) => {
                             const pct = intlTotal > 0 ? Math.round((row.count / intlTotal) * 100) : 0;
