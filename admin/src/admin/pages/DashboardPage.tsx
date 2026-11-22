@@ -29,7 +29,6 @@ import {
   clusterLocations,
   topRegions,
   shortRegionLabel,
-
 } from "../utils/locationClusters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -988,7 +987,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 ) : (
                   /* Split: left = PH, right = International, divided by a vertical border */
                   <div className="flex divide-x divide-border">
-
                     {/* ── Left: Philippine Regions ── */}
                     <div className="flex-1 min-w-0 px-4 pb-4 pt-1">
                       {/* Section label */}
@@ -1004,7 +1002,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       {/* Scrollable list — max ~5 rows visible */}
                       <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                         {phRows.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No data</p>
+                          <p className="text-xs text-muted-foreground italic">No data available</p>
                         ) : (
                           phRows.map((row, idx) => {
                             const pct = phTotal > 0 ? Math.round((row.count / phTotal) * 100) : 0;

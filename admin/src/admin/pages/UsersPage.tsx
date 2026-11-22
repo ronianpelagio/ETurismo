@@ -7,7 +7,6 @@ import {
   Plus,
   ShieldCheck,
   ShieldOff,
-  UserCog,
   Trash2,
   Pencil,
 } from "lucide-react";
@@ -38,7 +37,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const ROLES = ["user", "admin"] as const;
 const STATUSES = ["active", "inactive"] as const;
 const GENDERS = ["Male", "Female", "Other"] as const;
 const USERS_PER_PAGE = 10;
@@ -51,7 +49,6 @@ const emptyForm = {
   gender: "" as string,
   age: "" as string,
   address: "",
-  role: "user",
   status: "active",
 };
 
@@ -123,7 +120,6 @@ export default function UsersPage() {
       gender: u.gender ?? "",
       age: u.age?.toString() ?? "",
       address: u.Address ?? "",
-      role: u.role ?? "user",
       status: u.status ?? "active",
     });
     setError(null);
@@ -202,15 +198,6 @@ export default function UsersPage() {
           address: form.address.trim() || null,
         });
 
-        // Role
-        if (form.role !== (editItem.role ?? "user")) {
-          await manageUser({
-            action: "set-role",
-            userId: editItem.id,
-            role: form.role,
-          });
-        }
-
         // Status
         if (form.status !== (editItem.status ?? "active")) {
           await manageUser({
@@ -248,7 +235,6 @@ export default function UsersPage() {
 
           address: form.address.trim() || null,
 
-          role: form.role,
           status: form.status,
         });
       }
@@ -313,29 +299,6 @@ export default function UsersPage() {
       setSaving(false);
     }
   };
-  const toggleRole = async (u: AdminUser) => {
-    setSaving(true);
-    setError(null);
-
-    try {
-      const newRole = u.role === "admin" ? "user" : "admin";
-
-      await manageUser({
-        action: "set-role",
-        userId: u.id,
-        role: newRole,
-      });
-
-      await load();
-    } catch (err: any) {
-      console.error("Role update failed:", err);
-
-      setError(err?.message || "Failed to update user role.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const getFullName = (user: AdminUser) => {
     if (user.first_name && user.last_name) {
       return `${user.first_name} ${user.last_name}`;
@@ -499,15 +462,6 @@ export default function UsersPage() {
                           <DropdownMenuItem onClick={() => openEdit(u)}>
                             <Pencil className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("users.actions.edit")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => toggleRole(u)}
-                            disabled={saving}
-                          >
-                            <UserCog className="mr-2 h-3.5 w-3.5" />
-                            {u.role === "admin"
-                              ? t("users.actions.demote")
-                              : t("users.actions.promote")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => toggleStatus(u)}
@@ -715,25 +669,7 @@ export default function UsersPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t("users.form.role")}</Label>
-              <Select
-                value={form.role}
-                onValueChange={(v) => setForm({ ...form, role: v })}
-              >
-                <SelectTrigger className="h-10 rounded-xl bg-muted/40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-1 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">{t("users.form.status")}</Label>
               <Select
