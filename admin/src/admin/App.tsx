@@ -5,7 +5,6 @@ import { AdminUser } from "./types";
 import Sidebar from "./components/Sidebar";
 import LoginPage from "./pages/LoginPage";
 import SearchBar from "./components/SearchBar";
-import NotificationDropdown from "./components/NotificationDropdown";
 import { ChevronRight, Loader2, Menu, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -262,7 +261,6 @@ export default function App() {
                 onNavigate={handleSelect}
               />
               <ThemeToggle />
-              <NotificationDropdown />
             </div>
           </header>
 
