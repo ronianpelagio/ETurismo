@@ -21,10 +21,8 @@ import { LocationFields, LocationValue } from '../../../features/auth/components
 
 export default function PersonalInfo({
   navigation,
-  onMapVisibilityChange,
 }: {
   navigation: any;
-  onMapVisibilityChange?: (visible: boolean) => void;
 }) {
   const { theme } = useAppTheme();
   const [profile, setProfile] = useState<any>(null);
@@ -185,7 +183,6 @@ export default function PersonalInfo({
               <LocationFields
                 value={location}
                 onChange={setLocation}
-                onMapVisibilityChange={onMapVisibilityChange}
               />
               <EditField label="Email address" value={profile?.email || ''} colors={colors} editable={false} />
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>

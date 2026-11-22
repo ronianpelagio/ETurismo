@@ -21,10 +21,8 @@ const Stack = createNativeStackNavigator();
 
 export default function SettingsStack({
   setNavbarVisible,
-  onMapVisibilityChange,
 }: {
   setNavbarVisible?: (v: boolean) => void;
-  onMapVisibilityChange?: (visible: boolean) => void;
 }) {
   return (
     <Stack.Navigator
@@ -45,7 +43,6 @@ export default function SettingsStack({
         {(props) => (
           <PersonalInfo
             {...props}
-            onMapVisibilityChange={onMapVisibilityChange}
           />
         )}
       </Stack.Screen>

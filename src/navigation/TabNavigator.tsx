@@ -138,7 +138,7 @@ export default function TabNavigator() {
             <View key="1"><Announcements setNavbarVisible={setNavbarVisible} /></View>
             <View key="2"><QRScanner setNavbarVisible={setNavbarVisible} isActive={index === 2} /></View>
             <View key="3"><Events setNavbarVisible={setNavbarVisible} /></View>
-            <View key="4"><SettingsStack setNavbarVisible={setNavbarVisible} onMapVisibilityChange={setMapOpen} /></View>
+            <View key="4"><SettingsStack setNavbarVisible={setNavbarVisible} /></View>
           </PagerView>
 
           {index !== 0 && <StatusBar style="dark" />}

@@ -692,8 +692,6 @@ export default function SignUp({
     } else {
       if (!location.stateRegion.trim()) {
         e.location = 'Enter your state or region';
-      } else if (!location.cityText.trim()) {
-        e.location = 'Enter your city';
       }
     }
 
