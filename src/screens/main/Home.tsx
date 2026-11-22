@@ -1115,9 +1115,9 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
   }, []);
 
   // Keep the bell badge in sync with the same per-item state shown in the panel.
+  // Only announcements and events (published after signup) count toward the badge.
   useEffect(() => {
     const notificationIds = [
-      ...artifacts.map(artifact => `artifact_${artifact.id}`),
       ...announcements
         .filter(announcement =>
           wasPublishedAfterSignup(announcement.created_at, user?.created_at),
@@ -1132,7 +1132,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
         id => !notifReadIds.has(id) && !notifDismissedIds.has(id),
       ).length,
     );
-  }, [artifacts, announcements, events, user?.created_at, notifReadIds, notifDismissedIds]);
+  }, [announcements, events, user?.created_at, notifReadIds, notifDismissedIds]);
 
   // ── Exhibition Spotlight state ──
   const [spotlightIndex, setSpotlightIndex] = useState(0);
@@ -2749,13 +2749,11 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       ══════════════════════════════════════════════════════ */}
       {showNotifPanel && (() => {
         const TYPE_META = {
-          artifact:     { icon: 'cube-outline'      as const, label: 'New Artifact',  color: C.gold,    bg: `${C.gold}18`    },
           announcement: { icon: 'megaphone-outline' as const, label: 'Announcement',  color: '#A0640A', bg: 'rgba(160,100,10,0.10)' },
           event:        { icon: 'calendar-outline'  as const, label: 'Event',         color: '#085041', bg: 'rgba(8,80,65,0.10)'    },
         };
 
-        const allItems: { id: string; type: 'artifact'|'announcement'|'event'; title: string; subtitle: string; ts: number; raw: any }[] = [
-          ...artifacts.map(a => ({ id: `artifact_${a.id}`,     type: 'artifact'     as const, title: a.name,    subtitle: a.category,                       ts: new Date(a.created_at).getTime(),                                                              raw: a })),
+        const allItems: { id: string; type: 'announcement'|'event'; title: string; subtitle: string; ts: number; raw: any }[] = [
           ...announcements
             .filter(a => wasPublishedAfterSignup(a.created_at, user?.created_at))
             .map(a => ({ id: `announcement_${a.id}`, type: 'announcement' as const, title: a.title, subtitle: (a as any).description?.slice(0,72) ?? '', ts: new Date((a as any).created_at).getTime(), raw: a })),
@@ -2865,9 +2863,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                             return s;
                           });
                           closeNotifPanel();
-                          if (item.type === 'artifact') {
-                            setTimeout(() => setSelectedArtifact(item.raw), 400);
-                          } else if (item.type === 'announcement') {
+                          if (item.type === 'announcement') {
                             setTimeout(() => onGoAnnouncements?.(), 400);
                           } else {
                             setTimeout(() => onGoEvents?.(), 400);
@@ -2895,11 +2891,7 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
                           alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                           overflow: 'hidden',
                         }}>
-                          {item.type === 'artifact' && item.raw.image_url ? (
-                            <Image source={{ uri: item.raw.image_url }} style={{ width: 36, height: 36, borderRadius: 10 }} resizeMode="cover" />
-                          ) : (
-                            <Ionicons name={meta.icon} size={17} color={meta.color} />
-                          )}
+                          <Ionicons name={meta.icon} size={17} color={meta.color} />
                         </View>
 
                         {/* Text */}

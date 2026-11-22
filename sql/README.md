@@ -16,6 +16,7 @@ Every script is **idempotent** — safe to re-run on an existing database withou
 | 3 | `03_location_clustering.sql` | Adds performance indexes on `country` + `province`; documents the location columns | After enabling the visitor-region chart |
 | 4 | `04_sentiment_cache.sql` | Adds nullable `sentiment` column to `artifact_comments` and `tour_feedback` | After enabling sentiment analysis |
 | 5 | `05_storage_and_indexes.sql` | Creates `artifact-images` / `artifact-audio` storage buckets, their RLS policies, and query-performance indexes | After base schema |
+| 6 | `06_cover_photo.sql` | Adds the nullable `cover_photo` column to `users` for profile banner images (reuses the `profile-pictures` bucket) | Before enabling cover photos in the Profile screen |
 
 ---
 

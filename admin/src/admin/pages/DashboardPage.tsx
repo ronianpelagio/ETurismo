@@ -29,7 +29,7 @@ import {
   clusterLocations,
   topRegions,
   shortRegionLabel,
-  topCountriesInRegion,
+
 } from "../utils/locationClusters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ const defaultStats: DashboardStats = {
 };
 
 const defaultDemographics: DashboardDemographicsType = {
-  gender: { male: 0, female: 0, other: 0, unknown: 0 },
+  gender: { male: 0, female: 0, other: 0 },
   ageGroups: {
     "13-17": 0,
     "18-24": 0,
@@ -77,7 +77,6 @@ const defaultDemographics: DashboardDemographicsType = {
     "45-54": 0,
     "55-64": 0,
     "65+": 0,
-    unknown: 0,
   },
   locations: {},
 };
@@ -245,13 +244,23 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
   // ── Location clustering ─────────────────────────────────────────────────────
   const clustered = clusterLocations(demographics.locations);
   const regionRows = topRegions(clustered, 10, true);
-  const regionChartData = regionRows.map((r) => ({
-    region: shortRegionLabel(r.region),
-    fullRegion: r.region,
-    count: r.count,
-    type: r.type,
-    countries: r.countries,
-  }));
+
+  // ── Split demographics data ──────────────────────────────────────────────────
+  // PH regions sorted by count
+  const phRows = Object.entries(clustered.regions)
+    .map(([region, count]) => ({ region, count }))
+    .sort((a, b) => b.count - a.count);
+  const phTotal = phRows.reduce((s, r) => s + r.count, 0);
+
+  // International: flatten all countries from all sub-regions, listed individually
+  const intlRows: { country: string; subRegion: string; count: number }[] = [];
+  for (const [subRegion, data] of Object.entries(clustered.international)) {
+    for (const [country, count] of Object.entries(data.countries)) {
+      intlRows.push({ country, subRegion, count });
+    }
+  }
+  intlRows.sort((a, b) => b.count - a.count);
+  const intlTotal = intlRows.reduce((s, r) => s + r.count, 0);
 
   return (
     <div>
@@ -328,7 +337,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                   { label: "Male", value: demographics.gender.male },
                   { label: "Female", value: demographics.gender.female },
                   { label: "Other", value: demographics.gender.other },
-                  { label: "Unknown", value: demographics.gender.unknown },
                 ].map((r) => {
                   const pct = genderTotal
                     ? Math.round((r.value / genderTotal) * 100)
@@ -880,11 +888,6 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       value: demographics.gender.other,
                       total: genderTotal,
                     },
-                    {
-                      label: t("dashboard.unknown"),
-                      value: demographics.gender.unknown,
-                      total: genderTotal,
-                    },
                   ]}
                 />
               )}
@@ -942,10 +945,11 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
           </Card>
         </div>
 
-        {/* ── Visitor Regions Clustering Chart ─────────────────────────────── */}
-        {regionRows.length > 0 && (
+        {/* ── Visitor Demographics — Split Card (PH | International) ─────────── */}
+        {(phRows.length > 0 || intlRows.length > 0) && (
           <div className="mt-4">
-            <Card className="rounded-2xl border-border bg-card">
+            <Card className="rounded-2xl border-border bg-card overflow-hidden">
+              {/* Card header */}
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -965,151 +969,204 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                       {t("dashboard.unresolvedPH")}
                     </Badge>
                   )}
-                  {Object.keys(clustered.international).length > 0 && (
+                  {intlRows.length > 0 && (
                     <Badge
                       variant="outline"
                       className="rounded-full border-border text-[10px] text-muted-foreground"
                     >
-                      {Object.values(clustered.international).reduce(
-                        (s, g) => s + g.total,
-                        0,
-                      )}{" "}
-                      {t("dashboard.international")}
+                      {intlTotal} {t("dashboard.international")}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="pt-2 pb-4 px-4">
+
+              <CardContent className="p-0">
                 {loading ? (
-                  <Skeleton className="h-[260px] w-full rounded-xl" />
+                  <div className="px-4 pb-4">
+                    <Skeleton className="h-[260px] w-full rounded-xl" />
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {regionChartData.map((item, idx) => {
-                      const regionTotal = regionChartData.reduce(
-                        (s, r) => s + r.count,
-                        0,
-                      );
-                      const pct =
-                        regionTotal > 0
-                          ? Math.round((item.count / regionTotal) * 100)
-                          : 0;
-                      const opacity =
-                        1 - (idx / Math.max(regionChartData.length, 1)) * 0.55;
-                      const isIntl = item.type === "international";
-                      return (
-                        <div key={item.region} className="group">
-                          <div className="mb-1 flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span
-                                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
-                                style={{
-                                  backgroundColor:
-                                    theme === "dark"
-                                      ? `rgba(242,242,242,${opacity * 0.18})`
-                                      : `rgba(15,23,42,${opacity * 0.1})`,
-                                  color:
-                                    theme === "dark" ? "#F2F2F2" : "#0f172a",
-                                }}
-                              >
-                                {idx + 1}
-                              </span>
-                              <div className="min-w-0">
-                                <span
-                                  className="truncate text-xs font-medium text-foreground"
-                                  title={item.fullRegion}
-                                >
-                                  {item.region}
-                                </span>
-                                {isIntl && item.countries && (
-                                  <p className="truncate text-[10px] text-muted-foreground">
-                                    {topCountriesInRegion(item.countries, 3)
-                                      .map((c) => c.country)
-                                      .join(", ")}
-                                  </p>
-                                )}
+                  /* Split: left = PH, right = International, divided by a vertical border */
+                  <div className="flex divide-x divide-border">
+
+                    {/* ── Left: Philippine Regions ── */}
+                    <div className="flex-1 min-w-0 px-4 pb-4 pt-1">
+                      {/* Section label */}
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          🇵🇭 Philippine Regions
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({phTotal.toLocaleString()})
+                        </span>
+                      </div>
+
+                      {/* Scrollable list — max ~5 rows visible */}
+                      <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                        {phRows.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">No data</p>
+                        ) : (
+                          phRows.map((row, idx) => {
+                            const pct = phTotal > 0 ? Math.round((row.count / phTotal) * 100) : 0;
+                            const opacity = 1 - (idx / Math.max(phRows.length, 1)) * 0.55;
+                            return (
+                              <div key={row.region} className="group">
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
+                                      style={{
+                                        backgroundColor:
+                                          theme === "dark"
+                                            ? `rgba(242,242,242,${opacity * 0.18})`
+                                            : `rgba(15,23,42,${opacity * 0.1})`,
+                                        color: theme === "dark" ? "#F2F2F2" : "#0f172a",
+                                      }}
+                                    >
+                                      {idx + 1}
+                                    </span>
+                                    <span
+                                      className="truncate text-xs font-medium text-foreground"
+                                      title={row.region}
+                                    >
+                                      {shortRegionLabel(row.region)}
+                                    </span>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1.5">
+                                    <span className="text-xs tabular-nums font-semibold text-foreground">
+                                      {row.count.toLocaleString()}
+                                    </span>
+                                    <span className="w-7 text-right text-[11px] tabular-nums text-muted-foreground">
+                                      {pct}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{
+                                      duration: 0.7,
+                                      ease: "easeOut",
+                                      delay: idx * 0.04,
+                                    }}
+                                    className="h-full rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        theme === "dark"
+                                          ? `rgba(242,242,242,${0.3 + opacity * 0.7})`
+                                          : `rgba(15,23,42,${0.15 + opacity * 0.85})`,
+                                    }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              {isIntl && (
-                                <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                                  intl
-                                </span>
-                              )}
-                              <span className="text-xs tabular-nums font-semibold text-foreground">
-                                {item.count.toLocaleString()}
-                              </span>
-                              <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">
-                                {pct}%
-                              </span>
-                            </div>
-                          </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-muted">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{
-                                duration: 0.7,
-                                ease: "easeOut",
-                                delay: idx * 0.04,
-                              }}
-                              className="h-full rounded-full"
-                              style={{
-                                backgroundColor: isIntl
-                                  ? theme === "dark"
-                                    ? `rgba(99,179,237,${0.3 + opacity * 0.7})`
-                                    : `rgba(49,130,206,${0.2 + opacity * 0.8})`
-                                  : theme === "dark"
-                                    ? `rgba(242,242,242,${0.3 + opacity * 0.7})`
-                                    : `rgba(15,23,42,${0.15 + opacity * 0.85})`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {clustered.unknownPhilippines > 0 &&
-                      (() => {
-                        const regionTotal =
-                          regionChartData.reduce((s, r) => s + r.count, 0) +
-                          clustered.unknownPhilippines;
-                        const pct =
-                          regionTotal > 0
-                            ? Math.round(
-                                (clustered.unknownPhilippines / regionTotal) *
-                                  100,
-                              )
-                            : 0;
-                        return (
-                          <div className="mt-1 border-t border-dashed border-border pt-3">
-                            <div className="mb-1 flex items-center justify-between gap-3">
+                            );
+                          })
+                        )}
+
+                        {/* Unknown PH footer */}
+                        {clustered.unknownPhilippines > 0 && (
+                          <div className="border-t border-dashed border-border pt-2">
+                            <div className="mb-1 flex items-center justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-2">
                                 <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold bg-muted text-muted-foreground">
                                   ?
                                 </span>
                                 <span className="truncate text-xs text-muted-foreground italic">
-                                  Philippines (location not yet resolved)
+                                  Unresolved
                                 </span>
                               </div>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <span className="text-xs tabular-nums font-medium text-muted-foreground">
-                                  {clustered.unknownPhilippines.toLocaleString()}
-                                </span>
-                                <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">
-                                  {pct}%
-                                </span>
-                              </div>
+                              <span className="text-xs tabular-nums text-muted-foreground">
+                                {clustered.unknownPhilippines.toLocaleString()}
+                              </span>
                             </div>
                             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pct}%` }}
-                                transition={{ duration: 0.7, ease: "easeOut" }}
-                                className="h-full rounded-full bg-muted-foreground/30"
-                              />
+                              <div className="h-full rounded-full bg-muted-foreground/30" style={{ width: `${phTotal + clustered.unknownPhilippines > 0 ? Math.round((clustered.unknownPhilippines / (phTotal + clustered.unknownPhilippines)) * 100) : 0}%` }} />
                             </div>
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── Right: International Countries ── */}
+                    <div className="flex-1 min-w-0 px-4 pb-4 pt-1">
+                      {/* Section label */}
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          🌍 International
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({intlTotal.toLocaleString()})
+                        </span>
+                      </div>
+
+                      {/* Scrollable list — max ~5 rows visible */}
+                      <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                        {intlRows.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">No international visitors</p>
+                        ) : (
+                          intlRows.map((row, idx) => {
+                            const pct = intlTotal > 0 ? Math.round((row.count / intlTotal) * 100) : 0;
+                            const opacity = 1 - (idx / Math.max(intlRows.length, 1)) * 0.55;
+                            return (
+                              <div key={`${row.country}-${idx}`} className="group">
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
+                                      style={{
+                                        backgroundColor:
+                                          theme === "dark"
+                                            ? `rgba(242,242,242,${opacity * 0.18})`
+                                            : `rgba(15,23,42,${opacity * 0.1})`,
+                                        color: theme === "dark" ? "#F2F2F2" : "#0f172a",
+                                      }}
+                                    >
+                                      {idx + 1}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="truncate text-xs font-medium text-foreground">
+                                        {row.country}
+                                      </span>
+                                      <p className="truncate text-[10px] text-muted-foreground">
+                                        {row.subRegion}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1.5">
+                                    <span className="text-xs tabular-nums font-semibold text-foreground">
+                                      {row.count.toLocaleString()}
+                                    </span>
+                                    <span className="w-7 text-right text-[11px] tabular-nums text-muted-foreground">
+                                      {pct}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{
+                                      duration: 0.7,
+                                      ease: "easeOut",
+                                      delay: idx * 0.04,
+                                    }}
+                                    className="h-full rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        theme === "dark"
+                                          ? `rgba(242,242,242,${0.3 + opacity * 0.7})`
+                                          : `rgba(15,23,42,${0.15 + opacity * 0.85})`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
                   </div>
                 )}
               </CardContent>

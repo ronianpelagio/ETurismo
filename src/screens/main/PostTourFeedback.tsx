@@ -197,9 +197,10 @@ interface Props {
   totalArtifacts: number;
   userId?: string;
   onClose: () => void;
+  onDismissWithoutSubmit: () => void;
 }
 
-export default function PostTourFeedback({ visible, totalArtifacts, userId, onClose }: Props) {
+export default function PostTourFeedback({ visible, totalArtifacts, userId, onClose, onDismissWithoutSubmit }: Props) {
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const C = buildC(theme);
@@ -242,7 +243,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
     Animated.parallel([
       Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 350, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-    ]).start(() => onClose());
+    ]).start(() => onDismissWithoutSubmit());
   };
 
   const toggleHeardFrom = (key: string) => {
@@ -377,12 +378,10 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
       onRequestClose={dismiss}
       statusBarTranslucent
     >
-      {/* Backdrop */}
+      {/* Backdrop — no dismiss on tap, user must submit or use the X button */}
       <Animated.View
         style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,8,6,0.80)', opacity: fadeAnim }]}
-      >
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={dismiss} activeOpacity={1} />
-      </Animated.View>
+      />
 
       {/* Sheet */}
       <Animated.View
@@ -392,7 +391,12 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
         ]}
       >
         {step === 'success' ? (
-          <SuccessView onClose={dismiss} C={C} />
+          <SuccessView onClose={() => {
+              Animated.parallel([
+                Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 350, useNativeDriver: true }),
+                Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+              ]).start(() => onClose());
+            }} C={C} />
         ) : (
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -566,12 +570,7 @@ export default function PostTourFeedback({ visible, totalArtifacts, userId, onCl
                   )}
                 </TouchableOpacity>
 
-                {/* Skip */}
-                <TouchableOpacity onPress={dismiss} activeOpacity={0.6} style={{ alignItems: 'center', marginTop: 14 }}>
-                  <Text style={{ fontSize: 13, color: C.inkLight, textDecorationLine: 'underline' }}>
-                    Skip for now
-                  </Text>
-                </TouchableOpacity>
+
               </View>
             </ScrollView>
           </KeyboardAvoidingView>

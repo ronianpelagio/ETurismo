@@ -194,7 +194,7 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   const rows = Array.isArray(rowsResponse) ? rowsResponse : [];
 
   const result: DashboardDemographics = {
-    gender: { male: 0, female: 0, other: 0, unknown: 0 },
+    gender: { male: 0, female: 0, other: 0 },
     ageGroups: {
       "13-17": 0,
       "18-24": 0,
@@ -203,7 +203,6 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
       "45-54": 0,
       "55-64": 0,
       "65+": 0,
-      unknown: 0,
     },
     locations: {},
   };
@@ -212,8 +211,7 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
     const gender = String(row.gender ?? "").toLowerCase();
     if (gender === "male" || gender === "m") result.gender.male += 1;
     else if (gender === "female" || gender === "f") result.gender.female += 1;
-    else if (gender) result.gender.other += 1;
-    else result.gender.unknown += 1;
+    else result.gender.other += 1;
 
     // schema provides `age` as an integer; bucket into groups
     const ageVal = typeof row.age === "number" ? row.age : Number(row.age);
@@ -225,8 +223,6 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
       else if (ageVal < 55) result.ageGroups["45-54"] += 1;
       else if (ageVal < 65) result.ageGroups["55-64"] += 1;
       else result.ageGroups["65+"] += 1;
-    } else {
-      result.ageGroups.unknown += 1;
     }
 
     // Bucket by country — for Philippines also show province for finer granularity

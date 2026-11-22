@@ -24,7 +24,6 @@ import type { Artifact, ArtifactTranslation } from '../../features/artifacts/typ
 import { ARTIFACT_CATEGORY_IMAGES } from '../../features/artifacts/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TOUR_FEEDBACK_ARTIFACT_THRESHOLD = 3;
 
 // ─── SACRED HERITAGE THEME TOKENS ──────────────────────────────────────────────
 function buildC(t: typeof THEMES[keyof typeof THEMES]) {
@@ -1313,18 +1312,15 @@ export default function QRScanner({
     }
   };
 
-  // Dismissing details unlocks tour feedback at the threshold; otherwise
-  // go straight to cooldown (rating prompt removed).
+  // Dismissing the artifact detail always shows the feedback modal until
+  // the user has submitted — no scan threshold needed anymore.
   const reset = (scanAgain = false) => {
     scanAgainAfterRatingRef.current = scanAgain;
     setArtifact(null);
     setScanned(false);
     setScanError(null);
 
-    if (
-      scannedArtifacts.length >= TOUR_FEEDBACK_ARTIFACT_THRESHOLD &&
-      !alreadySubmittedFeedbackRef.current
-    ) {
+    if (!alreadySubmittedFeedbackRef.current) {
       setShowFeedback(true);
       return;
     }
@@ -1538,9 +1534,16 @@ export default function QRScanner({
         totalArtifacts={totalArtifacts}
         userId={user?.id}
         onClose={() => {
+          // Only called after a successful submission — mark done and resume.
           alreadySubmittedFeedbackRef.current = true;
           setAlreadySubmittedFeedback(true);
           setShowFeedback(false);
+          resumeAfterRating(scanAgainAfterRatingRef.current);
+        }}
+        onDismissWithoutSubmit={() => {
+          // User closed without submitting — just resume camera, keep showing next scan.
+          setShowFeedback(false);
+          resumeAfterRating(scanAgainAfterRatingRef.current);
         }}
       />
 

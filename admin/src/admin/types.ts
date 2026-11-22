@@ -158,7 +158,6 @@ export type DashboardDemographics = {
     male: number;
     female: number;
     other: number;
-    unknown: number;
   };
   ageGroups: {
     "13-17": number;
@@ -168,7 +167,6 @@ export type DashboardDemographics = {
     "45-54": number;
     "55-64": number;
     "65+": number;
-    unknown: number;
   };
   locations: Record<string, number>;
 };

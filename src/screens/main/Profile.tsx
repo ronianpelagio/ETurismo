@@ -50,6 +50,7 @@ type UserProfile = {
   last_name: string;
   email: string;
   profile_picture: string | null;
+  cover_photo: string | null;
 };
 
 
@@ -109,6 +110,10 @@ export default function Profile({
   // Avatar
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Cover
+  const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Animation
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -191,6 +196,7 @@ export default function Profile({
             );
 
             setAvatarUri(updated.profile_picture || null);
+            setCoverUri(updated.cover_photo || null);
           }
         )
         .subscribe(status => {
@@ -251,7 +257,7 @@ export default function Profile({
       } = await supabase
         .from('users')
         .select(
-          'id, first_name, last_name, email, profile_picture'
+          'id, first_name, last_name, email, profile_picture, cover_photo'
         )
         .eq('id', auth.id)
         .single();
@@ -263,6 +269,7 @@ export default function Profile({
       if (data) {
         setUser(data);
         setAvatarUri(data.profile_picture || null);
+        setCoverUri(data.cover_photo || null);
       }
     } catch (error: any) {
       console.warn(
@@ -625,6 +632,267 @@ export default function Profile({
 
 
   // ───────────────────────────────────────────────────────────────────────────
+  // COVER
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async function handlePickCover() {
+    if (uploadingCover) return;
+
+    try {
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [16, 9],
+          quality: 0.85,
+        });
+
+      if (
+        result.canceled ||
+        !result.assets?.length
+      ) {
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+
+      await uploadCover(uri);
+    } catch (error: any) {
+      console.warn(
+        '[Profile] Cover picker:',
+        error?.message
+      );
+
+      Alert.alert(
+        'Photo Error',
+        'Unable to open your photo library.'
+      );
+    }
+  }
+
+
+  async function uploadCover(uri: string) {
+    setUploadingCover(true);
+
+    try {
+      const {
+        data: { user: auth },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!auth) {
+        throw new Error('Not authenticated');
+      }
+
+      // Resize/compress before upload.
+      // Cover photos are landscape, so keep a 16:9 crop.
+      const resized =
+        await ImageManipulator.manipulateAsync(
+          uri,
+          [
+            {
+              resize: {
+                width: 1080,
+                height: 608,
+              },
+            },
+          ],
+          {
+            compress: 0.82,
+            format:
+              ImageManipulator.SaveFormat.JPEG,
+          }
+        );
+
+      const fileName =
+        `${auth.id}/cover.jpg`;
+
+      const response =
+        await fetch(resized.uri);
+
+      const imageData =
+        await response.arrayBuffer();
+
+      // Upload to Storage (same bucket/folder policy as the avatar)
+      const {
+        error: uploadError,
+      } = await supabase.storage
+        .from('profile-pictures')
+        .upload(
+          fileName,
+          imageData,
+          {
+            upsert: true,
+            contentType: 'image/jpeg',
+          }
+        );
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get URL
+      const { data: urlData } =
+        supabase.storage
+          .from('profile-pictures')
+          .getPublicUrl(fileName);
+
+      const publicUrl =
+        `${urlData.publicUrl}?v=${Date.now()}`;
+
+      // Update profile
+      const {
+        error: updateError,
+      } = await supabase
+        .from('users')
+        .update({
+          cover_photo: publicUrl,
+        })
+        .eq('id', auth.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setCoverUri(publicUrl);
+
+      setUser(prev =>
+        prev
+          ? {
+              ...prev,
+              cover_photo: publicUrl,
+            }
+          : prev
+      );
+    } catch (error: any) {
+      console.warn(
+        '[Profile] Cover upload:',
+        error?.message
+      );
+
+      Alert.alert(
+        'Upload Failed',
+        error?.message ||
+          'Could not save your cover photo. Please try again.'
+      );
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+
+  function handleCoverPress() {
+    if (uploadingCover) return;
+
+    Alert.alert(
+      'Cover Photo',
+      'Choose an option',
+      [
+        {
+          text: coverUri
+            ? 'Change Photo'
+            : 'Add Photo',
+          onPress: handlePickCover,
+        },
+
+        ...(coverUri
+          ? [
+              {
+                text: 'Remove Photo',
+                style: 'destructive' as const,
+                onPress: removeCover,
+              },
+            ]
+          : []),
+
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }
+
+
+  async function removeCover() {
+    setUploadingCover(true);
+
+    try {
+      const {
+        data: { user: auth },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+
+      if (!auth) {
+        throw new Error('Not authenticated');
+      }
+
+      const fileName =
+        `${auth.id}/cover.jpg`;
+
+      // Remove Storage object.
+      // Ignore "not found" style failures because the
+      // database value is the important part.
+      const {
+        error: storageError,
+      } = await supabase.storage
+        .from('profile-pictures')
+        .remove([fileName]);
+
+      if (storageError) {
+        console.warn(
+          '[Profile] Cover storage removal:',
+          storageError.message
+        );
+      }
+
+      const {
+        error: updateError,
+      } = await supabase
+        .from('users')
+        .update({
+          cover_photo: null,
+        })
+        .eq('id', auth.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setCoverUri(null);
+
+      setUser(prev =>
+        prev
+          ? {
+              ...prev,
+              cover_photo: null,
+            }
+          : prev
+      );
+    } catch (error: any) {
+      console.warn(
+        '[Profile] Remove cover:',
+        error?.message
+      );
+
+      Alert.alert(
+        'Unable to Remove Photo',
+        error?.message ||
+          'Please try again.'
+      );
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+
+  // ───────────────────────────────────────────────────────────────────────────
   // INITIALS
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -757,6 +1025,32 @@ export default function Profile({
       height: 1,
       backgroundColor:
         'rgba(199,168,75,0.20)',
+    },
+
+    // ── Cover ────────────────────────────────────────────────────────────────
+
+    coverImg: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+
+    coverBtn: {
+      position: 'absolute',
+      top: 12,
+      left: 16,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor:
+        'rgba(255,255,255,0.07)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor:
+        'rgba(255,255,255,0.12)',
     },
 
     // ── Settings ─────────────────────────────────────────────────────────────
@@ -1216,12 +1510,35 @@ export default function Profile({
         {/* ────────────────────────────────────────────────────────────────── */}
 
         <View style={s.hero}>
+          {/* Cover background (behind everything) */}
+
+          {coverUri ? (
+            <Image
+              source={{
+                uri: coverUri,
+              }}
+              style={s.coverImg}
+              resizeMode="cover"
+            />
+          ) : null}
+
+          {/* Gradient: dark scrim over the cover when one is set,
+              otherwise the base gradient */}
+
           <LinearGradient
-            colors={[
-              '#1E1B17',
-              '#29241E',
-              '#342D24',
-            ]}
+            colors={
+              coverUri
+                ? [
+                    'rgba(12,10,8,0.68)',
+                    'rgba(18,15,12,0.55)',
+                    'rgba(26,22,18,0.82)',
+                  ]
+                : [
+                    '#1E1B17',
+                    '#29241E',
+                    '#342D24',
+                  ]
+            }
             start={{
               x: 0,
               y: 0,
@@ -1236,6 +1553,34 @@ export default function Profile({
           <View style={s.heroOrb1} />
           <View style={s.heroOrb2} />
           <View style={s.heroGoldLine} />
+
+          {/* Cover photo control (top-left) */}
+
+          <TouchableOpacity
+            style={s.coverBtn}
+            onPress={handleCoverPress}
+            activeOpacity={0.7}
+            disabled={uploadingCover}
+            accessibilityRole="button"
+            accessibilityLabel={
+              coverUri
+                ? 'Edit cover photo'
+                : 'Add cover photo'
+            }
+          >
+            {uploadingCover ? (
+              <ActivityIndicator
+                size="small"
+                color="rgba(255,255,255,0.85)"
+              />
+            ) : (
+              <Ionicons
+                name="image-outline"
+                size={17}
+                color="rgba(255,255,255,0.75)"
+              />
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={s.settingsBtn}
