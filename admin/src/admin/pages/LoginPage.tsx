@@ -43,9 +43,11 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
         className="relative w-full max-w-md rounded-[2rem] border border-border bg-card/90 p-7 shadow-[0_40px_80px_-28px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-9"
       >
         <div className="mb-7 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background text-base font-bold tracking-tight">
-            E
-          </div>
+          <img
+            src="/logo.png"
+            alt="ETurismo"
+            className="h-10 w-10 rounded-xl object-contain"
+          />
           <div>
             <div className="text-sm font-semibold text-foreground">
               ETurismo

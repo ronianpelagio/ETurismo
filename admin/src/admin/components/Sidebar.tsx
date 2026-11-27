@@ -71,9 +71,11 @@ export default function Sidebar({
           collapsed && "justify-center px-0",
         )}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background text-[13px] font-bold tracking-tight shadow-sm ring-1 ring-background/20">
-          E
-        </div>
+        <img
+          src="/logo.png"
+          alt="ETurismo"
+          className="h-9 w-9 shrink-0 rounded-xl object-contain"
+        />
         {!collapsed && (
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-foreground">
