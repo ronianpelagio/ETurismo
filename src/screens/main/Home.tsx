@@ -2403,10 +2403,6 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
       {selectedArtifact !== null && (
         <Animated.View style={[styles.modalWrap, { opacity: modalOpacity }]}>
           <TouchableOpacity style={styles.modalBackdrop} onPress={handleModalClose} activeOpacity={1} />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={0}
-          >
           <Animated.View style={[styles.modalSheet, { transform: [{ translateY: modalSlide }] }]}>
             <View style={styles.modalHandle} />
             <TouchableOpacity
@@ -2418,6 +2414,11 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
             >
               <Ionicons name="close" size={18} color={C.inkMid} />
             </TouchableOpacity>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior="padding"
+              keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 10 : 0}
+            >
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
               {selectedArtifact.image_url && (
                 <View style={styles.modalHero}>
@@ -2739,8 +2740,8 @@ export default function HomeScreen({ setNavbarVisible, isActive, onOpenScanner, 
               )}
               {!selectedDiscovered && <View style={{ height: 40 + insets.bottom }} />}
             </ScrollView>
+            </KeyboardAvoidingView>
           </Animated.View>
-          </KeyboardAvoidingView>
         </Animated.View>
       )}
 

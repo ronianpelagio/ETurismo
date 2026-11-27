@@ -49,6 +49,7 @@ const querySafe = async <T>(fn: () => Promise<T>) => {
 
 export async function fetchDashboardStats(
   fromDate?: string,
+  toDate?: string,
 ): Promise<DashboardStats> {
   const [
     artifacts,
@@ -93,11 +94,13 @@ export async function fetchDashboardStats(
       const start = fromDate
         ? new Date(fromDate).toISOString()
         : new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
+      let q = supabase
         .from("users")
         .select("created_at")
         .gte("created_at", start)
         .order("created_at", { ascending: true });
+      if (toDate) q = q.lte("created_at", toDate + "T23:59:59");
+      const { data, error } = await q;
       if (error) throw error;
       return data as Array<{ created_at?: string | null }>;
     }),

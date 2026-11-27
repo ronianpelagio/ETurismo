@@ -186,7 +186,7 @@ export default function FeedbackPage() {
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
-  const fetchFeedback = useCallback(async () => {
+  const fetchFeedback = useCallback(async (dateRange?: PrintRange | null) => {
     setLoading(true);
     setError(null);
     try {
@@ -202,6 +202,12 @@ export default function FeedbackPage() {
       if (filter.recommend !== null)
         query = query.eq("would_recommend", filter.recommend);
       if (filter.visitType) query = query.eq("visit_type", filter.visitType);
+
+      // Apply date range from print modal when present
+      if (dateRange) {
+        query = query.gte("submitted_at", dateRange.from);
+        query = query.lte("submitted_at", dateRange.to + "T23:59:59");
+      }
 
       const { data, error: qErr } = await query;
       if (qErr) throw qErr;
@@ -909,9 +915,11 @@ export default function FeedbackPage() {
         open={showPrintModal}
         title={t("feedback.printFeedback")}
         onClose={() => setShowPrintModal(false)}
-        onPrint={(range) => {
+        onPrint={async (range) => {
           setPrintRange(range);
           setShowPrintModal(false);
+          // Re-fetch rows filtered to the chosen date range, then print
+          await fetchFeedback(range);
           setTimeout(() => window.print(), 100);
         }}
       />

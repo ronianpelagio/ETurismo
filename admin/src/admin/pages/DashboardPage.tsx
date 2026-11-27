@@ -148,12 +148,12 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         ? customFrom
         : getFromDate(rangePreset);
 
-  const load = useCallback(async (from?: string) => {
+  const load = useCallback(async (from?: string, to?: string) => {
     setLoading(true);
     setError(null);
     try {
       const [s, d, f] = await Promise.all([
-        fetchDashboardStats(from),
+        fetchDashboardStats(from, to),
         fetchUserDemographics(),
         fetchTourFeedbackStats(),
       ]);
@@ -591,10 +591,11 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
         open={showPrintModal}
         title={t("dashboard.printDashboard")}
         onClose={() => setShowPrintModal(false)}
-        onPrint={(range) => {
+        onPrint={async (range) => {
           setPrintRange(range);
           setShowPrintModal(false);
-          // Allow one render cycle so the print header updates before printing
+          // Re-fetch dashboard stats filtered to the chosen date range, then print
+          await load(range.from, range.to);
           setTimeout(() => window.print(), 100);
         }}
       />

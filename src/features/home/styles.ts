@@ -529,6 +529,7 @@ export function getStyles(C: ReturnType<typeof buildC>) {
       borderTopLeftRadius: 28, borderTopRightRadius: 28,
       overflow: 'hidden', maxHeight: SCREEN_HEIGHT * 0.93,
       borderTopWidth: 1, borderColor: C.border,
+      flex: 1,
     },
     modalHero: { width: '100%', height: 260, position: 'relative' },
     modalHeroImg: { width: '100%', height: '100%' },
